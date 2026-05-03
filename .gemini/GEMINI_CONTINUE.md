@@ -9,6 +9,7 @@ Gemini CLI is stopped. Codex performed a repair pass after audit.
 - `01f7119 fix(server): align diamond restriction with world state`
 - `72cb7f5 fix(events): add json driven guardian event executor`
 - `0300ac4 fix(server): send diamond restriction title notice`
+- `21170c9 fix(config): align runtime defaults with spec json`
 
 ## Current Status
 
