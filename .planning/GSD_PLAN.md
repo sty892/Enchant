@@ -33,7 +33,12 @@
 - **Status:** DONE
 
 ## Module 4 — Keyholes
-- **Status:** TODO
+- **Goal:** Implement 8 keyhole blocks to unlock boss arenas.
+- **Files to change:** ModBlocks, KeyholeBlock, KeyholeBlockEntity.
+- **Acceptance criteria:** Blocks registered, common module compiles.
+- **Test commands:** `./gradlew :common:compileJava`, `./gradlew build`
+- **Commit message:** `feat(block): add keyhole blocks foundation`
+- **Status:** DONE
 
 ## Module 6 — Diamond restriction system
 - **Status:** TODO
