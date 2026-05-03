@@ -2,6 +2,7 @@ package me.guardian.server;
 
 import me.guardian.GuardianMod;
 import me.guardian.config.ConfigManager;
+import me.guardian.event.GuardianBossEventHooks;
 import me.guardian.event.GuardianEventExecutor;
 import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
@@ -18,6 +19,8 @@ public final class GuardianModServer implements ModInitializer {
         ConfigManager.initialize();
         BossEventManager.initialize();
         DiamondRestrictionHandler.initialize();
+        GuardianBossEventHooks.setSpawnHook(BossEventManager::triggerOnSpawn);
+        GuardianBossEventHooks.setDeathHook(BossEventManager::triggerOnDeath);
         GuardianEventExecutor.setExecutor((level, eventData, center, source) -> {
             if (level instanceof ServerLevel serverLevel) {
                 BossEventSystem.executeEvent(serverLevel, eventData, center, source, java.util.Collections.emptyMap());

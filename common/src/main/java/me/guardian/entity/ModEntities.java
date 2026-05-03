@@ -1,6 +1,7 @@
 package me.guardian.entity;
 
 import me.guardian.GuardianMod;
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -24,6 +25,7 @@ public class ModEntities {
     );
 
     public static void initialize() {
+        FabricDefaultAttributeRegistry.register(OVERWORLD_GUARDIAN, OverworldGuardianEntity.createAttributes());
         GuardianMod.LOGGER.info("Registering entities for " + GuardianMod.MOD_ID);
     }
 }
