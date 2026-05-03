@@ -2,6 +2,7 @@ package me.guardian;
 
 import me.guardian.block.ModBlocks;
 import me.guardian.config.ConfigManager;
+import me.guardian.entity.ModEntities;
 import me.guardian.item.ModItems;
 import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
@@ -19,6 +20,7 @@ public final class GuardianMod implements ModInitializer {
         ConfigManager.initialize();
         ModItems.initialize();
         ModBlocks.initialize();
+        ModEntities.initialize();
 
         PayloadTypeRegistry.playC2S().register(HandshakeC2SPayload.TYPE, HandshakeC2SPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(HandshakeOkS2CPayload.TYPE, HandshakeOkS2CPayload.CODEC);

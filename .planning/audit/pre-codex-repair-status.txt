@@ -1,0 +1,17 @@
+﻿## git status --short
+ M build.gradle
+ M common/src/main/java/me/guardian/GuardianMod.java
+ M common/src/main/java/me/guardian/block/KeyholeBlock.java
+ M common/src/main/java/me/guardian/block/ModBlocks.java
+ M common/src/main/java/me/guardian/block/entity/AltarBlockEntity.java
+ M common/src/main/java/me/guardian/block/entity/KeyholeBlockEntity.java
+?? .planning/audit/
+?? common/src/main/java/me/guardian/entity/
+?? server/src/main/java/me/guardian/server/event/
+?? server/src/main/java/me/guardian/server/state/
+
+## untracked source files
+common/src/main/java/me/guardian/entity/ModEntities.java
+common/src/main/java/me/guardian/entity/OverworldGuardianEntity.java
+server/src/main/java/me/guardian/server/event/BossEventSystem.java
+server/src/main/java/me/guardian/server/state/GuardianWorldState.java
