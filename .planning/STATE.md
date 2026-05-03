@@ -1,23 +1,32 @@
-# Guardian Mod Foundation State
+# Guardian Mod State
 
-## Completed in this pass
+## Current Head
 
-- Project identity aligned to `guardian_mod` with package root `me.guardian`.
-- Common, client, and server Fabric metadata use separate mod ids.
-- Build uses Minecraft 1.21.11, Fabric Loader 0.16.9, Fabric API 0.141.1+1.21.11, GeckoLib 5.4.5, Java 21, official Mojang mappings, and Fabric Loom 1.15.4.
-- Skeleton common class, client class, and server class registered in entrypoints.
-- Config Loader ready to read simple JSON structures from runtime directory without relying on complex external config libraries.
-- Gradle upgraded to 9.2.1, Loom upgraded to 1.15.4, restoring `modImplementation` for Fabric API and GeckoLib, resolving previous mappings issues.
-- Module 2: Client/Server Handshake implemented using Fabric Networking API. Mod presence detection and 5-second timeout logic added to client.
-- Module 5: 8 Keys (`key_1` to `key_8`) and 3 Fragments (`fragment_overworld`, `fragment_nether`, `fragment_generic`) implemented and added to a custom creative tab.
-- Module 3: 5 Altar blocks (`altar_core`, `altar_speed`, `altar_protection`, `altar_damage`, `altar_recovery`) registered with `AltarBlockEntity` foundation for fragment storage.
-- Module 4: 8 Keyhole blocks (`keyhole_1` to `keyhole_8`) registered for boss arena unlocking.
-- Module 6: Diamond equipment restriction implemented via Server-side Mixin. Players are forced to drop/unequip diamond items unless they have a `fragment_generic` in their inventory.
-- Module 7: Boss Event System foundation implemented. `BossEventManager` loads configurations for overworld, nether, and generic bosses from the config directory.
+- `72cb7f5 fix(events): add json driven guardian event executor`
+
+## Repair Pass Completed
+
+- Safety backup artifacts were written to `.planning/audit/` before changing the dirty Gemini worktree.
+- Build was stabilized for Minecraft 1.21.11 / Fabric Loader 0.16.9 / Fabric API 0.141.1+1.21.11 / GeckoLib 5.4.5 / Loom 1.15.4 / Gradle 9.2.1.
+- Removed tracked `classpath.txt`, local `ReadZip.class`, the temporary `inspectGeckoLib` task, and the machine-specific `org.gradle.java.home` setting.
+- Module 3 repaired: altar upgrade blocks are block-entity blocks and `AltarBlockEntity` persists `ownerUuid`, `fragment`, `isActive`, and `ritualTicks` with 1.21.11 APIs.
+- Module 4 repaired: there is one `guardian_mod:keyhole` with stage 0..8, sequential key insertion from `keys_config.json`, item consumption, and shared event executor calls.
+- Module 6 repaired: diamond restriction uses `GuardianWorldState.overworldBossDefeated`, runtime `guardian_config.json` whitelist/config, block-break cancel, and 20-tick inventory scan. The old `fragment_generic` restriction mixin was removed.
+- Module 7 foundation repaired: `BossEventSystem` is a reusable JSON executor used by boss manager entrypoints and keyhole events. `StructureSpawner.place` is currently a non-crashing Module 12 placeholder.
+
+## Verification
+
+- `./gradlew :common:compileJava --stacktrace` passes.
+- `./gradlew build --stacktrace` passes.
 
 ## Architectural Mandates
-- Do NOT merge client and server source sets; keep `common`, `client`, `server` completely isolated.
-- Avoid introducing transitive API libraries (like MidnightLib, AutoConfig) unless specifically allowed. Use simple POJO JSON parsing with GSON.
-- Never strip GeckoLib dependencies in `fabric.mod.json`; they are required runtime dependencies.
-- Add a real server-side boss hitbox entity that is visible through vanilla debug hitbox rendering.
-- Keep model, texture, and animation delivery server-authoritative; client jar should only contain a fallback if required.
+
+- Keep `common`, `client`, and `server` modules isolated.
+- Keep package root `me.guardian`.
+- Keep configs runtime-loaded from `config/guardian_mod`.
+- Do not put real boss models, textures, or animations in the client jar.
+- Structure placement must be completed in Module 12 before claiming final SPEC completion.
+
+## Next Module
+
+- Module 8 - Overworld Guardian.

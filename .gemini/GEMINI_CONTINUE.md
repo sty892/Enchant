@@ -1,10 +1,23 @@
-# Gemini Continue
+# Continue Notes
 
-Module 7 (Boss event system) foundation is DONE.
-`BossEventManager` implemented in `server` module to load boss configurations from JSON files.
-Manager initialized in `GuardianModServer.java`.
+Gemini CLI is stopped. Codex performed a repair pass after audit.
 
-Next Module: Module 8 (Overworld Guardian).
-I will implement the `OverworldGuardianEntity` using GeckoLib for animations.
-This entity will use the `boss_overworld.json` configuration for its behavior and death events.
-I'll need to set up the entity registration, renderer (on client), and basic AI logic.
+## Latest Repair Commits
+
+- `4d91e6a fix(build): stabilize current gemini worktree`
+- `101aeaf fix(blocks): align altar and keyhole foundations with spec`
+- `01f7119 fix(server): align diamond restriction with world state`
+- `72cb7f5 fix(events): add json driven guardian event executor`
+
+## Current Status
+
+- `./gradlew :common:compileJava --stacktrace` passes.
+- `./gradlew build --stacktrace` passes.
+- Module 3 block foundation is aligned with SPEC; full altar ritual remains Module 11.
+- Module 4 is aligned with SPEC: one staged `guardian_mod:keyhole`, `keys_config.json`, item consumption, and shared event executor callbacks.
+- Module 6 is aligned with SPEC foundation: world-state unlock, UUID whitelist, ore break cancel, and 20-tick inventory scan. The old `fragment_generic` unlock was removed.
+- Module 7 executor foundation is present and JSON-driven. `spawn_structure` calls `StructureSpawner.place`, which is a Module 12 placeholder. `play_animation` is a placeholder/hook.
+
+## Next Module
+
+Module 8 - Overworld Guardian.

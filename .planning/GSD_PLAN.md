@@ -1,78 +1,68 @@
 # GSD Plan - Guardian Mod
 
-## Module 1 — Project setup verification
+## Module 1 - Project setup verification
 - **Goal:** Verify foundation corresponds to SPEC, remove old packages, ensure clean project structure.
-- **Files to change:** Delete any `me.sty892.enchant` packages.
 - **Acceptance criteria:** `me.guardian` is the only package, mod IDs are correct, build passes.
 - **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
-- **Commit message:** `chore(gsd): verify foundation against specification`
 - **Status:** DONE
 
-## Module 2 — Client/server handshake
+## Module 2 - Client/server handshake
 - **Goal:** Implement client-server handshake to disable client features on vanilla servers.
-- **Files to change:** ModState, Network packets, GuardianModClient, GuardianModServer, GuardianMod.
 - **Acceptance criteria:** ModState fields added, payload packets sent/received, timeout logic works, singleplayer bypassed.
 - **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
-- **Commit message:** `feat(network): add client server handshake`
 - **Status:** DONE
 
-## Module 5 — Items
-- **Goal:** Implement 8 keys and 3 boss fragments with textures and creative tab.
-- **Files to change:** ModItems, GuardianMod.
+## Module 5 - Items
+- **Goal:** Implement 8 keys and 3 boss fragments with stack size 1 and testing creative tab.
 - **Acceptance criteria:** Items registered, creative tab functional, stack size 1.
-- **Test commands:** `./gradlew :common:compileJava`, `./gradlew build`
-- **Commit message:** `feat(item): add keys and fragments`
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
 - **Status:** DONE
 
-## Module 3 — Altar blocks
-- **Goal:** Implement 5 altar blocks and their BlockEntity to store fragments.
-- **Files to change:** ModBlocks, AltarBlock, AltarBlockEntity, GuardianMod.
-- **Acceptance criteria:** Blocks registered, BlockEntity skeleton ready, common module compiles.
-- **Test commands:** `./gradlew :common:compileJava`, `./gradlew build`
-- **Commit message:** `feat(block): add altar blocks and blockentity foundation`
+## Module 3 - Altar blocks
+- **Goal:** Implement 5 altar blocks and `AltarBlockEntity` fragment storage.
+- **Acceptance criteria:** 4 upgrade altar blocks are block entity blocks; `altar_core` is a normal block for now; `AltarBlockEntity` stores `ownerUuid`, `fragment`, `isActive`, `ritualTicks` with 1.21.11 NBT persistence.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Repair commit:** `101aeaf fix(blocks): align altar and keyhole foundations with spec`
+- **Status:** DONE for Module 3 block foundation. Full ritual behavior remains Module 11 TODO.
+
+## Module 4 - Keyholes
+- **Goal:** Implement one staged keyhole block.
+- **Acceptance criteria:** One block id `guardian_mod:keyhole`; `IntegerProperty STAGE` range 0..8; right-click reads `keys_config.json`, consumes sequential matching keys, updates stage, invokes shared event executor for `on_insert` and `on_all_inserted`.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Repair commit:** `101aeaf fix(blocks): align altar and keyhole foundations with spec`
 - **Status:** DONE
 
-## Module 4 — Keyholes
-- **Goal:** Implement 8 keyhole blocks to unlock boss arenas.
-- **Files to change:** ModBlocks, KeyholeBlock, KeyholeBlockEntity.
-- **Acceptance criteria:** Blocks registered, common module compiles.
-- **Test commands:** `./gradlew :common:compileJava`, `./gradlew build`
-- **Commit message:** `feat(block): add keyhole blocks foundation`
+## Module 6 - Diamond restriction system
+- **Goal:** Restrict diamond acquisition until Overworld Guardian defeat.
+- **Acceptance criteria:** `GuardianWorldState` stores `overworldBossDefeated` and `netherBossDefeated`; restriction unlocks only from world state; `guardian_config.json` controls enable flag and UUID whitelist; diamond ore/deepslate diamond ore break is canceled; inventories are scanned every 20 server ticks and diamond items are removed.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Repair commit:** `01f7119 fix(server): align diamond restriction with world state`
 - **Status:** DONE
 
-## Module 6 — Diamond restriction system
-- **Goal:** Prevent diamond equipment usage without generic boss fragment.
-- **Files to change:** DiamondRestrictionMixin (server), guardian_mod_server.mixins.json.
-- **Acceptance criteria:** Mixin injected into LivingEntity.tick, diamond items ejected if fragment missing.
-- **Test commands:** `./gradlew build`
-- **Commit message:** `feat(mechanics): add diamond equipment restriction`
-- **Status:** DONE
+## Module 7 - JSON-driven boss event system
+- **Goal:** Implement reusable JSON event executor for boss and keyhole events.
+- **Acceptance criteria:** Executor supports `world_border_expand`, `spawn_structure`, `spawn_structure_offset`, `give_fragment`, `set_flag`, `allow_diamonds`, `broadcast_title`, and `play_animation` placeholder/hook. Boss manager exposes on-spawn/on-death trigger methods. Keyholes reuse the same executor bridge.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Repair commit:** `72cb7f5 fix(events): add json driven guardian event executor`
+- **Status:** FOUNDATION. Structure placement is a non-crashing placeholder until Module 12; animation is a placeholder/hook as required.
 
-## Module 7 — JSON-driven boss event system
-- **Goal:** Implement the logic for boss encounters driven by external configuration.
-- **Files to change:** BossEventManager, GuardianModServer.
-- **Acceptance criteria:** Configs loaded, manager initialized, system ready for boss entities.
-- **Test commands:** `./gradlew build`
-- **Commit message:** `feat(boss): add boss event system foundation`
-- **Status:** DONE
-
-## Module 8 — Overworld Guardian
+## Module 8 - Overworld Guardian
 - **Status:** TODO
 
-## Module 9 — Nether Guardian
+## Module 9 - Nether Guardian
 - **Status:** TODO
 
-## Module 10 — Generic Boss
+## Module 10 - Generic Boss
 - **Status:** TODO
 
-## Module 11 — Altar ritual logic
+## Module 11 - Altar ritual logic
 - **Status:** TODO
 
-## Module 12 — Structures
+## Module 12 - Structures
 - **Status:** TODO
 
-## Module 13 — Server resourcepack + fallback
+## Module 13 - Server resourcepack + fallback
 - **Status:** TODO
 
-## Module 14 — Commands + finalization
+## Module 14 - Commands + finalization
 - **Status:** TODO
