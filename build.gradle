@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.10-SNAPSHOT' apply false
+    id 'fabric-loom' version '1.15.4' apply false
     id 'maven-publish'
 }
 
@@ -28,8 +28,8 @@ subprojects {
         minecraft "com.mojang:minecraft:${project.minecraft_version}"
         mappings loom.officialMojangMappings()
         modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-        compileOnly "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-        compileOnly "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+        modImplementation "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
     }
 
     processResources {
