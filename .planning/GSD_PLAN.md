@@ -25,7 +25,12 @@
 - **Status:** DONE
 
 ## Module 3 — Altar blocks
-- **Status:** TODO
+- **Goal:** Implement 5 altar blocks and their BlockEntity to store fragments.
+- **Files to change:** ModBlocks, AltarBlock, AltarBlockEntity, GuardianMod.
+- **Acceptance criteria:** Blocks registered, BlockEntity skeleton ready, common module compiles.
+- **Test commands:** `./gradlew :common:compileJava`, `./gradlew build`
+- **Commit message:** `feat(block): add altar blocks and blockentity foundation`
+- **Status:** DONE
 
 ## Module 4 — Keyholes
 - **Status:** TODO
