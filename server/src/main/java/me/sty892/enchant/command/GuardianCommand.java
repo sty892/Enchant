@@ -11,11 +11,14 @@ import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.mob.HostileEntity;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Collection;
@@ -52,15 +55,32 @@ public class GuardianCommand {
     }
 
     private static int spawnBoss(ServerCommandSource source, String bossId) {
-        // Simple spawn logic for now
-        source.sendFeedback(() -> Text.literal("Попытка спавна босса: " + bossId), true);
-        return 1;
+        ServerWorld world = source.getWorld();
+        BlockPos pos = BlockPos.ofFloored(source.getPosition());
+        
+        EntityType<?> type = Registries.ENTITY_TYPE.get(Identifier.of(bossId));
+        if (type != null && type.create(world) instanceof HostileEntity boss) {
+            boss.refreshPositionAndAngles(pos, 0, 0);
+            world.spawnEntity(boss);
+            source.sendFeedback(() -> Text.literal("Босс " + bossId + " заспавнен!"), true);
+            return 1;
+        }
+        
+        source.sendError(Text.literal("Неизвестный тип босса: " + bossId));
+        return 0;
     }
 
     private static int killAllBosses(ServerCommandSource source) {
-        // Kill logic
-        source.sendFeedback(() -> Text.literal("Все боссы уничтожены"), true);
-        return 1;
+        int count = 0;
+        for (ServerWorld world : source.getServer().getWorlds()) {
+            for (Entity entity : world.getEntitiesByClass(HostileEntity.class, world.getWorldBorder().asVoxelShape().getBoundingBox(), e -> Registries.ENTITY_TYPE.getId(e.getType()).getNamespace().equals("guardian_mod"))) {
+                entity.kill();
+                count++;
+            }
+        }
+        final int finalCount = count;
+        source.sendFeedback(() -> Text.literal("Уничтожено боссов: " + finalCount), true);
+        return count;
     }
 
     private static int addToWhitelist(ServerCommandSource source, Collection<ServerPlayerEntity> players) {

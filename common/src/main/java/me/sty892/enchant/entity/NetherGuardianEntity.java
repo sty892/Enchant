@@ -21,10 +21,33 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
+import me.sty892.enchant.entity.ai.FireballBarrageGoal;
+import me.sty892.enchant.entity.ai.TeleportBehindGoal;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.goal.*;
+import net.minecraft.entity.attribute.DefaultAttributeContainer;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.mob.HostileEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.world.World;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.BiConsumer;
+
 public class NetherGuardianEntity extends HostileEntity implements GeoEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> damageContributors = new HashMap<>();
     public static BiConsumer<NetherGuardianEntity, ServerWorld> deathCallback;
+
+    private boolean phase50Reached = false;
+    private boolean phase25Reached = false;
 
     public NetherGuardianEntity(EntityType<? extends HostileEntity> entityType, World world) {
         super(entityType, world);
@@ -44,8 +67,43 @@ public class NetherGuardianEntity extends HostileEntity implements GeoEntity {
     protected void initGoals() {
         this.goalSelector.add(1, new SwimGoal(this));
         this.goalSelector.add(2, new LookAtEntityGoal(this, PlayerEntity.class, 8.0f));
-        this.goalSelector.add(3, new MeleeAttackGoal(this, 1.2, false));
-        // Additional goals (FireballBarrage, TeleportBehind) will be added
+        this.goalSelector.add(3, new MeleeAttackGoal(this, 1.2, false) {
+            @Override
+            public boolean attack(LivingEntity target, double squaredDistance) {
+                boolean result = super.attack(target, squaredDistance);
+                if (result) {
+                    target.setOnFireFor(5);
+                }
+                return result;
+            }
+        });
+        this.goalSelector.add(4, new FireballBarrageGoal(this, 160)); // 8s cooldown
+        this.goalSelector.add(5, new TeleportBehindGoal(this));
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (!getWorld().isClient) {
+            checkPhases();
+        }
+    }
+
+    private void checkPhases() {
+        float healthPercent = getHealth() / getMaxHealth();
+
+        if (healthPercent <= 0.50f && !phase50Reached) {
+            phase50Reached = true;
+            this.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, 60, 0));
+            // Fire pillars logic would go here
+        }
+
+        if (healthPercent <= 0.25f && !phase25Reached) {
+            phase25Reached = true;
+            for (LivingEntity entity : getWorld().getEntitiesByClass(LivingEntity.class, getBoundingBox().expand(10.0), e -> e != this)) {
+                entity.addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, 200, 1));
+            }
+        }
     }
 
     @Override
