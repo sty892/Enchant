@@ -1,0 +1,13 @@
+base {
+    archivesName = "${project.archives_base_name}-client"
+}
+
+dependencies {
+    implementation project(":common")
+}
+
+jar {
+    exclude "assets/guardian_mod/models/entity/boss*"
+    exclude "assets/guardian_mod/textures/entity/boss*"
+    exclude "assets/guardian_mod/animations/boss*"
+}

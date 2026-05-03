@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "guardian_mod",
+  "version": "${version}",
+  "name": "Guardian Mod - Server",
+  "description": "Server-side logic for Guardian Mod",
+  "authors": ["sty892"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/guardian_mod/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "server": ["me.sty892.enchant.GuardianModServer"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.9",
+    "minecraft": "~1.21.11",
+    "fabric-api": "*",
+    "geckolib": "*"
+  }
+}

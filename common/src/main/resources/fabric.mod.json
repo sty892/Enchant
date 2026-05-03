@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "guardian_mod",
+  "version": "${version}",
+  "name": "Guardian Mod - Common",
+  "description": "Shared logic for Guardian Mod",
+  "authors": ["sty892"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/guardian_mod/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["me.sty892.enchant.GuardianModCommon"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.9",
+    "minecraft": "~1.21.11",
+    "fabric-api": "*",
+    "geckolib": "*"
+  }
+}
