@@ -9,7 +9,12 @@
 - **Status:** DONE
 
 ## Module 2 — Client/server handshake
-- **Status:** TODO
+- **Goal:** Implement client-server handshake to disable client features on vanilla servers.
+- **Files to change:** ModState, Network packets, GuardianModClient, GuardianModServer, GuardianMod.
+- **Acceptance criteria:** ModState fields added, payload packets sent/received, timeout logic works, singleplayer bypassed.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Commit message:** `feat(network): add client server handshake`
+- **Status:** IN_PROGRESS
 
 ## Module 5 — Items
 - **Status:** TODO

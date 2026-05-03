@@ -1,39 +1,10 @@
 # Gemini Continue
 
-Current goal: continue from a compiling repair/skeleton foundation, not from the removed broken implementation.
+Module 2 (Client/Server Handshake) implementation was started but is blocked by a Gradle configuration and Fabric Loom metadata conflict. 
+The project requires Loom 1.15.4 to properly process Fabric API 1.21.11 metadata, but Loom 1.15.4 requires Gradle 9.2.0, which is incompatible with the workspace.
+Using `compileOnly` fails to remap Fabric API classes, causing `class_8710` compiler errors for CustomPayload. 
+Switching to Yarn mappings fails due to unsupported `unpick` format in Loom 1.10.5.
 
-Verified commands in this pass:
+I have stopped execution after successfully verifying the project setup (Module 1) and pushing the initial skeleton code for Module 2. 
 
-```powershell
-.\gradlew.bat :common:compileJava --stacktrace
-.\gradlew.bat build --stacktrace
-```
-
-Both commands passed after the skeleton repair.
-
-Important constraints for the next pass:
-
-- Do not move boss model, texture, or animation assets into the client jar.
-- Keep boss gameplay logic server-side.
-- Do not reintroduce the old `me.sty892.enchant` package.
-- Do not implement full boss AI yet.
-- First next feature should be a minimal real boss entity with a real hitbox that works with vanilla hits and debug hitbox rendering.
-
-Runtime config location:
-
-```java
-FabricLoader.getInstance().getConfigDir().resolve("guardian_mod")
-```
-
-Default configs that must continue to exist:
-
-- `boss_overworld.json`
-- `boss_nether.json`
-- `boss_generic.json`
-- `altar_config.json`
-- `keys_config.json`
-- `guardian_config.json`
-
-Known build compromise:
-
-Fabric API `0.141.1+1.21.11` declares Loom metadata produced by Loom `1.13.3`, while the requested build uses Fabric Loom `1.10-SNAPSHOT` (`1.10.5` resolved locally). Keeping Fabric API as `modImplementation` fails during configuration before Java compilation. The current skeleton keeps Fabric API and GeckoLib as `compileOnly` dependencies and declares runtime dependencies in `fabric.mod.json`.
+Next Module to address: Fix the build blocker or use Reflection/Vanilla networking to bypass `PayloadTypeRegistry` in Module 2.
