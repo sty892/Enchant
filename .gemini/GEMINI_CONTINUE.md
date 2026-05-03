@@ -1,6 +1,8 @@
 # Gemini Continue
 
-Module 1.5 is DONE. The build toolchain has been fixed by upgrading to Gradle 9.2.1 and Loom 1.15.4. `modImplementation` is correctly applied to `fabric-api` and `geckolib`, avoiding mapping issues.
+Module 2 (Client/Server Handshake) is DONE.
+Handshake logic implemented using `PayloadTypeRegistry`, `ClientPlayNetworking`, and `ServerPlayNetworking`.
+Client detects mod presence, handles 5-second timeout, and resets state on disconnect.
 
-Next Module to address: Module 2 (Client/Server Handshake).
-We can now use `PayloadTypeRegistry` and standard Fabric networking since the compiler `class_8710` issue is resolved.
+Next Module: Module 5 (Items).
+I will implement Keys and Boss Fragments as specified in SPEC.md.

@@ -14,7 +14,7 @@
 - **Acceptance criteria:** ModState fields added, payload packets sent/received, timeout logic works, singleplayer bypassed.
 - **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
 - **Commit message:** `feat(network): add client server handshake`
-- **Status:** IN_PROGRESS
+- **Status:** DONE
 
 ## Module 5 — Items
 - **Status:** TODO
