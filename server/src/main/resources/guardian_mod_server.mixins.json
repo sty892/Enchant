@@ -3,9 +3,7 @@
   "minVersion": "0.8",
   "package": "me.guardian.server.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [
-    "DiamondRestrictionMixin"
-  ],
+  "mixins": [],
   "injectors": {
     "defaultRequire": 1
   }

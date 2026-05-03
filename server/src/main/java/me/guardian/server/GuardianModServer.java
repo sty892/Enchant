@@ -7,6 +7,7 @@ import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
 import me.guardian.server.boss.BossEventManager;
 import me.guardian.server.event.BossEventSystem;
+import me.guardian.server.restriction.DiamondRestrictionHandler;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerLevel;
@@ -16,6 +17,7 @@ public final class GuardianModServer implements ModInitializer {
     public void onInitialize() {
         ConfigManager.initialize();
         BossEventManager.initialize();
+        DiamondRestrictionHandler.initialize();
         GuardianEventExecutor.setExecutor((level, eventData, center, source) -> {
             if (level instanceof ServerLevel serverLevel) {
                 BossEventSystem.executeEvent(serverLevel, eventData, center);

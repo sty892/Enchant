@@ -48,9 +48,8 @@ public final class ConfigManager {
                     """,
             "guardian_config.json", """
                     {
-                      "configVersion": 1,
-                      "bossAssetsInClientJar": false,
-                      "runtimeConfigDirectory": "config/guardian_mod"
+                      "diamond_restriction_enabled": true,
+                      "op_diamond_whitelist": []
                     }
                     """
     );
