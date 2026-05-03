@@ -20,7 +20,7 @@ public final class GuardianModServer implements ModInitializer {
         DiamondRestrictionHandler.initialize();
         GuardianEventExecutor.setExecutor((level, eventData, center, source) -> {
             if (level instanceof ServerLevel serverLevel) {
-                BossEventSystem.executeEvent(serverLevel, eventData, center);
+                BossEventSystem.executeEvent(serverLevel, eventData, center, source, java.util.Collections.emptyMap());
             }
         });
         
