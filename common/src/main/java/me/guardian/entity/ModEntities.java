@@ -15,6 +15,10 @@ public class ModEntities {
             Registries.ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "boss_overworld")
     );
+    public static final ResourceKey<EntityType<?>> NETHER_GUARDIAN_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "boss_nether")
+    );
 
     public static final EntityType<OverworldGuardianEntity> OVERWORLD_GUARDIAN = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
@@ -23,9 +27,18 @@ public class ModEntities {
                     .sized(2.0f, 4.0f)
                     .build(OVERWORLD_GUARDIAN_KEY)
     );
+    public static final EntityType<NetherGuardianEntity> NETHER_GUARDIAN = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            NETHER_GUARDIAN_KEY,
+            EntityType.Builder.of(NetherGuardianEntity::new, MobCategory.MONSTER)
+                    .sized(2.0f, 4.0f)
+                    .fireImmune()
+                    .build(NETHER_GUARDIAN_KEY)
+    );
 
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(OVERWORLD_GUARDIAN, OverworldGuardianEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(NETHER_GUARDIAN, NetherGuardianEntity.createAttributes());
         GuardianMod.LOGGER.info("Registering entities for " + GuardianMod.MOD_ID);
     }
 }
