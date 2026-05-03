@@ -1,0 +1,6 @@
+{
+  "boss_id": "guardian_mod:boss_generic",
+  "on_death": {
+    "give_fragment": "guardian_mod:fragment_generic"
+  }
+}

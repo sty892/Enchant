@@ -23,7 +23,7 @@ subprojects {
         mappings "net.fabricmc:yarn:${project.minecraft_version}+build.1:v2"
         modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
         modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-        modImplementation "software.bernie.geckolib:geckolib-fabric-1.21.11:${project.geckolib_version}"
+        modImplementation "software.bernie.geckolib:geckolib-fabric-1.21:${project.geckolib_version}"
     }
 
     processResources {

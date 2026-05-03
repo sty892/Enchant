@@ -1,0 +1,15 @@
+{
+  "stage_1": {
+    "max_speed": 3,
+    "max_protection": 3,
+    "max_damage": 3,
+    "max_recovery": 3
+  },
+  "stage_2": {
+    "max_speed": 7,
+    "max_protection": 7,
+    "max_damage": 7,
+    "max_recovery": 7
+  },
+  "stage_threshold_flag": "netherBossDefeated"
+}
