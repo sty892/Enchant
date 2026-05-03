@@ -9,41 +9,77 @@ public final class ConfigManager {
     private static final Map<String, String> DEFAULT_CONFIGS = Map.of(
             "boss_overworld.json", """
                     {
-                      "id": "guardian_mod:boss_overworld",
-                      "displayName": "Overworld Guardian",
-                      "enabled": true,
-                      "runtimeAssetsOnly": true,
-                      "todo": "Implement server-authoritative boss runtime."
+                      "boss_id": "guardian_mod:boss_overworld",
+                      "on_spawn": {
+                        "play_animation": "spawn",
+                        "world_border_expand": { "to": 200, "duration_seconds": 30 }
+                      },
+                      "on_death": {
+                        "world_border_expand": { "to": 500, "duration_seconds": 60 },
+                        "spawn_structure": "guardian_mod:altar",
+                        "spawn_structure_offset": { "x": 0, "y": 0, "z": 0 },
+                        "give_fragment": "guardian_mod:fragment_overworld",
+                        "set_flag": "overworldBossDefeated",
+                        "broadcast_title": "Хранитель Верхнего Мира повержен!",
+                        "allow_diamonds": true
+                      }
                     }
                     """,
             "boss_nether.json", """
                     {
-                      "id": "guardian_mod:boss_nether",
-                      "displayName": "Nether Guardian",
-                      "enabled": true,
-                      "runtimeAssetsOnly": true,
-                      "todo": "Implement server-authoritative boss runtime."
+                      "boss_id": "guardian_mod:boss_nether",
+                      "on_spawn": {
+                        "play_animation": "spawn",
+                        "world_border_expand": { "to": 800, "duration_seconds": 30 }
+                      },
+                      "on_death": {
+                        "world_border_expand": { "to": 2000, "duration_seconds": 120 },
+                        "spawn_structure": "guardian_mod:altar_nether",
+                        "spawn_structure_offset": { "x": 0, "y": 0, "z": 0 },
+                        "give_fragment": "guardian_mod:fragment_nether",
+                        "set_flag": "netherBossDefeated",
+                        "broadcast_title": "Хранитель Нижнего Мира повержен!"
+                      }
                     }
                     """,
             "boss_generic.json", """
                     {
-                      "id": "guardian_mod:boss_generic",
-                      "displayName": "Generic Guardian",
-                      "enabled": true,
-                      "runtimeAssetsOnly": true,
-                      "todo": "Shared boss defaults for later implementation."
+                      "boss_id": "guardian_mod:boss_generic",
+                      "on_death": {
+                        "give_fragment": "guardian_mod:fragment_generic"
+                      }
                     }
                     """,
             "altar_config.json", """
                     {
-                      "enabled": true,
-                      "todo": "Implement altar ritual after foundation build is stable."
+                      "stage_1": {
+                        "max_speed": 3,
+                        "max_protection": 3,
+                        "max_damage": 3,
+                        "max_recovery": 3
+                      },
+                      "stage_2": {
+                        "max_speed": 7,
+                        "max_protection": 7,
+                        "max_damage": 7,
+                        "max_recovery": 7
+                      },
+                      "stage_threshold_flag": "netherBossDefeated"
                     }
                     """,
             "keys_config.json", """
                     {
-                      "requiredKeys": 3,
-                      "todo": "Implement key progression after foundation build is stable."
+                      "keys": [
+                        { "item_id": "guardian_mod:key_1", "keyhole_stage": 1, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_2", "keyhole_stage": 2, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_3", "keyhole_stage": 3, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_4", "keyhole_stage": 4, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_5", "keyhole_stage": 5, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_6", "keyhole_stage": 6, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_7", "keyhole_stage": 7, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_8", "keyhole_stage": 8, "on_insert": {} }
+                      ],
+                      "on_all_inserted": {}
                     }
                     """,
             "guardian_config.json", """
