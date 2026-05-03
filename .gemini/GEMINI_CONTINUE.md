@@ -1,8 +1,10 @@
 # Gemini Continue
 
-Module 2 (Client/Server Handshake) is DONE.
-Handshake logic implemented using `PayloadTypeRegistry`, `ClientPlayNetworking`, and `ServerPlayNetworking`.
-Client detects mod presence, handles 5-second timeout, and resets state on disconnect.
+Module 5 (Items) is DONE.
+8 Keys and 3 Boss Fragments registered in `ModItems.java`.
+Custom creative tab "Guardian Mod" added.
+Items initialized in `GuardianMod.java`.
 
-Next Module: Module 5 (Items).
-I will implement Keys and Boss Fragments as specified in SPEC.md.
+Next Module: Module 3 (Altar blocks).
+I will implement 5 altar blocks: `altar_speed`, `altar_protection`, `altar_damage`, `altar_recovery`, and `altar_core`.
+Each will have a `BlockEntity` to store owner and fragment information.

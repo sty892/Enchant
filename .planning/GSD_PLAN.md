@@ -17,7 +17,12 @@
 - **Status:** DONE
 
 ## Module 5 — Items
-- **Status:** TODO
+- **Goal:** Implement 8 keys and 3 boss fragments with textures and creative tab.
+- **Files to change:** ModItems, GuardianMod.
+- **Acceptance criteria:** Items registered, creative tab functional, stack size 1.
+- **Test commands:** `./gradlew :common:compileJava`, `./gradlew build`
+- **Commit message:** `feat(item): add keys and fragments`
+- **Status:** DONE
 
 ## Module 3 — Altar blocks
 - **Status:** TODO

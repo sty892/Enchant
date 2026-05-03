@@ -1,6 +1,7 @@
 package me.guardian;
 
 import me.guardian.config.ConfigManager;
+import me.guardian.item.ModItems;
 import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
 import net.fabricmc.api.ModInitializer;
@@ -15,6 +16,7 @@ public final class GuardianMod implements ModInitializer {
     @Override
     public void onInitialize() {
         ConfigManager.initialize();
+        ModItems.initialize();
 
         PayloadTypeRegistry.playC2S().register(HandshakeC2SPayload.TYPE, HandshakeC2SPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(HandshakeOkS2CPayload.TYPE, HandshakeOkS2CPayload.CODEC);

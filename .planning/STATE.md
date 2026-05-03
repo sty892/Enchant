@@ -9,6 +9,7 @@
 - Config Loader ready to read simple JSON structures from runtime directory without relying on complex external config libraries.
 - Gradle upgraded to 9.2.1, Loom upgraded to 1.15.4, restoring `modImplementation` for Fabric API and GeckoLib, resolving previous mappings issues.
 - Module 2: Client/Server Handshake implemented using Fabric Networking API. Mod presence detection and 5-second timeout logic added to client.
+- Module 5: 8 Keys (`key_1` to `key_8`) and 3 Fragments (`fragment_overworld`, `fragment_nether`, `fragment_generic`) implemented and added to a custom creative tab.
 
 ## Architectural Mandates
 - Do NOT merge client and server source sets; keep `common`, `client`, `server` completely isolated.
