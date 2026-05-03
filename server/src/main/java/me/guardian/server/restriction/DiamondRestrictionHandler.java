@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -46,7 +47,7 @@ public final class DiamondRestrictionHandler {
             return true;
         }
 
-        player.displayClientMessage(RESTRICTED_MESSAGE, true);
+        notifyRestricted(player);
         return false;
     }
 
@@ -84,7 +85,14 @@ public final class DiamondRestrictionHandler {
         if (removed) {
             player.getInventory().setChanged();
             player.containerMenu.broadcastChanges();
-            player.displayClientMessage(RESTRICTED_MESSAGE, true);
+            notifyRestricted(player);
+        }
+    }
+
+    private static void notifyRestricted(Player player) {
+        player.displayClientMessage(RESTRICTED_MESSAGE, true);
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.connection.send(new ClientboundSetTitleTextPacket(RESTRICTED_MESSAGE));
         }
     }
 
