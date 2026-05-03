@@ -7,6 +7,9 @@
   "entrypoints": {
     "main": ["me.guardian.server.GuardianModServer"]
   },
+  "mixins": [
+    "guardian_mod_server.mixins.json"
+  ],
   "depends": {
     "guardian_mod": "*",
     "fabricloader": ">=0.16.9"

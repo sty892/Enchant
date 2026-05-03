@@ -12,6 +12,7 @@
 - Module 5: 8 Keys (`key_1` to `key_8`) and 3 Fragments (`fragment_overworld`, `fragment_nether`, `fragment_generic`) implemented and added to a custom creative tab.
 - Module 3: 5 Altar blocks (`altar_core`, `altar_speed`, `altar_protection`, `altar_damage`, `altar_recovery`) registered with `AltarBlockEntity` foundation for fragment storage.
 - Module 4: 8 Keyhole blocks (`keyhole_1` to `keyhole_8`) registered for boss arena unlocking.
+- Module 6: Diamond equipment restriction implemented via Server-side Mixin. Players are forced to drop/unequip diamond items unless they have a `fragment_generic` in their inventory.
 
 ## Architectural Mandates
 - Do NOT merge client and server source sets; keep `common`, `client`, `server` completely isolated.

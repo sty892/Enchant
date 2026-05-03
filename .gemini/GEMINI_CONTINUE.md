@@ -1,10 +1,10 @@
 # Gemini Continue
 
-Module 4 (Keyholes) foundation is DONE.
-8 Keyhole blocks registered in `ModBlocks.java`.
-`KeyholeBlockEntity` skeleton created in `common` module.
-Registration initialized in `GuardianMod.java`.
+Module 6 (Diamond restriction system) is DONE.
+Server-side Mixin `DiamondRestrictionMixin` added to `LivingEntity.tick`.
+It checks for diamond items in all equipment slots every tick and ejects them if `ModItems.FRAGMENT_GENERIC` is missing from the player's inventory.
+Server mixin configuration added to `guardian_mod_server.mixins.json` and registered in `server/fabric.mod.json`.
 
-Next Module: Module 6 (Diamond restriction system).
-I will implement logic to prevent players from wearing diamond armor or using diamond tools unless they have the required boss fragment in their inventory (curios/offhand check as per SPEC).
-This will likely involve Mixins in the `server` or `common` module to intercept equipment/usage events.
+Next Module: Module 7 (JSON-driven boss event system).
+I will implement the `BossEvent` system that reads configuration from `configs/` and manages boss spawning and arena states.
+This will involve data-driven logic to handle multiple boss types.

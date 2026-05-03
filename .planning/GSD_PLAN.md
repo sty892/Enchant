@@ -41,7 +41,12 @@
 - **Status:** DONE
 
 ## Module 6 — Diamond restriction system
-- **Status:** TODO
+- **Goal:** Prevent diamond equipment usage without generic boss fragment.
+- **Files to change:** DiamondRestrictionMixin (server), guardian_mod_server.mixins.json.
+- **Acceptance criteria:** Mixin injected into LivingEntity.tick, diamond items ejected if fragment missing.
+- **Test commands:** `./gradlew build`
+- **Commit message:** `feat(mechanics): add diamond equipment restriction`
+- **Status:** DONE
 
 ## Module 7 — JSON-driven boss event system
 - **Status:** TODO
