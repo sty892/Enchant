@@ -36,7 +36,7 @@
 - **Goal:** Restrict diamond acquisition until Overworld Guardian defeat.
 - **Acceptance criteria:** `GuardianWorldState` stores `overworldBossDefeated` and `netherBossDefeated`; restriction unlocks only from world state; `guardian_config.json` controls enable flag and UUID whitelist; diamond ore/deepslate diamond ore break is canceled; inventories are scanned every 20 server ticks and diamond items are removed.
 - **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
-- **Repair commit:** `01f7119 fix(server): align diamond restriction with world state`
+- **Repair commits:** `01f7119 fix(server): align diamond restriction with world state`, `0300ac4 fix(server): send diamond restriction title notice`
 - **Status:** DONE
 
 ## Module 7 - JSON-driven boss event system

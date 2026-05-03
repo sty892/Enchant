@@ -2,7 +2,7 @@
 
 ## Current Head
 
-- `72cb7f5 fix(events): add json driven guardian event executor`
+- `0300ac4 fix(server): send diamond restriction title notice`
 
 ## Repair Pass Completed
 
@@ -12,6 +12,7 @@
 - Module 3 repaired: altar upgrade blocks are block-entity blocks and `AltarBlockEntity` persists `ownerUuid`, `fragment`, `isActive`, and `ritualTicks` with 1.21.11 APIs.
 - Module 4 repaired: there is one `guardian_mod:keyhole` with stage 0..8, sequential key insertion from `keys_config.json`, item consumption, and shared event executor calls.
 - Module 6 repaired: diamond restriction uses `GuardianWorldState.overworldBossDefeated`, runtime `guardian_config.json` whitelist/config, block-break cancel, and 20-tick inventory scan. The old `fragment_generic` restriction mixin was removed.
+- Module 6 follow-up: restriction warning now sends both actionbar and title notice.
 - Module 7 foundation repaired: `BossEventSystem` is a reusable JSON executor used by boss manager entrypoints and keyhole events. `StructureSpawner.place` is currently a non-crashing Module 12 placeholder.
 
 ## Verification
