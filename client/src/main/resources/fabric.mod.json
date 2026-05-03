@@ -1,21 +1,15 @@
 {
   "schemaVersion": 1,
-  "id": "guardian_mod",
+  "id": "guardian_mod_client",
   "version": "${version}",
-  "name": "Guardian Mod - Client",
-  "description": "Client-side rendering for Guardian Mod",
-  "authors": ["sty892"],
-  "contact": {},
-  "license": "MIT",
-  "icon": "assets/guardian_mod/icon.png",
+  "name": "Guardian Mod Client",
   "environment": "client",
   "entrypoints": {
-    "client": ["me.sty892.enchant.GuardianModClient"]
+    "client": ["me.guardian.client.GuardianModClient"]
   },
+  "mixins": ["guardian_mod.mixins.json"],
   "depends": {
-    "fabricloader": ">=0.16.9",
-    "minecraft": "~1.21.11",
-    "fabric-api": "*",
-    "geckolib": "*"
+    "guardian_mod": "*",
+    "fabricloader": ">=0.16.9"
   }
 }

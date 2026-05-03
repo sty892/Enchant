@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.7-SNAPSHOT' apply false
+    id 'fabric-loom' version '1.10-SNAPSHOT' apply false
     id 'maven-publish'
 }
 
@@ -10,20 +10,26 @@ allprojects {
     group = project.maven_group
 
     repositories {
-        maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
-        maven { url "https://maven.terraformersmc.com/" }
+        maven { url "https://maven.fabricmc.net/" }
+        mavenCentral()
+        maven { url "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/" }
     }
 }
 
 subprojects {
     apply plugin: 'fabric-loom'
 
+    loom {
+        enableModProvidedJavadoc = false
+        enableTransitiveAccessWideners = false
+    }
+
     dependencies {
         minecraft "com.mojang:minecraft:${project.minecraft_version}"
-        mappings "net.fabricmc:yarn:${project.minecraft_version}+build.1:v2"
+        mappings loom.officialMojangMappings()
         modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-        modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-        modImplementation "software.bernie.geckolib:geckolib-fabric-1.21:${project.geckolib_version}"
+        compileOnly "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+        compileOnly "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
     }
 
     processResources {
@@ -43,5 +49,11 @@ subprojects {
 
     tasks.withType(JavaCompile).configureEach {
         it.options.release = 21
+    }
+}
+
+configure([project(':client'), project(':server')]) {
+    dependencies {
+        implementation project(path: ':common', configuration: 'namedElements')
     }
 }

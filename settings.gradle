@@ -6,7 +6,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'Enchant'
+rootProject.name = 'guardian_mod'
 include 'common'
 include 'client'
 include 'server'
