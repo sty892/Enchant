@@ -1,1 +1,25 @@
-{}
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.guardian_mod.boss_nether.idle": {
+      "loop": true,
+      "bones": {}
+    },
+    "animation.guardian_mod.boss_nether.walk": {
+      "loop": true,
+      "bones": {}
+    },
+    "animation.guardian_mod.boss_nether.attack": {
+      "loop": false,
+      "bones": {}
+    },
+    "animation.guardian_mod.boss_nether.spawn": {
+      "loop": false,
+      "bones": {}
+    },
+    "animation.guardian_mod.boss_nether.death": {
+      "loop": false,
+      "bones": {}
+    }
+  }
+}

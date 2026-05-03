@@ -2,6 +2,16 @@ base {
     archivesName = "${project.archives_base_name}-client"
 }
 
+tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(layout.buildDirectory.dir("resources/main"))
+}
+
+tasks.named('remapJar') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(layout.buildDirectory.dir("resources/main"))
+}
+
 dependencies {
     implementation project(":common")
 }
