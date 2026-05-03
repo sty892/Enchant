@@ -1,10 +1,10 @@
 # Gemini Continue
 
-Module 6 (Diamond restriction system) is DONE.
-Server-side Mixin `DiamondRestrictionMixin` added to `LivingEntity.tick`.
-It checks for diamond items in all equipment slots every tick and ejects them if `ModItems.FRAGMENT_GENERIC` is missing from the player's inventory.
-Server mixin configuration added to `guardian_mod_server.mixins.json` and registered in `server/fabric.mod.json`.
+Module 7 (Boss event system) foundation is DONE.
+`BossEventManager` implemented in `server` module to load boss configurations from JSON files.
+Manager initialized in `GuardianModServer.java`.
 
-Next Module: Module 7 (JSON-driven boss event system).
-I will implement the `BossEvent` system that reads configuration from `configs/` and manages boss spawning and arena states.
-This will involve data-driven logic to handle multiple boss types.
+Next Module: Module 8 (Overworld Guardian).
+I will implement the `OverworldGuardianEntity` using GeckoLib for animations.
+This entity will use the `boss_overworld.json` configuration for its behavior and death events.
+I'll need to set up the entity registration, renderer (on client), and basic AI logic.

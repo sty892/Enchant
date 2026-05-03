@@ -49,7 +49,12 @@
 - **Status:** DONE
 
 ## Module 7 — JSON-driven boss event system
-- **Status:** TODO
+- **Goal:** Implement the logic for boss encounters driven by external configuration.
+- **Files to change:** BossEventManager, GuardianModServer.
+- **Acceptance criteria:** Configs loaded, manager initialized, system ready for boss entities.
+- **Test commands:** `./gradlew build`
+- **Commit message:** `feat(boss): add boss event system foundation`
+- **Status:** DONE
 
 ## Module 8 — Overworld Guardian
 - **Status:** TODO
