@@ -29,7 +29,7 @@ public class ModBlocks {
     public static BlockEntityType<KeyholeBlockEntity> KEYHOLE_BE_TYPE;
 
     public static void initialize() {
-        ALTAR_CORE = register("altar_core", new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN)));
+        ALTAR_CORE = register("altar_core", new AltarCoreBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN)));
 
         // Registration with lazy BlockEntityType reference
         ALTAR_SPEED = register("altar_speed", new AltarBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN), () -> ALTAR_BE_TYPE));
