@@ -10,6 +10,7 @@ import me.guardian.network.HandshakeOkS2CPayload;
 import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.altar.GuardianPlayerUpgrades;
 import me.guardian.server.boss.BossEventManager;
+import me.guardian.server.command.GuardianCommand;
 import me.guardian.server.event.BossEventSystem;
 import me.guardian.server.restriction.DiamondRestrictionHandler;
 import net.fabricmc.api.ModInitializer;
@@ -24,6 +25,7 @@ public final class GuardianModServer implements ModInitializer {
         BossEventManager.initialize();
         DiamondRestrictionHandler.initialize();
         AltarRitualManager.initialize();
+        GuardianCommand.initialize();
         GuardianAltarRitualHooks.setActivationHook(AltarRitualManager::tryActivateRitual);
         GuardianBossEventHooks.setSpawnHook(BossEventManager::triggerOnSpawn);
         GuardianBossEventHooks.setDeathHook(BossEventManager::triggerOnDeath);

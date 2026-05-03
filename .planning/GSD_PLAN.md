@@ -47,22 +47,48 @@
 - **Status:** FOUNDATION. Structure placement is a non-crashing placeholder until Module 12; animation is a placeholder/hook as required.
 
 ## Module 8 - Overworld Guardian
-- **Status:** TODO
+- **Goal:** Implement the Overworld Guardian server entity.
+- **Acceptance criteria:** Entity id `guardian_mod:boss_overworld`; real server hitbox; accepts damage; tracks `Map<UUID, Float>` damage contributors; attributes 500/15/0.25/64/0.8; basic goals; phase hooks at 75/50/25; projectile hook; JSON-driven spawn/death events; no real assets in client jar.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Commit:** `9c2c8b6 feat(boss): add overworld guardian`
+- **Status:** DONE
 
 ## Module 9 - Nether Guardian
-- **Status:** TODO
+- **Goal:** Implement the Nether Guardian server entity.
+- **Acceptance criteria:** Entity id `guardian_mod:boss_nether`; fire immune; accepts damage; tracks damage contributors; attributes 750/20/0.3/80/1.0; melee fire, phase hooks, fireball/minion hooks; JSON-driven spawn/death events.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Commit:** `82c335d feat(boss): add nether guardian`
+- **Status:** DONE
 
 ## Module 10 - Generic Boss
-- **Status:** TODO
+- **Goal:** Implement multi-variant Generic Guardian boss.
+- **Acceptance criteria:** Entity id `guardian_mod:boss_generic`; persistent `variant` and `isSummoned`; damage contributors; charge hook; group buff hook; 33% phase summon; summoned minions do not trigger fragment grant; non-summoned death uses JSON event system.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Commit:** `31fb360 feat(boss): add generic guardian boss`
+- **Status:** DONE
 
 ## Module 11 - Altar ritual logic
-- **Status:** TODO
+- **Goal:** Implement altar fragment insertion and ritual upgrades.
+- **Acceptance criteria:** Right-click altar stores/returns fragments with owner UUID; altar core starts ritual while player stands on it holding a fragment; matched owner altars within 5 blocks become active; 100-tick particle ritual; cancel on distance; `altar_config.json` and `GuardianWorldState.netherBossDefeated` choose stage caps; speed/protection/damage use permanent attribute modifiers; recovery level persists and reduces exhaustion by mixin.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Commit:** `b068f96 feat(altar): implement guardian ritual upgrades`
+- **Status:** DONE for specified server behavior. Saturation-gain multiplier remains a narrow follow-up; exhaustion reduction is implemented.
 
 ## Module 12 - Structures
-- **Status:** TODO
+- **Goal:** Add swappable StructureTemplate placeholders and real spawner.
+- **Acceptance criteria:** Valid `altar.nbt`, `boss_overworld_arena.nbt`, and `boss_nether_arena.nbt` under `data/guardian_mod/structures`; `StructureSpawner.place(ServerLevel, BlockPos, String)` loads `guardian_mod:name` via StructureTemplate API and centers placement.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`
+- **Commit:** `bb8fb8b feat(structures): place guardian templates from data pack`
+- **Status:** DONE
 
 ## Module 13 - Server resourcepack + fallback
-- **Status:** TODO
+- **Goal:** Keep real boss assets in server resourcepack and client fallback assets in client jar.
+- **Acceptance criteria:** `server-resourcepack/` contains boss geo/texture/animation placeholders; client jar contains only `boss_fallback` model/texture/animation; client detects resourcepack by checking `textures/entity/boss_overworld.png`.
+- **Test commands:** `./gradlew :common:compileJava --stacktrace`, `./gradlew build --stacktrace`, client jar contents check.
+- **Commit:** `ec494d4 feat(client): add boss resource pack fallback`
+- **Status:** DONE
 
 ## Module 14 - Commands + finalization
-- **Status:** TODO
+- **Goal:** Add `/guardian` OP command tree and final verification.
+- **Acceptance criteria:** Commands for boss spawn/kill, whitelist add/remove/list, state, reset, stage, reload; final clean build; jars assemble; final report records residual TODOs.
+- **Status:** IN PROGRESS in current working tree.

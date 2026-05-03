@@ -28,4 +28,10 @@ public final class ConfigLoader {
     public static String read(String fileName) throws IOException {
         return Files.readString(configRoot().resolve(fileName), StandardCharsets.UTF_8);
     }
+
+    public static void write(String fileName, String json) throws IOException {
+        Path root = configRoot();
+        Files.createDirectories(root);
+        Files.writeString(root.resolve(fileName), json, StandardCharsets.UTF_8);
+    }
 }
