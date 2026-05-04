@@ -4,3 +4,13 @@ build/
 out/
 *.log
 *.class
+
+# Local agent scratch and temporary planning artifacts.
+# Final tracked planning docs stay committed explicitly.
+.planning/**/*.tmp
+.planning/**/*.bak
+.planning/**/*.local.md
+.planning/**/*.patch
+.gemini/**/*.tmp
+.gemini/**/*.bak
+.gemini/**/*.local.md
