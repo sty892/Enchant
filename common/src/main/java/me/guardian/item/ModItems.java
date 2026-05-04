@@ -3,7 +3,9 @@ package me.guardian.item;
 import me.guardian.GuardianMod;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
@@ -14,19 +16,19 @@ import net.minecraft.world.item.CreativeModeTab;
 public class ModItems {
 
     // Keys
-    public static final Item KEY_1 = register("key_1", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
-    public static final Item KEY_2 = register("key_2", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
-    public static final Item KEY_3 = register("key_3", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
-    public static final Item KEY_4 = register("key_4", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
-    public static final Item KEY_5 = register("key_5", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
-    public static final Item KEY_6 = register("key_6", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
-    public static final Item KEY_7 = register("key_7", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
-    public static final Item KEY_8 = register("key_8", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.RARE)));
+    public static final Item KEY_1 = register("key_1", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+    public static final Item KEY_2 = register("key_2", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+    public static final Item KEY_3 = register("key_3", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+    public static final Item KEY_4 = register("key_4", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+    public static final Item KEY_5 = register("key_5", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+    public static final Item KEY_6 = register("key_6", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+    public static final Item KEY_7 = register("key_7", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+    public static final Item KEY_8 = register("key_8", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
 
     // Fragments
-    public static final Item FRAGMENT_OVERWORLD = register("fragment_overworld", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
-    public static final Item FRAGMENT_NETHER = register("fragment_nether", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
-    public static final Item FRAGMENT_GENERIC = register("fragment_generic", new Item(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
+    public static final Item FRAGMENT_OVERWORLD = register("fragment_overworld", new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
+    public static final Item FRAGMENT_NETHER = register("fragment_nether", new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
+    public static final Item FRAGMENT_GENERIC = register("fragment_generic", new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
 
     // Creative Tab
     public static final CreativeModeTab GUARDIAN_TAB = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB,
@@ -49,8 +51,10 @@ public class ModItems {
                     })
                     .build());
 
-    private static Item register(String name, Item item) {
-        return Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, name), item);
+    private static Item register(String name, Item.Properties properties) {
+        Identifier id = Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, name);
+        ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id);
+        return Registry.register(BuiltInRegistries.ITEM, key, new Item(properties.setId(key)));
     }
 
     public static void initialize() {

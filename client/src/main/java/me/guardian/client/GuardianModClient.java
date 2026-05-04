@@ -2,6 +2,7 @@ package me.guardian.client;
 
 import me.guardian.GuardianMod;
 import me.guardian.ModState;
+import me.guardian.network.GuardianNetworking;
 import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
 import net.fabricmc.api.ClientModInitializer;
@@ -17,6 +18,7 @@ public final class GuardianModClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        GuardianNetworking.registerPayloadTypes();
         GuardianMod.LOGGER.info("Guardian Mod client foundation initialized");
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {

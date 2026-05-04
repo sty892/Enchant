@@ -6,7 +6,9 @@ import me.guardian.block.entity.KeyholeBlockEntity;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -29,15 +31,15 @@ public class ModBlocks {
     public static BlockEntityType<KeyholeBlockEntity> KEYHOLE_BE_TYPE;
 
     public static void initialize() {
-        ALTAR_CORE = register("altar_core", new AltarCoreBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN)));
+        ALTAR_CORE = register("altar_core", properties -> new AltarCoreBlock(properties));
 
         // Registration with lazy BlockEntityType reference
-        ALTAR_SPEED = register("altar_speed", new AltarBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN), () -> ALTAR_BE_TYPE));
-        ALTAR_PROTECTION = register("altar_protection", new AltarBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN), () -> ALTAR_BE_TYPE));
-        ALTAR_DAMAGE = register("altar_damage", new AltarBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN), () -> ALTAR_BE_TYPE));
-        ALTAR_RECOVERY = register("altar_recovery", new AltarBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN), () -> ALTAR_BE_TYPE));
+        ALTAR_SPEED = register("altar_speed", properties -> new AltarBlock(properties, () -> ALTAR_BE_TYPE));
+        ALTAR_PROTECTION = register("altar_protection", properties -> new AltarBlock(properties, () -> ALTAR_BE_TYPE));
+        ALTAR_DAMAGE = register("altar_damage", properties -> new AltarBlock(properties, () -> ALTAR_BE_TYPE));
+        ALTAR_RECOVERY = register("altar_recovery", properties -> new AltarBlock(properties, () -> ALTAR_BE_TYPE));
 
-        KEYHOLE = register("keyhole", new KeyholeBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN), () -> KEYHOLE_BE_TYPE));
+        KEYHOLE = register("keyhole", properties -> new KeyholeBlock(properties, () -> KEYHOLE_BE_TYPE));
 
         ALTAR_BE_TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
                 Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "altar_be"),
@@ -54,8 +56,10 @@ public class ModBlocks {
                 ).build());
     }
 
-    private static Block register(String name, Block block) {
+    private static Block register(String name, java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
         Identifier id = Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, name);
-        return Registry.register(BuiltInRegistries.BLOCK, id, block);
+        ResourceKey<Block> key = ResourceKey.create(Registries.BLOCK, id);
+        BlockBehaviour.Properties properties = BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN).setId(key);
+        return Registry.register(BuiltInRegistries.BLOCK, key, factory.apply(properties));
     }
 }
