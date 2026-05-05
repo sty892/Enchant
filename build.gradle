@@ -47,6 +47,11 @@ subprojects {
         withSourcesJar()
     }
 
+    tasks.named('sourcesJar', Jar) {
+        exclude 'fabric.mod.json'
+        exclude '*.mixins.json'
+    }
+
     tasks.withType(JavaCompile).configureEach {
         it.options.release = 21
     }
