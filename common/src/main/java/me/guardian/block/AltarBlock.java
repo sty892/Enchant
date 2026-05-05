@@ -2,10 +2,12 @@ package me.guardian.block;
 
 import me.guardian.GuardianMod;
 import me.guardian.block.entity.AltarBlockEntity;
+import me.guardian.event.GuardianAltarRitualHooks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -18,7 +20,6 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
-import java.util.UUID;
 import java.util.function.Supplier;
 
 public class AltarBlock extends Block implements EntityBlock {
@@ -40,44 +41,8 @@ public class AltarBlock extends Block implements EntityBlock {
             return InteractionResult.SUCCESS;
         }
 
-        BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (!(blockEntity instanceof AltarBlockEntity altar)) {
-            return InteractionResult.PASS;
-        }
-
-        if (altar.getFragment().isEmpty()) {
-            if (!isGuardianFragment(stack)) {
-                return InteractionResult.PASS;
-            }
-
-            altar.setFragment(stack.copyWithCount(1));
-            altar.setOwnerUuid(player.getUUID());
-            altar.setActive(false);
-            altar.setRitualTicks(0);
-            if (!player.getAbilities().instabuild) {
-                stack.shrink(1);
-            }
-            level.sendBlockUpdated(pos, state, state, 3);
-            return InteractionResult.SUCCESS;
-        }
-
-        UUID ownerUuid = altar.getOwnerUuid();
-        if (!player.getUUID().equals(ownerUuid)) {
-            player.displayClientMessage(Component.literal("Алтарь занят другим игроком"), false);
-            return InteractionResult.SUCCESS;
-        }
-
-        if (stack.isEmpty()) {
-            ItemStack stored = altar.getFragment();
-            altar.setFragment(ItemStack.EMPTY);
-            altar.setOwnerUuid(null);
-            altar.setActive(false);
-            altar.setRitualTicks(0);
-            if (!player.addItem(stored)) {
-                player.drop(stored, false);
-            }
-            level.sendBlockUpdated(pos, state, state, 3);
-            return InteractionResult.SUCCESS;
+        if (level instanceof ServerLevel serverLevel && player instanceof ServerPlayer serverPlayer) {
+            return GuardianAltarRitualHooks.select(serverLevel, pos, serverPlayer, stack);
         }
 
         return InteractionResult.PASS;

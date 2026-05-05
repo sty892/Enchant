@@ -9,29 +9,30 @@ import me.guardian.block.entity.AltarBlockEntity;
 import me.guardian.config.ConfigManager;
 import me.guardian.server.state.GuardianWorldState;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.phys.Vec3;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class AltarRitualManager {
     private static final Gson GSON = new Gson();
-    private static final int RITUAL_TICKS = 100;
-    private static final double MAX_DISTANCE_SQR = 25.0D;
-    private static final List<ActiveRitual> ACTIVE_RITUALS = new ArrayList<>();
+    private static final Map<UUID, SelectedAspect> SELECTED_ASPECTS = new HashMap<>();
+    private static final Map<UUID, ActiveRitual> ACTIVE_RITUALS = new HashMap<>();
 
     private AltarRitualManager() {
     }
@@ -40,176 +41,258 @@ public final class AltarRitualManager {
         ServerTickEvents.END_SERVER_TICK.register(AltarRitualManager::tick);
     }
 
-    public static InteractionResult tryActivateRitual(ServerLevel level, BlockPos corePos, ServerPlayer player, ItemStack heldStack) {
-        if (!AltarBlock.isGuardianFragment(heldStack)) {
+    public static InteractionResult selectAltarAspect(ServerLevel level, BlockPos altarPos, ServerPlayer player, ItemStack heldStack) {
+        AltarUpgradeType type = AltarUpgradeType.fromBlock(level.getBlockState(altarPos).getBlock());
+        if (type == null) {
             return InteractionResult.PASS;
         }
 
-        if (!level.getBlockState(player.blockPosition()).is(ModBlocks.ALTAR_CORE)) {
-            player.displayClientMessage(Component.literal("Встаньте на altar_core для начала ритуала"), true);
+        AltarConfig config = readConfig();
+        BlockPos corePos = findNearestCore(level, altarPos, config.radius());
+        if (corePos == null) {
+            player.displayClientMessage(Component.literal("Рядом нет ядра алтаря"), true);
             return InteractionResult.SUCCESS;
         }
 
-        List<BlockPos> matchedAltars = findMatchedAltars(level, corePos, player.getUUID());
-        if (matchedAltars.isEmpty()) {
-            player.displayClientMessage(Component.literal("Нет алтарей с вашим фрагментом рядом"), true);
+        int current = GuardianPlayerUpgrades.get(player).get(type);
+        int max = config.maxFor(type, GuardianWorldState.get(level).netherBossDefeated);
+        if (current >= max) {
+            player.displayClientMessage(Component.literal("Достигнут максимум для текущей стадии"), true);
             return InteractionResult.SUCCESS;
         }
 
-        for (ActiveRitual ritual : ACTIVE_RITUALS) {
-            if (ritual.ownerUuid.equals(player.getUUID())) {
-                player.displayClientMessage(Component.literal("Ритуал уже выполняется"), true);
+        AltarBlockEntity altar = altar(level, altarPos);
+        if (altar == null) {
+            return InteractionResult.PASS;
+        }
+
+        if (!altar.getFragment().isEmpty() && !player.getUUID().equals(altar.getOwnerUuid())) {
+            player.displayClientMessage(Component.literal("Этот алтарь уже занят другим игроком"), true);
+            return InteractionResult.SUCCESS;
+        }
+
+        if (altar.getFragment().isEmpty()) {
+            if (!AltarBlock.isGuardianFragment(heldStack)) {
+                player.displayClientMessage(Component.literal("Возьмите фрагмент в руку, чтобы выбрать стихию"), true);
                 return InteractionResult.SUCCESS;
+            }
+            altar.setFragment(heldStack.copyWithCount(1));
+            altar.setOwnerUuid(player.getUUID());
+            if (!player.getAbilities().instabuild) {
+                heldStack.shrink(1);
             }
         }
 
-        for (BlockPos altarPos : matchedAltars) {
-            altar(level, altarPos).ifPresent(altar -> {
-                altar.setActive(true);
-                altar.setRitualTicks(0);
-                level.sendBlockUpdated(altarPos, level.getBlockState(altarPos), level.getBlockState(altarPos), 3);
-            });
-        }
+        altar.setActive(false);
+        altar.setRitualTicks(0);
+        level.sendBlockUpdated(altarPos, level.getBlockState(altarPos), level.getBlockState(altarPos), 3);
+        SELECTED_ASPECTS.put(player.getUUID(), new SelectedAspect(level.dimension().identifier().toString(), corePos.immutable(), altarPos.immutable(), type));
+        player.displayClientMessage(Component.literal("Выбрана стихия: " + type.displayName()), true);
+        player.sendSystemMessage(Component.literal("Встаньте на altar_core и не сходите до завершения ритуала."));
+        return InteractionResult.SUCCESS;
+    }
 
-        ACTIVE_RITUALS.add(new ActiveRitual(level.dimension().identifier().toString(), corePos.immutable(), player.getUUID(), List.copyOf(matchedAltars), 0));
-        player.displayClientMessage(Component.literal("Ритуал начат"), true);
+    public static InteractionResult tryActivateRitual(ServerLevel level, BlockPos corePos, ServerPlayer player, ItemStack heldStack) {
+        SelectedAspect selected = SELECTED_ASPECTS.get(player.getUUID());
+        if (selected == null || !selected.levelId.equals(level.dimension().identifier().toString()) || !selected.corePos.equals(corePos)) {
+            player.displayClientMessage(Component.literal("Сначала выберите стихию через altar_speed/protection/damage/recovery"), true);
+            return InteractionResult.SUCCESS;
+        }
+        startRitualIfPossible(level, player, selected);
         return InteractionResult.SUCCESS;
     }
 
     private static void tick(MinecraftServer server) {
-        Iterator<ActiveRitual> iterator = ACTIVE_RITUALS.iterator();
+        AltarConfig config = readConfig();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!ACTIVE_RITUALS.containsKey(player.getUUID())) {
+                SelectedAspect selected = SELECTED_ASPECTS.get(player.getUUID());
+                ServerLevel level = selected == null ? null : findLevel(server, selected.levelId);
+                if (selected != null && level != null && isStandingOnCore(level, player, selected.corePos)) {
+                    startRitualIfPossible(level, player, selected);
+                }
+            }
+        }
+
+        Iterator<Map.Entry<UUID, ActiveRitual>> iterator = ACTIVE_RITUALS.entrySet().iterator();
         while (iterator.hasNext()) {
-            ActiveRitual ritual = iterator.next();
+            Map.Entry<UUID, ActiveRitual> entry = iterator.next();
+            ActiveRitual ritual = entry.getValue();
             ServerLevel level = findLevel(server, ritual.levelId);
-            ServerPlayer player = server.getPlayerList().getPlayer(ritual.ownerUuid);
+            ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             if (level == null || player == null) {
-                clearRitual(level, ritual, false);
+                clearRitual(level, ritual);
                 iterator.remove();
                 continue;
             }
 
-            if (player.distanceToSqr(Vec3.atCenterOf(ritual.corePos)) > MAX_DISTANCE_SQR) {
-                clearRitual(level, ritual, false);
-                player.displayClientMessage(Component.literal("Ритуал отменён"), true);
+            if (!isStandingOnCore(level, player, ritual.corePos)
+                    || player.distanceToSqr(Vec3.atCenterOf(ritual.altarPos)) > config.radiusSqr()) {
+                clearRitual(level, ritual);
+                player.displayClientMessage(Component.literal("Ритуал прерван"), true);
                 iterator.remove();
                 continue;
             }
 
             ritual.ticks++;
-            for (BlockPos altarPos : ritual.altarPositions) {
-                altar(level, altarPos).ifPresent(altar -> {
-                    altar.setRitualTicks(ritual.ticks);
-                    spawnBeam(level, altarPos, player);
-                });
+            AltarBlockEntity altar = altar(level, ritual.altarPos);
+            if (altar != null) {
+                altar.setRitualTicks(ritual.ticks);
+                spawnBeam(level, ritual.altarPos, ritual.corePos, player, ritual.type);
             }
 
-            if (ritual.ticks >= RITUAL_TICKS) {
-                finishRitual(level, player, ritual);
+            if (ritual.ticks >= config.ritualTicks()) {
+                finishRitual(level, player, ritual, config);
                 iterator.remove();
             }
         }
     }
 
-    private static List<BlockPos> findMatchedAltars(ServerLevel level, BlockPos corePos, UUID ownerUuid) {
-        List<BlockPos> result = new ArrayList<>();
-        BlockPos.betweenClosedStream(corePos.offset(-5, -5, -5), corePos.offset(5, 5, 5)).forEach(pos -> {
-            BlockStateMatch match = matchAltar(level, pos, ownerUuid);
-            if (match != null) {
-                result.add(pos.immutable());
-            }
-        });
-        return result;
-    }
-
-    private static BlockStateMatch matchAltar(ServerLevel level, BlockPos pos, UUID ownerUuid) {
-        AltarUpgradeType type = AltarUpgradeType.fromBlock(level.getBlockState(pos).getBlock());
-        if (type == null) {
-            return null;
-        }
-
-        return altar(level, pos)
-                .filter(altar -> !altar.getFragment().isEmpty())
-                .filter(altar -> ownerUuid.equals(altar.getOwnerUuid()))
-                .map(altar -> new BlockStateMatch(type, altar))
-                .orElse(null);
-    }
-
-    private static java.util.Optional<AltarBlockEntity> altar(ServerLevel level, BlockPos pos) {
-        BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity instanceof AltarBlockEntity altar) {
-            return java.util.Optional.of(altar);
-        }
-        return java.util.Optional.empty();
-    }
-
-    private static void finishRitual(ServerLevel level, ServerPlayer player, ActiveRitual ritual) {
-        AltarConfig config = readConfig();
-        boolean stageTwo = GuardianWorldState.get(level).netherBossDefeated;
-        boolean maxReached = false;
-
-        for (BlockPos altarPos : ritual.altarPositions) {
-            AltarUpgradeType type = AltarUpgradeType.fromBlock(level.getBlockState(altarPos).getBlock());
-            if (type == null) {
-                continue;
-            }
-
-            AltarBlockEntity altar = altar(level, altarPos).orElse(null);
-            if (altar == null || altar.getFragment().isEmpty()) {
-                continue;
-            }
-
-            int current = GuardianPlayerUpgrades.get(player).get(type);
-            int max = config.maxFor(type, stageTwo);
-            if (current < max) {
-                GuardianPlayerUpgrades.applyUpgrade(player, type, current + 1);
-                altar.setFragment(ItemStack.EMPTY);
-                altar.setOwnerUuid(null);
-                altar.setActive(false);
-                altar.setRitualTicks(0);
-                level.sendBlockUpdated(altarPos, level.getBlockState(altarPos), level.getBlockState(altarPos), 3);
-            } else {
-                altar.setActive(false);
-                altar.setRitualTicks(0);
-                maxReached = true;
-            }
-        }
-
-        if (maxReached) {
-            player.displayClientMessage(Component.literal("Достигнут максимум для текущей стадии"), true);
-        }
-    }
-
-    private static void clearRitual(ServerLevel level, ActiveRitual ritual, boolean dropFragments) {
-        if (level == null) {
+    private static void startRitualIfPossible(ServerLevel level, ServerPlayer player, SelectedAspect selected) {
+        if (ACTIVE_RITUALS.containsKey(player.getUUID())) {
             return;
         }
 
-        for (BlockPos altarPos : ritual.altarPositions) {
-            altar(level, altarPos).ifPresent(altar -> {
-                if (dropFragments && !altar.getFragment().isEmpty()) {
-                    ItemEntity item = new ItemEntity(level, altarPos.getX() + 0.5D, altarPos.getY() + 1.0D, altarPos.getZ() + 0.5D, altar.getFragment());
-                    level.addFreshEntity(item);
-                    altar.setFragment(ItemStack.EMPTY);
-                    altar.setOwnerUuid(null);
-                }
-                altar.setActive(false);
-                altar.setRitualTicks(0);
-                level.sendBlockUpdated(altarPos, level.getBlockState(altarPos), level.getBlockState(altarPos), 3);
-            });
+        AltarBlockEntity altar = altar(level, selected.altarPos);
+        if (altar == null || altar.getFragment().isEmpty()) {
+            player.displayClientMessage(Component.literal("Возьмите фрагмент в руку, чтобы выбрать стихию"), true);
+            SELECTED_ASPECTS.remove(player.getUUID());
+            return;
+        }
+
+        AltarConfig config = readConfig();
+        int current = GuardianPlayerUpgrades.get(player).get(selected.type);
+        int max = config.maxFor(selected.type, GuardianWorldState.get(level).netherBossDefeated);
+        if (current >= max) {
+            player.displayClientMessage(Component.literal("Достигнут максимум для текущей стадии"), true);
+            return;
+        }
+
+        altar.setActive(true);
+        altar.setRitualTicks(0);
+        level.sendBlockUpdated(selected.altarPos, level.getBlockState(selected.altarPos), level.getBlockState(selected.altarPos), 3);
+        ACTIVE_RITUALS.put(player.getUUID(), new ActiveRitual(selected.levelId, selected.corePos, selected.altarPos, selected.type, 0));
+        player.displayClientMessage(Component.literal("Ритуал начат"), true);
+    }
+
+    private static void finishRitual(ServerLevel level, ServerPlayer player, ActiveRitual ritual, AltarConfig config) {
+        AltarBlockEntity altar = altar(level, ritual.altarPos);
+        if (altar == null || altar.getFragment().isEmpty()) {
+            SELECTED_ASPECTS.remove(player.getUUID());
+            return;
+        }
+
+        int current = GuardianPlayerUpgrades.get(player).get(ritual.type);
+        int max = config.maxFor(ritual.type, GuardianWorldState.get(level).netherBossDefeated);
+        if (current >= max) {
+            altar.setActive(false);
+            altar.setRitualTicks(0);
+            player.displayClientMessage(Component.literal("Достигнут максимум для текущей стадии"), true);
+            return;
+        }
+
+        GuardianPlayerUpgrades.applyUpgrade(player, ritual.type, current + 1);
+        altar.setFragment(ItemStack.EMPTY);
+        altar.setOwnerUuid(null);
+        altar.setActive(false);
+        altar.setRitualTicks(0);
+        SELECTED_ASPECTS.remove(player.getUUID());
+        level.sendBlockUpdated(ritual.altarPos, level.getBlockState(ritual.altarPos), level.getBlockState(ritual.altarPos), 3);
+        sendStats(player, ritual.type, config);
+    }
+
+    private static void clearRitual(ServerLevel level, ActiveRitual ritual) {
+        if (level == null) {
+            return;
+        }
+        AltarBlockEntity altar = altar(level, ritual.altarPos);
+        if (altar != null) {
+            altar.setActive(false);
+            altar.setRitualTicks(0);
+            level.sendBlockUpdated(ritual.altarPos, level.getBlockState(ritual.altarPos), level.getBlockState(ritual.altarPos), 3);
         }
     }
 
-    private static void spawnBeam(ServerLevel level, BlockPos altarPos, ServerPlayer player) {
-        Vec3 start = Vec3.atCenterOf(altarPos).add(0.0D, 0.7D, 0.0D);
-        Vec3 end = player.position().add(0.0D, 1.0D, 0.0D);
-        Vec3 step = end.subtract(start).scale(1.0D / 10.0D);
-        for (int i = 0; i <= 10; i++) {
-            Vec3 point = start.add(step.scale(i));
-            level.sendParticles(ParticleTypes.CRIT, point.x, point.y, point.z, 1, 0.02D, 0.02D, 0.02D, 0.0D);
-            if (i % 2 == 0) {
-                level.sendParticles(ParticleTypes.ENCHANT, point.x, point.y, point.z, 1, 0.02D, 0.02D, 0.02D, 0.0D);
+    public static void sendStats(ServerPlayer player) {
+        sendStats(player, null, readConfig());
+    }
+
+    private static void sendStats(ServerPlayer player, AltarUpgradeType improved, AltarConfig config) {
+        boolean stageTwo = player.level() instanceof ServerLevel level && GuardianWorldState.get(level).netherBossDefeated;
+        GuardianPlayerUpgrades upgrades = GuardianPlayerUpgrades.get(player);
+        player.sendSystemMessage(Component.literal("Статистика алтаря:"));
+        sendStatLine(player, AltarUpgradeType.SPEED, upgrades.speed(), config.maxFor(AltarUpgradeType.SPEED, stageTwo), improved);
+        sendStatLine(player, AltarUpgradeType.PROTECTION, upgrades.protection(), config.maxFor(AltarUpgradeType.PROTECTION, stageTwo), improved);
+        sendStatLine(player, AltarUpgradeType.DAMAGE, upgrades.damage(), config.maxFor(AltarUpgradeType.DAMAGE, stageTwo), improved);
+        sendStatLine(player, AltarUpgradeType.RECOVERY, upgrades.recovery(), config.maxFor(AltarUpgradeType.RECOVERY, stageTwo), improved);
+    }
+
+    private static void sendStatLine(ServerPlayer player, AltarUpgradeType type, int current, int max, AltarUpgradeType improved) {
+        boolean changed = type == improved;
+        Component line = Component.literal(type.displayName() + ": " + current + "/" + max + (changed ? " (+1)" : ""))
+                .withStyle(changed ? ChatFormatting.GREEN : ChatFormatting.GRAY);
+        player.sendSystemMessage(line);
+    }
+
+    public static void resetPlayerUpgrades(ServerPlayer player) {
+        for (AltarUpgradeType type : AltarUpgradeType.values()) {
+            GuardianPlayerUpgrades.applyUpgrade(player, type, 0);
+        }
+        SELECTED_ASPECTS.remove(player.getUUID());
+        ACTIVE_RITUALS.remove(player.getUUID());
+    }
+
+    private static BlockPos findNearestCore(ServerLevel level, BlockPos altarPos, int radius) {
+        BlockPos nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (BlockPos pos : BlockPos.betweenClosed(altarPos.offset(-radius, -radius, -radius), altarPos.offset(radius, radius, radius))) {
+            if (!level.getBlockState(pos).is(ModBlocks.ALTAR_CORE)) {
+                continue;
+            }
+            double distance = pos.distSqr(altarPos);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearest = pos.immutable();
             }
         }
+        return nearest;
+    }
+
+    private static boolean isStandingOnCore(ServerLevel level, ServerPlayer player, BlockPos corePos) {
+        BlockPos feet = player.blockPosition();
+        return feet.equals(corePos) && level.getBlockState(feet).is(ModBlocks.ALTAR_CORE)
+                || feet.below().equals(corePos) && level.getBlockState(feet.below()).is(ModBlocks.ALTAR_CORE);
+    }
+
+    private static AltarBlockEntity altar(ServerLevel level, BlockPos pos) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        return blockEntity instanceof AltarBlockEntity altar ? altar : null;
+    }
+
+    private static void spawnBeam(ServerLevel level, BlockPos altarPos, BlockPos corePos, ServerPlayer player, AltarUpgradeType type) {
+        Vec3 start = Vec3.atCenterOf(altarPos).add(0.0D, 0.7D, 0.0D);
+        Vec3 end = Vec3.atCenterOf(corePos).add(0.0D, 1.2D, 0.0D);
+        Vec3 playerEnd = player.position().add(0.0D, 1.0D, 0.0D);
+        spawnLine(level, start, end, type);
+        spawnLine(level, end, playerEnd, type);
+    }
+
+    private static void spawnLine(ServerLevel level, Vec3 start, Vec3 end, AltarUpgradeType type) {
+        Vec3 step = end.subtract(start).scale(1.0D / 12.0D);
+        for (int i = 0; i <= 12; i++) {
+            Vec3 point = start.add(step.scale(i));
+            ParticleOptions particle = particleFor(type, i);
+            level.sendParticles(particle, point.x, point.y, point.z, 1, 0.02D, 0.02D, 0.02D, 0.0D);
+        }
+    }
+
+    private static ParticleOptions particleFor(AltarUpgradeType type, int index) {
+        return switch (type) {
+            case SPEED -> index % 2 == 0 ? ParticleTypes.END_ROD : ParticleTypes.CLOUD;
+            case PROTECTION -> index % 2 == 0 ? ParticleTypes.ENCHANT : ParticleTypes.CRIT;
+            case DAMAGE -> index % 2 == 0 ? ParticleTypes.FLAME : ParticleTypes.LAVA;
+            case RECOVERY -> index % 2 == 0 ? ParticleTypes.HEART : ParticleTypes.HAPPY_VILLAGER;
+        };
     }
 
     private static AltarConfig readConfig() {
@@ -231,29 +314,30 @@ public final class AltarRitualManager {
         return null;
     }
 
-    private record BlockStateMatch(AltarUpgradeType type, AltarBlockEntity altar) {
+    private record SelectedAspect(String levelId, BlockPos corePos, BlockPos altarPos, AltarUpgradeType type) {
     }
 
     private static final class ActiveRitual {
         private final String levelId;
         private final BlockPos corePos;
-        private final UUID ownerUuid;
-        private final List<BlockPos> altarPositions;
+        private final BlockPos altarPos;
+        private final AltarUpgradeType type;
         private int ticks;
 
-        private ActiveRitual(String levelId, BlockPos corePos, UUID ownerUuid, List<BlockPos> altarPositions, int ticks) {
+        private ActiveRitual(String levelId, BlockPos corePos, BlockPos altarPos, AltarUpgradeType type, int ticks) {
             this.levelId = levelId;
             this.corePos = corePos;
-            this.ownerUuid = ownerUuid;
-            this.altarPositions = altarPositions;
+            this.altarPos = altarPos;
+            this.type = type;
             this.ticks = ticks;
         }
     }
 
-    private record AltarConfig(int stageOneSpeed, int stageOneProtection, int stageOneDamage, int stageOneRecovery,
+    private record AltarConfig(int radius, int ritualTicks,
+                               int stageOneSpeed, int stageOneProtection, int stageOneDamage, int stageOneRecovery,
                                int stageTwoSpeed, int stageTwoProtection, int stageTwoDamage, int stageTwoRecovery) {
         static AltarConfig defaults() {
-            return new AltarConfig(3, 3, 3, 3, 7, 7, 7, 7);
+            return new AltarConfig(5, 100, 3, 3, 3, 3, 7, 7, 7, 7);
         }
 
         static AltarConfig from(JsonObject root) {
@@ -264,6 +348,8 @@ public final class AltarRitualManager {
             JsonObject stageOne = root.has("stage_1") ? root.getAsJsonObject("stage_1") : new JsonObject();
             JsonObject stageTwo = root.has("stage_2") ? root.getAsJsonObject("stage_2") : new JsonObject();
             return new AltarConfig(
+                    root.has("radius") ? root.get("radius").getAsInt() : defaults.radius,
+                    root.has("ritual_ticks") ? root.get("ritual_ticks").getAsInt() : defaults.ritualTicks,
                     readMax(stageOne, AltarUpgradeType.SPEED, defaults.stageOneSpeed),
                     readMax(stageOne, AltarUpgradeType.PROTECTION, defaults.stageOneProtection),
                     readMax(stageOne, AltarUpgradeType.DAMAGE, defaults.stageOneDamage),
@@ -273,6 +359,10 @@ public final class AltarRitualManager {
                     readMax(stageTwo, AltarUpgradeType.DAMAGE, defaults.stageTwoDamage),
                     readMax(stageTwo, AltarUpgradeType.RECOVERY, defaults.stageTwoRecovery)
             );
+        }
+
+        double radiusSqr() {
+            return radius * radius;
         }
 
         int maxFor(AltarUpgradeType type, boolean stageTwo) {

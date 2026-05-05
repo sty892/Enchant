@@ -29,6 +29,7 @@ public final class GuardianModServer implements ModInitializer {
         AltarRitualManager.initialize();
         GuardianCommand.initialize();
         GuardianAltarRitualHooks.setActivationHook(AltarRitualManager::tryActivateRitual);
+        GuardianAltarRitualHooks.setSelectionHook(AltarRitualManager::selectAltarAspect);
         GuardianBossEventHooks.setSpawnHook(BossEventManager::triggerOnSpawn);
         GuardianBossEventHooks.setDeathHook(BossEventManager::triggerOnDeath);
         GuardianEventExecutor.setExecutor((level, eventData, center, source) -> {

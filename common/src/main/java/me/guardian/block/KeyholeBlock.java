@@ -59,6 +59,10 @@ public class KeyholeBlock extends Block implements EntityBlock {
         return blockEntityType.get().create(pos, state);
     }
 
+    public int slot() {
+        return slot;
+    }
+
     @Override
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
         if (level.isClientSide()) return InteractionResult.SUCCESS;

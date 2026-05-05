@@ -9,20 +9,22 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.core.Holder;
 
 public enum AltarUpgradeType {
-    SPEED("speed", "max_speed", ModBlocks.ALTAR_SPEED, Attributes.MOVEMENT_SPEED, 0.02D),
-    PROTECTION("protection", "max_protection", ModBlocks.ALTAR_PROTECTION, Attributes.ARMOR, 1.0D),
-    DAMAGE("damage", "max_damage", ModBlocks.ALTAR_DAMAGE, Attributes.ATTACK_DAMAGE, 1.0D),
-    RECOVERY("recovery", "max_recovery", ModBlocks.ALTAR_RECOVERY, null, 1.0D);
+    SPEED("speed", "Скорость", "max_speed", ModBlocks.ALTAR_SPEED, Attributes.MOVEMENT_SPEED, 0.02D),
+    PROTECTION("protection", "Защита", "max_protection", ModBlocks.ALTAR_PROTECTION, Attributes.ARMOR, 1.0D),
+    DAMAGE("damage", "Урон", "max_damage", ModBlocks.ALTAR_DAMAGE, Attributes.ATTACK_DAMAGE, 1.0D),
+    RECOVERY("recovery", "Восстановление", "max_recovery", ModBlocks.ALTAR_RECOVERY, null, 1.0D);
 
     private final String key;
+    private final String displayName;
     private final String maxConfigKey;
     private final Block block;
     private final Holder<Attribute> attribute;
     private final double perLevel;
     private final Identifier modifierId;
 
-    AltarUpgradeType(String key, String maxConfigKey, Block block, Holder<Attribute> attribute, double perLevel) {
+    AltarUpgradeType(String key, String displayName, String maxConfigKey, Block block, Holder<Attribute> attribute, double perLevel) {
         this.key = key;
+        this.displayName = displayName;
         this.maxConfigKey = maxConfigKey;
         this.block = block;
         this.attribute = attribute;
@@ -32,6 +34,10 @@ public enum AltarUpgradeType {
 
     public String key() {
         return key;
+    }
+
+    public String displayName() {
+        return displayName;
     }
 
     public String maxConfigKey() {

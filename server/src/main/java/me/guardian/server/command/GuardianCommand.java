@@ -12,11 +12,14 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import me.guardian.GuardianMod;
+import me.guardian.block.KeyholeBlock;
 import me.guardian.config.ConfigLoader;
 import me.guardian.config.ConfigManager;
 import me.guardian.entity.GenericBossEntity;
 import me.guardian.entity.NetherGuardianEntity;
 import me.guardian.entity.OverworldGuardianEntity;
+import me.guardian.event.GuardianEventExecutor;
+import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.boss.BossEventManager;
 import me.guardian.server.state.GuardianWorldState;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -33,6 +36,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -91,6 +95,26 @@ public final class GuardianCommand {
                         .then(Commands.argument("stage", IntegerArgumentType.integer(1, 2))
                                 .suggests((context, builder) -> suggest(new String[]{"1", "2"}, builder))
                                 .executes(context -> setStage(context.getSource(), IntegerArgumentType.getInteger(context, "stage")))))
+                .then(Commands.literal("keyholes")
+                        .then(Commands.literal("reset")
+                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 64))
+                                        .executes(context -> resetKeyholes(context.getSource(), IntegerArgumentType.getInteger(context, "radius")))))
+                        .then(Commands.literal("state")
+                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 64))
+                                        .executes(context -> printKeyholeState(context.getSource(), IntegerArgumentType.getInteger(context, "radius"))))))
+                .then(Commands.literal("event")
+                        .then(Commands.literal("test")
+                                .then(Commands.literal("key_insert")
+                                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 8))
+                                                .suggests((context, builder) -> suggest(new String[]{"1", "2", "3", "4", "5", "6", "7", "8"}, builder))
+                                                .executes(context -> testKeyInsertEvent(context.getSource(), IntegerArgumentType.getInteger(context, "slot")))))
+                                .then(Commands.literal("all_keys")
+                                        .executes(context -> testAllKeysEvent(context.getSource())))))
+                .then(Commands.literal("altar")
+                        .then(Commands.literal("stats")
+                                .executes(context -> printAltarStats(context.getSource())))
+                        .then(Commands.literal("reset")
+                                .executes(context -> resetAltarStats(context.getSource()))))
                 .then(Commands.literal("reload")
                         .executes(context -> reload(context.getSource()))));
     }
@@ -200,6 +224,79 @@ public final class GuardianCommand {
         return 1;
     }
 
+    private static int resetKeyholes(CommandSourceStack source, int radius) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = source.getLevel();
+        int changed = 0;
+        for (BlockPos pos : BlockPos.betweenClosed(player.blockPosition().offset(-radius, -radius, -radius), player.blockPosition().offset(radius, radius, radius))) {
+            BlockState state = level.getBlockState(pos);
+            if (state.getBlock() instanceof KeyholeBlock && state.hasProperty(KeyholeBlock.FILLED) && state.getValue(KeyholeBlock.FILLED)) {
+                level.setBlock(pos, state.setValue(KeyholeBlock.FILLED, false), 3);
+                changed++;
+            }
+        }
+        int result = changed;
+        source.sendSuccess(() -> Component.literal("Reset keyholes in radius " + radius + ": " + result), true);
+        return changed;
+    }
+
+    private static int printKeyholeState(CommandSourceStack source, int radius) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = source.getLevel();
+        boolean[] found = new boolean[9];
+        boolean[] filled = new boolean[9];
+        for (BlockPos pos : BlockPos.betweenClosed(player.blockPosition().offset(-radius, -radius, -radius), player.blockPosition().offset(radius, radius, radius))) {
+            BlockState state = level.getBlockState(pos);
+            if (state.getBlock() instanceof KeyholeBlock keyhole && state.hasProperty(KeyholeBlock.FILLED)) {
+                int slot = keyhole.slot();
+                found[slot] = true;
+                filled[slot] |= state.getValue(KeyholeBlock.FILLED);
+            }
+        }
+        for (int slot = 1; slot <= 8; slot++) {
+            int current = slot;
+            source.sendSuccess(() -> Component.literal("keyhole_" + current + ": " + (found[current] && filled[current] ? "filled" : "empty")), false);
+        }
+        return 1;
+    }
+
+    private static int testKeyInsertEvent(CommandSourceStack source, int slot) throws CommandSyntaxException {
+        JsonObject config = readKeysConfig();
+        JsonObject event = findKeyInsertEvent(config, slot);
+        if (event == null) {
+            source.sendFailure(Component.literal("No on_insert event for key " + slot));
+            return 0;
+        }
+        ServerPlayer player = source.getPlayerOrException();
+        GuardianEventExecutor.execute(source.getLevel(), event, player.blockPosition(), player);
+        source.sendSuccess(() -> Component.literal("Executed on_insert for key " + slot), true);
+        return 1;
+    }
+
+    private static int testAllKeysEvent(CommandSourceStack source) throws CommandSyntaxException {
+        JsonObject config = readKeysConfig();
+        if (!config.has("on_all_inserted") || !config.get("on_all_inserted").isJsonObject()) {
+            source.sendFailure(Component.literal("No on_all_inserted event configured"));
+            return 0;
+        }
+        ServerPlayer player = source.getPlayerOrException();
+        GuardianEventExecutor.execute(source.getLevel(), config.getAsJsonObject("on_all_inserted"), player.blockPosition(), player);
+        source.sendSuccess(() -> Component.literal("Executed on_all_inserted"), true);
+        return 1;
+    }
+
+    private static int printAltarStats(CommandSourceStack source) throws CommandSyntaxException {
+        AltarRitualManager.sendStats(source.getPlayerOrException());
+        return 1;
+    }
+
+    private static int resetAltarStats(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        AltarRitualManager.resetPlayerUpgrades(player);
+        source.sendSuccess(() -> Component.literal("Guardian altar upgrades reset"), true);
+        return 1;
+    }
+
     private static int addWhitelist(CommandSourceStack source, String playerNameOrUuid) {
         UUID uuid = resolveUuid(source.getServer(), playerNameOrUuid);
         if (uuid == null) {
@@ -281,6 +378,56 @@ public final class GuardianCommand {
         } catch (IOException e) {
             GuardianMod.LOGGER.error("Failed to write guardian_config.json", e);
         }
+    }
+
+    private static JsonObject readKeysConfig() {
+        try {
+            JsonObject config = GSON.fromJson(ConfigLoader.read("keys_config.json"), JsonObject.class);
+            return config == null ? new JsonObject() : config;
+        } catch (IOException | RuntimeException e) {
+            GuardianMod.LOGGER.warn("Failed to read keys_config.json", e);
+            return new JsonObject();
+        }
+    }
+
+    private static JsonObject findKeyInsertEvent(JsonObject config, int slot) {
+        if (!config.has("keys") || !config.get("keys").isJsonArray()) {
+            return null;
+        }
+        for (JsonElement element : config.getAsJsonArray("keys")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject key = element.getAsJsonObject();
+            if (configuredSlot(key) == slot && key.has("on_insert") && key.get("on_insert").isJsonObject()) {
+                return key.getAsJsonObject("on_insert");
+            }
+        }
+        return null;
+    }
+
+    private static int configuredSlot(JsonObject key) {
+        if (key.has("slot")) {
+            return key.get("slot").getAsInt();
+        }
+        if (key.has("keyhole_slot")) {
+            return key.get("keyhole_slot").getAsInt();
+        }
+        if (key.has("keyhole_stage")) {
+            return key.get("keyhole_stage").getAsInt();
+        }
+        if (key.has("keyhole_id")) {
+            String value = key.get("keyhole_id").getAsString();
+            int separator = value.lastIndexOf('_');
+            if (separator >= 0 && separator + 1 < value.length()) {
+                try {
+                    return Integer.parseInt(value.substring(separator + 1));
+                } catch (NumberFormatException ignored) {
+                    return -1;
+                }
+            }
+        }
+        return -1;
     }
 
     private static CompletableFuture<Suggestions> suggest(String[] values, SuggestionsBuilder builder) {

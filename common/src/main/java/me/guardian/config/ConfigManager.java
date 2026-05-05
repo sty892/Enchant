@@ -52,6 +52,8 @@ public final class ConfigManager {
                     """,
             "altar_config.json", """
                     {
+                      "radius": 5,
+                      "ritual_ticks": 100,
                       "stage_1": {
                         "max_speed": 3,
                         "max_protection": 3,
