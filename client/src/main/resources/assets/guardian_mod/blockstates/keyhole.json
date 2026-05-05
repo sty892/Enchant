@@ -1,0 +1,31 @@
+{
+  "variants": {
+    "stage=0": {
+      "model": "guardian_mod:block/keyhole_stage_0"
+    },
+    "stage=1": {
+      "model": "guardian_mod:block/keyhole_stage_1"
+    },
+    "stage=2": {
+      "model": "guardian_mod:block/keyhole_stage_2"
+    },
+    "stage=3": {
+      "model": "guardian_mod:block/keyhole_stage_3"
+    },
+    "stage=4": {
+      "model": "guardian_mod:block/keyhole_stage_4"
+    },
+    "stage=5": {
+      "model": "guardian_mod:block/keyhole_stage_5"
+    },
+    "stage=6": {
+      "model": "guardian_mod:block/keyhole_stage_6"
+    },
+    "stage=7": {
+      "model": "guardian_mod:block/keyhole_stage_7"
+    },
+    "stage=8": {
+      "model": "guardian_mod:block/keyhole_stage_8"
+    }
+  }
+}

@@ -8,6 +8,8 @@ import com.google.gson.JsonObject;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import me.guardian.GuardianMod;
 import me.guardian.config.ConfigLoader;
@@ -38,10 +40,19 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class GuardianCommand {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String GUARDIAN_CONFIG = "guardian_config.json";
+    private static final String[] BOSS_ID_SUGGESTIONS = {
+            "guardian_mod:boss_overworld",
+            "guardian_mod:boss_nether",
+            "guardian_mod:boss_generic",
+            "boss_overworld",
+            "boss_nether",
+            "boss_generic"
+    };
 
     private GuardianCommand() {
     }
@@ -55,7 +66,8 @@ public final class GuardianCommand {
                 .requires(GuardianCommand::canUse)
                 .then(Commands.literal("boss")
                         .then(Commands.literal("spawn")
-                                .then(Commands.argument("boss_id", StringArgumentType.word())
+                                .then(Commands.argument("boss_id", StringArgumentType.string())
+                                        .suggests((context, builder) -> suggest(BOSS_ID_SUGGESTIONS, builder))
                                         .executes(context -> spawnBoss(context.getSource(), StringArgumentType.getString(context, "boss_id")))))
                         .then(Commands.literal("kill")
                                 .then(Commands.literal("all")
@@ -63,9 +75,11 @@ public final class GuardianCommand {
                 .then(Commands.literal("whitelist")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("player", StringArgumentType.word())
+                                        .suggests((context, builder) -> suggestOnlinePlayers(context.getSource(), builder))
                                         .executes(context -> addWhitelist(context.getSource(), StringArgumentType.getString(context, "player")))))
                         .then(Commands.literal("remove")
                                 .then(Commands.argument("player", StringArgumentType.word())
+                                        .suggests((context, builder) -> suggestOnlinePlayers(context.getSource(), builder))
                                         .executes(context -> removeWhitelist(context.getSource(), StringArgumentType.getString(context, "player")))))
                         .then(Commands.literal("list")
                                 .executes(context -> listWhitelist(context.getSource()))))
@@ -75,6 +89,7 @@ public final class GuardianCommand {
                         .executes(context -> resetState(context.getSource())))
                 .then(Commands.literal("stage")
                         .then(Commands.argument("stage", IntegerArgumentType.integer(1, 2))
+                                .suggests((context, builder) -> suggest(new String[]{"1", "2"}, builder))
                                 .executes(context -> setStage(context.getSource(), IntegerArgumentType.getInteger(context, "stage")))))
                 .then(Commands.literal("reload")
                         .executes(context -> reload(context.getSource()))));
@@ -86,7 +101,7 @@ public final class GuardianCommand {
     }
 
     private static int spawnBoss(CommandSourceStack source, String bossId) throws CommandSyntaxException {
-        Identifier id = Identifier.tryParse(bossId);
+        Identifier id = parseGuardianBossId(bossId);
         if (id == null || !GuardianMod.MOD_ID.equals(id.getNamespace()) || !id.getPath().startsWith("boss_")) {
             source.sendFailure(Component.literal("Unknown guardian boss id: " + bossId));
             return 0;
@@ -94,7 +109,7 @@ public final class GuardianCommand {
 
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
         if (type == null) {
-            source.sendFailure(Component.literal("Unregistered guardian boss id: " + bossId));
+            source.sendFailure(Component.literal("Unknown guardian boss id: " + bossId));
             return 0;
         }
 
@@ -110,6 +125,14 @@ public final class GuardianCommand {
         level.addFreshEntity(entity);
         source.sendSuccess(() -> Component.literal("Spawned " + bossId), true);
         return 1;
+    }
+
+    private static Identifier parseGuardianBossId(String bossId) {
+        String id = bossId.trim();
+        if (id.indexOf(':') < 0) {
+            return Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, id);
+        }
+        return Identifier.tryParse(id);
     }
 
     private static int killAllBosses(CommandSourceStack source) {
@@ -258,5 +281,26 @@ public final class GuardianCommand {
         } catch (IOException e) {
             GuardianMod.LOGGER.error("Failed to write guardian_config.json", e);
         }
+    }
+
+    private static CompletableFuture<Suggestions> suggest(String[] values, SuggestionsBuilder builder) {
+        String remaining = builder.getRemainingLowerCase();
+        for (String value : values) {
+            if (value.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(value);
+            }
+        }
+        return builder.buildFuture();
+    }
+
+    private static CompletableFuture<Suggestions> suggestOnlinePlayers(CommandSourceStack source, SuggestionsBuilder builder) {
+        String remaining = builder.getRemainingLowerCase();
+        for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
+            String name = player.getScoreboardName();
+            if (name.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(name);
+            }
+        }
+        return builder.buildFuture();
     }
 }
