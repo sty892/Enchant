@@ -9,6 +9,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -23,8 +25,15 @@ public class ModBlocks {
     public static Block ALTAR_DAMAGE;
     public static Block ALTAR_RECOVERY;
 
-    // Keyhole Block
-    public static Block KEYHOLE;
+    // Keyhole Blocks
+    public static Block KEYHOLE_1;
+    public static Block KEYHOLE_2;
+    public static Block KEYHOLE_3;
+    public static Block KEYHOLE_4;
+    public static Block KEYHOLE_5;
+    public static Block KEYHOLE_6;
+    public static Block KEYHOLE_7;
+    public static Block KEYHOLE_8;
 
     // Block Entity Types
     public static BlockEntityType<AltarBlockEntity> ALTAR_BE_TYPE;
@@ -39,7 +48,14 @@ public class ModBlocks {
         ALTAR_DAMAGE = register("altar_damage", properties -> new AltarBlock(properties, () -> ALTAR_BE_TYPE));
         ALTAR_RECOVERY = register("altar_recovery", properties -> new AltarBlock(properties, () -> ALTAR_BE_TYPE));
 
-        KEYHOLE = register("keyhole", properties -> new KeyholeBlock(properties, () -> KEYHOLE_BE_TYPE));
+        KEYHOLE_1 = register("keyhole_1", properties -> new KeyholeBlock(properties, 1, () -> KEYHOLE_BE_TYPE));
+        KEYHOLE_2 = register("keyhole_2", properties -> new KeyholeBlock(properties, 2, () -> KEYHOLE_BE_TYPE));
+        KEYHOLE_3 = register("keyhole_3", properties -> new KeyholeBlock(properties, 3, () -> KEYHOLE_BE_TYPE));
+        KEYHOLE_4 = register("keyhole_4", properties -> new KeyholeBlock(properties, 4, () -> KEYHOLE_BE_TYPE));
+        KEYHOLE_5 = register("keyhole_5", properties -> new KeyholeBlock(properties, 5, () -> KEYHOLE_BE_TYPE));
+        KEYHOLE_6 = register("keyhole_6", properties -> new KeyholeBlock(properties, 6, () -> KEYHOLE_BE_TYPE));
+        KEYHOLE_7 = register("keyhole_7", properties -> new KeyholeBlock(properties, 7, () -> KEYHOLE_BE_TYPE));
+        KEYHOLE_8 = register("keyhole_8", properties -> new KeyholeBlock(properties, 8, () -> KEYHOLE_BE_TYPE));
 
         ALTAR_BE_TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
                 Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "altar_be"),
@@ -52,7 +68,8 @@ public class ModBlocks {
                 Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "keyhole_be"),
                 FabricBlockEntityTypeBuilder.create(
                         (pos, state) -> new KeyholeBlockEntity(KEYHOLE_BE_TYPE, pos, state),
-                        KEYHOLE
+                        KEYHOLE_1, KEYHOLE_2, KEYHOLE_3, KEYHOLE_4,
+                        KEYHOLE_5, KEYHOLE_6, KEYHOLE_7, KEYHOLE_8
                 ).build());
     }
 
@@ -60,6 +77,35 @@ public class ModBlocks {
         Identifier id = Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, name);
         ResourceKey<Block> key = ResourceKey.create(Registries.BLOCK, id);
         BlockBehaviour.Properties properties = BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN).setId(key);
-        return Registry.register(BuiltInRegistries.BLOCK, key, factory.apply(properties));
+        Block block = Registry.register(BuiltInRegistries.BLOCK, key, factory.apply(properties));
+        registerBlockItem(name, block);
+        return block;
+    }
+
+    private static void registerBlockItem(String name, Block block) {
+        Identifier id = Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, name);
+        ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id);
+        Registry.register(BuiltInRegistries.ITEM, key, new BlockItem(block, new Item.Properties().setId(key)));
+    }
+
+    public static Block[] keyholeBlocks() {
+        return new Block[] {
+                KEYHOLE_1, KEYHOLE_2, KEYHOLE_3, KEYHOLE_4,
+                KEYHOLE_5, KEYHOLE_6, KEYHOLE_7, KEYHOLE_8
+        };
+    }
+
+    public static Block getKeyholeBlock(int slot) {
+        return switch (slot) {
+            case 1 -> KEYHOLE_1;
+            case 2 -> KEYHOLE_2;
+            case 3 -> KEYHOLE_3;
+            case 4 -> KEYHOLE_4;
+            case 5 -> KEYHOLE_5;
+            case 6 -> KEYHOLE_6;
+            case 7 -> KEYHOLE_7;
+            case 8 -> KEYHOLE_8;
+            default -> throw new IllegalArgumentException("Keyhole slot must be 1..8, got " + slot);
+        };
     }
 }

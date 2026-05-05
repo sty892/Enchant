@@ -8,30 +8,30 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
 public class KeyholeBlockEntity extends BlockEntity {
-    private int stage = 0;
+    private boolean filled = false;
 
     public KeyholeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
 
-    public int getStage() {
-        return stage;
+    public boolean isFilled() {
+        return filled;
     }
 
-    public void setStage(int stage) {
-        this.stage = stage;
+    public void setFilled(boolean filled) {
+        this.filled = filled;
         setChanged();
     }
 
     @Override
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
-        output.putInt("Stage", stage);
+        output.putBoolean("Filled", filled);
     }
 
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
-        this.stage = input.getIntOr("Stage", 0);
+        this.filled = input.getBooleanOr("Filled", false);
     }
 }

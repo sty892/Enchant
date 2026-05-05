@@ -2,6 +2,7 @@ package me.guardian.client;
 
 import me.guardian.GuardianMod;
 import me.guardian.ModState;
+import me.guardian.entity.ModEntities;
 import me.guardian.network.GuardianNetworking;
 import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
@@ -9,6 +10,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 
@@ -20,6 +22,7 @@ public final class GuardianModClient implements ClientModInitializer {
     public void onInitializeClient() {
         GuardianNetworking.registerPayloadTypes();
         GuardianMod.LOGGER.info("Guardian Mod client foundation initialized");
+        registerEntityRenderers();
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (client.isSingleplayer()) {
@@ -64,6 +67,12 @@ public final class GuardianModClient implements ClientModInitializer {
             refreshResourcePackLoaded(context.client());
             GuardianMod.LOGGER.info("Guardian Mod server handshake received, enabling features.");
         });
+    }
+
+    private static void registerEntityRenderers() {
+        EntityRendererRegistry.register(ModEntities.OVERWORLD_GUARDIAN, GuardianFallbackBossRenderer::new);
+        EntityRendererRegistry.register(ModEntities.NETHER_GUARDIAN, GuardianFallbackBossRenderer::new);
+        EntityRendererRegistry.register(ModEntities.GENERIC_BOSS, GuardianFallbackBossRenderer::new);
     }
 
     private static void refreshResourcePackLoaded(Minecraft client) {

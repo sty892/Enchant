@@ -14,7 +14,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -23,26 +22,36 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Supplier;
 
 public class KeyholeBlock extends Block implements EntityBlock {
     private static final Gson GSON = new Gson();
-    public static final IntegerProperty STAGE = IntegerProperty.create("stage", 0, 8);
+    private static final int KEYHOLE_COUNT = 8;
+    private static final int ALL_INSERTED_SCAN_RADIUS = 16;
+    public static final BooleanProperty FILLED = BooleanProperty.create("filled");
+
+    private final int slot;
     private final Supplier<BlockEntityType<? extends KeyholeBlockEntity>> blockEntityType;
 
-    public KeyholeBlock(Properties properties, Supplier<BlockEntityType<? extends KeyholeBlockEntity>> blockEntityType) {
+    public KeyholeBlock(Properties properties, int slot, Supplier<BlockEntityType<? extends KeyholeBlockEntity>> blockEntityType) {
         super(properties);
+        if (slot < 1 || slot > KEYHOLE_COUNT) {
+            throw new IllegalArgumentException("Keyhole slot must be 1..8, got " + slot);
+        }
+        this.slot = slot;
         this.blockEntityType = blockEntityType;
-        this.registerDefaultState(this.stateDefinition.any().setValue(STAGE, 0));
+        this.registerDefaultState(this.stateDefinition.any().setValue(FILLED, false));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(STAGE);
+        builder.add(FILLED);
     }
 
     @Override
@@ -66,8 +75,7 @@ public class KeyholeBlock extends Block implements EntityBlock {
             return InteractionResult.PASS;
         }
 
-        int currentStage = state.getValue(STAGE);
-        if (currentStage >= 8) {
+        if (state.getValue(FILLED)) {
             return InteractionResult.SUCCESS;
         }
 
@@ -76,9 +84,8 @@ public class KeyholeBlock extends Block implements EntityBlock {
             return InteractionResult.PASS;
         }
 
-        int nextStage = currentStage + 1;
         Identifier heldItemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        JsonObject keyConfig = findKeyConfig(config.getAsJsonArray("keys"), heldItemId, nextStage);
+        JsonObject keyConfig = findKeyConfig(config.getAsJsonArray("keys"), heldItemId);
         if (keyConfig == null) {
             return InteractionResult.PASS;
         }
@@ -87,14 +94,14 @@ public class KeyholeBlock extends Block implements EntityBlock {
             stack.shrink(1);
         }
 
-        BlockState nextState = state.setValue(STAGE, nextStage);
+        BlockState nextState = state.setValue(FILLED, true);
         level.setBlock(pos, nextState, 3);
-        keyholeBe.setStage(nextStage);
+        keyholeBe.setFilled(true);
 
         if (keyConfig.has("on_insert") && keyConfig.get("on_insert").isJsonObject()) {
             GuardianEventExecutor.execute(level, keyConfig.getAsJsonObject("on_insert"), pos, player);
         }
-        if (nextStage == 8 && config.has("on_all_inserted") && config.get("on_all_inserted").isJsonObject()) {
+        if (areAllKeyholesFilledNearby(level, pos) && config.has("on_all_inserted") && config.get("on_all_inserted").isJsonObject()) {
             GuardianEventExecutor.execute(level, config.getAsJsonObject("on_all_inserted"), pos, player);
         }
 
@@ -110,23 +117,68 @@ public class KeyholeBlock extends Block implements EntityBlock {
         }
     }
 
-    private JsonObject findKeyConfig(JsonArray keys, Identifier heldItemId, int nextStage) {
+    private JsonObject findKeyConfig(JsonArray keys, Identifier heldItemId) {
         for (JsonElement element : keys) {
             if (!element.isJsonObject()) {
                 continue;
             }
 
             JsonObject key = element.getAsJsonObject();
-            if (!key.has("item_id") || !key.has("keyhole_stage")) {
+            if (!key.has("item_id")) {
                 continue;
             }
 
             Identifier configuredItemId = Identifier.tryParse(key.get("item_id").getAsString());
-            int configuredStage = key.get("keyhole_stage").getAsInt();
-            if (heldItemId.equals(configuredItemId) && configuredStage == nextStage) {
+            if (heldItemId.equals(configuredItemId) && configuredSlot(key) == slot) {
                 return key;
             }
         }
         return null;
+    }
+
+    private int configuredSlot(JsonObject key) {
+        if (key.has("slot")) {
+            return key.get("slot").getAsInt();
+        }
+        if (key.has("keyhole_slot")) {
+            return key.get("keyhole_slot").getAsInt();
+        }
+        if (key.has("keyhole_stage")) {
+            return key.get("keyhole_stage").getAsInt();
+        }
+        if (key.has("keyhole_id")) {
+            String value = key.get("keyhole_id").getAsString();
+            int separator = value.lastIndexOf('_');
+            if (separator >= 0 && separator + 1 < value.length()) {
+                try {
+                    return Integer.parseInt(value.substring(separator + 1));
+                } catch (NumberFormatException ignored) {
+                    return -1;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private boolean areAllKeyholesFilledNearby(Level level, BlockPos center) {
+        Set<Integer> filledSlots = new HashSet<>();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+
+        for (int x = -ALL_INSERTED_SCAN_RADIUS; x <= ALL_INSERTED_SCAN_RADIUS; x++) {
+            for (int y = -ALL_INSERTED_SCAN_RADIUS; y <= ALL_INSERTED_SCAN_RADIUS; y++) {
+                for (int z = -ALL_INSERTED_SCAN_RADIUS; z <= ALL_INSERTED_SCAN_RADIUS; z++) {
+                    cursor.set(center.getX() + x, center.getY() + y, center.getZ() + z);
+                    BlockState candidate = level.getBlockState(cursor);
+                    Block block = candidate.getBlock();
+                    if (block instanceof KeyholeBlock keyhole && candidate.hasProperty(FILLED) && candidate.getValue(FILLED)) {
+                        filledSlots.add(keyhole.slot);
+                        if (filledSlots.size() == KEYHOLE_COUNT) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 }

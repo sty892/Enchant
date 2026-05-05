@@ -1,6 +1,7 @@
 package me.guardian.item;
 
 import me.guardian.GuardianMod;
+import me.guardian.block.ModBlocks;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -48,6 +49,19 @@ public class ModItems {
                         output.accept(FRAGMENT_OVERWORLD);
                         output.accept(FRAGMENT_NETHER);
                         output.accept(FRAGMENT_GENERIC);
+                        output.accept(ModBlocks.ALTAR_CORE);
+                        output.accept(ModBlocks.ALTAR_SPEED);
+                        output.accept(ModBlocks.ALTAR_PROTECTION);
+                        output.accept(ModBlocks.ALTAR_DAMAGE);
+                        output.accept(ModBlocks.ALTAR_RECOVERY);
+                        output.accept(ModBlocks.KEYHOLE_1);
+                        output.accept(ModBlocks.KEYHOLE_2);
+                        output.accept(ModBlocks.KEYHOLE_3);
+                        output.accept(ModBlocks.KEYHOLE_4);
+                        output.accept(ModBlocks.KEYHOLE_5);
+                        output.accept(ModBlocks.KEYHOLE_6);
+                        output.accept(ModBlocks.KEYHOLE_7);
+                        output.accept(ModBlocks.KEYHOLE_8);
                     })
                     .build());
 

@@ -70,14 +70,14 @@ public final class ConfigManager {
             "keys_config.json", """
                     {
                       "keys": [
-                        { "item_id": "guardian_mod:key_1", "keyhole_stage": 1, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_2", "keyhole_stage": 2, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_3", "keyhole_stage": 3, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_4", "keyhole_stage": 4, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_5", "keyhole_stage": 5, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_6", "keyhole_stage": 6, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_7", "keyhole_stage": 7, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_8", "keyhole_stage": 8, "on_insert": {} }
+                        { "item_id": "guardian_mod:key_1", "keyhole_id": "guardian_mod:keyhole_1", "slot": 1, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_2", "keyhole_id": "guardian_mod:keyhole_2", "slot": 2, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_3", "keyhole_id": "guardian_mod:keyhole_3", "slot": 3, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_4", "keyhole_id": "guardian_mod:keyhole_4", "slot": 4, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_5", "keyhole_id": "guardian_mod:keyhole_5", "slot": 5, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_6", "keyhole_id": "guardian_mod:keyhole_6", "slot": 6, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_7", "keyhole_id": "guardian_mod:keyhole_7", "slot": 7, "on_insert": {} },
+                        { "item_id": "guardian_mod:key_8", "keyhole_id": "guardian_mod:keyhole_8", "slot": 8, "on_insert": {} }
                       ],
                       "on_all_inserted": {}
                     }

@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "guardian_mod:block/keyhole_stage_6"
-  }
-}

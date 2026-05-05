@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "filled=false": {
+      "model": "guardian_mod:block/keyhole_2_empty"
+    },
+    "filled=true": {
+      "model": "guardian_mod:block/keyhole_2_filled"
+    }
+  }
+}
