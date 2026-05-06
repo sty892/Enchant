@@ -21,6 +21,7 @@ import me.guardian.entity.OverworldGuardianEntity;
 import me.guardian.event.GuardianEventExecutor;
 import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.boss.BossEventManager;
+import me.guardian.server.event.GuardianJsonEventActions;
 import me.guardian.server.state.GuardianWorldState;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
@@ -39,6 +40,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -103,6 +106,10 @@ public final class GuardianCommand {
                                 .then(Commands.argument("radius", IntegerArgumentType.integer(1, 64))
                                         .executes(context -> printKeyholeState(context.getSource(), IntegerArgumentType.getInteger(context, "radius"))))))
                 .then(Commands.literal("event")
+                        .then(Commands.literal("run")
+                                .then(Commands.argument("event_file", StringArgumentType.string())
+                                        .suggests((context, builder) -> suggestEventFiles(builder))
+                                        .executes(context -> runJsonEvent(context.getSource(), StringArgumentType.getString(context, "event_file")))))
                         .then(Commands.literal("test")
                                 .then(Commands.literal("key_insert")
                                         .then(Commands.argument("slot", IntegerArgumentType.integer(1, 8))
@@ -273,6 +280,19 @@ public final class GuardianCommand {
         return 1;
     }
 
+    private static int runJsonEvent(CommandSourceStack source, String eventFile) {
+        JsonObject event = readEventFile(eventFile);
+        if (event == null) {
+            source.sendFailure(Component.literal("Failed to read guardian event file: " + eventFile));
+            return 0;
+        }
+
+        BlockPos center = BlockPos.containing(source.getPosition());
+        int scheduled = GuardianJsonEventActions.run(source.getServer(), source.getLevel(), center, event);
+        source.sendSuccess(() -> Component.literal("Guardian event scheduled actions: " + scheduled), true);
+        return scheduled > 0 ? 1 : 0;
+    }
+
     private static int testAllKeysEvent(CommandSourceStack source) throws CommandSyntaxException {
         JsonObject config = readKeysConfig();
         if (!config.has("on_all_inserted") || !config.get("on_all_inserted").isJsonObject()) {
@@ -404,6 +424,42 @@ public final class GuardianCommand {
             }
         }
         return null;
+    }
+
+    private static JsonObject readEventFile(String eventFile) {
+        String normalizedName = eventFile.endsWith(".json") ? eventFile : eventFile + ".json";
+        Path root = ConfigLoader.configRoot().toAbsolutePath().normalize();
+        Path target = root.resolve(normalizedName).normalize();
+        if (!target.startsWith(root)) {
+            GuardianMod.LOGGER.warn("Rejected guardian event path outside config root: {}", eventFile);
+            return null;
+        }
+
+        try {
+            JsonObject event = GSON.fromJson(Files.readString(target), JsonObject.class);
+            return event == null ? new JsonObject() : event;
+        } catch (IOException | RuntimeException e) {
+            GuardianMod.LOGGER.warn("Failed to read guardian event file {}", target, e);
+            return null;
+        }
+    }
+
+    private static CompletableFuture<Suggestions> suggestEventFiles(SuggestionsBuilder builder) {
+        String remaining = builder.getRemainingLowerCase();
+        try {
+            Path root = ConfigLoader.configRoot();
+            if (Files.isDirectory(root)) {
+                try (var paths = Files.list(root)) {
+                    paths.filter(path -> path.getFileName().toString().endsWith(".json"))
+                            .map(path -> path.getFileName().toString().replaceFirst("\\.json$", ""))
+                            .filter(name -> name.toLowerCase(java.util.Locale.ROOT).startsWith(remaining))
+                            .forEach(builder::suggest);
+                }
+            }
+        } catch (IOException e) {
+            GuardianMod.LOGGER.warn("Failed to suggest guardian event files", e);
+        }
+        return builder.buildFuture();
     }
 
     private static int configuredSlot(JsonObject key) {

@@ -13,6 +13,7 @@ import me.guardian.server.altar.GuardianPlayerUpgrades;
 import me.guardian.server.boss.BossEventManager;
 import me.guardian.server.command.GuardianCommand;
 import me.guardian.server.event.BossEventSystem;
+import me.guardian.server.event.GuardianEventScheduler;
 import me.guardian.server.restriction.DiamondRestrictionHandler;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -25,6 +26,7 @@ public final class GuardianModServer implements ModInitializer {
         GuardianNetworking.registerPayloadTypes();
         ConfigManager.initialize();
         BossEventManager.initialize();
+        GuardianEventScheduler.initialize();
         DiamondRestrictionHandler.initialize();
         AltarRitualManager.initialize();
         GuardianCommand.initialize();
