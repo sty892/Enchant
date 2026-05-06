@@ -24,6 +24,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 public final class GuardianJsonEventActions {
@@ -49,36 +50,60 @@ public final class GuardianJsonEventActions {
             }
 
             JsonObject action = element.getAsJsonObject();
-            long delayTicks = readLong(action, "delay_ticks", 0L);
-            GuardianEventScheduler.schedule(server, delayTicks, () -> runAction(server, defaultLevel, defaultCenter, action));
+            ParsedAction parsed = parseAction(action);
+            if (parsed == null) {
+                continue;
+            }
+
+            long delayTicks = readLong(parsed.payload(), "delay_ticks", 0L);
+            GuardianEventScheduler.schedule(server, delayTicks, () -> runAction(server, defaultLevel, defaultCenter, parsed));
             scheduled++;
         }
         return scheduled;
     }
 
-    private static void runAction(MinecraftServer server, ServerLevel defaultLevel, BlockPos defaultCenter, JsonObject action) {
-        String type = readString(action, "action", "");
-        if (type.isBlank()) {
-            type = readString(action, "type", "");
-        }
-        if (type.isBlank()) {
-            GuardianMod.LOGGER.warn("Guardian event action is missing action/type: {}", action);
-            return;
-        }
-
+    private static void runAction(MinecraftServer server, ServerLevel defaultLevel, BlockPos defaultCenter, ParsedAction parsed) {
+        String type = parsed.name();
+        JsonObject payload = parsed.payload();
         try {
             switch (type.toLowerCase(Locale.ROOT)) {
-                case "spawn_boss" -> spawnBoss(server, defaultLevel, defaultCenter, action);
-                case "play_boss_animation" -> playBossAnimation(server, defaultLevel, defaultCenter, action);
-                case "knockback_players" -> knockbackPlayers(server, defaultLevel, defaultCenter, action);
-                case "world_border_expand" -> worldBorderExpand(server, defaultLevel, defaultCenter, action);
-                case "broadcast_message" -> broadcastMessage(server, action);
-                case "broadcast_actionbar" -> broadcastActionbar(server, action);
+                case "spawn_boss" -> spawnBoss(server, defaultLevel, defaultCenter, payload);
+                case "play_boss_animation" -> playBossAnimation(server, defaultLevel, defaultCenter, payload);
+                case "knockback_players" -> knockbackPlayers(server, defaultLevel, defaultCenter, payload);
+                case "world_border_expand" -> worldBorderExpand(server, defaultLevel, defaultCenter, payload);
+                case "broadcast_message" -> broadcastMessage(server, payload);
+                case "broadcast_actionbar" -> broadcastActionbar(server, payload);
                 default -> GuardianMod.LOGGER.warn("Unknown guardian event action: {}", type);
             }
         } catch (RuntimeException e) {
             GuardianMod.LOGGER.warn("Guardian event action {} failed; continuing", type, e);
         }
+    }
+
+    private static ParsedAction parseAction(JsonObject action) {
+        String type = readString(action, "action", "");
+        if (type.isBlank()) {
+            type = readString(action, "type", "");
+        }
+        if (!type.isBlank()) {
+            return new ParsedAction(type, action);
+        }
+
+        if (action.isEmpty()) {
+            GuardianMod.LOGGER.warn("Guardian event action is empty");
+            return null;
+        }
+        if (action.size() != 1) {
+            GuardianMod.LOGGER.warn("Guardian event action must use action/type or exactly one wrapper key: {}", action);
+            return null;
+        }
+
+        Map.Entry<String, JsonElement> entry = action.entrySet().iterator().next();
+        if (!entry.getValue().isJsonObject()) {
+            GuardianMod.LOGGER.warn("Guardian event action wrapper {} must contain an object payload: {}", entry.getKey(), action);
+            return null;
+        }
+        return new ParsedAction(entry.getKey(), entry.getValue().getAsJsonObject());
     }
 
     private static void spawnBoss(MinecraftServer server, ServerLevel defaultLevel, BlockPos defaultCenter, JsonObject action) {
@@ -142,8 +167,8 @@ public final class GuardianJsonEventActions {
 
         Vec3 center = readVec3(action, "center", Vec3.atCenterOf(defaultCenter));
         double radius = readDouble(action, "radius", 16.0D);
-        double strength = readDouble(action, "strength", 1.0D);
-        double yStrength = readDouble(action, "y_strength", 0.35D);
+        double strength = readDouble(action, "horizontal_strength", readDouble(action, "strength", 1.0D));
+        double yStrength = readDouble(action, "vertical_strength", readDouble(action, "y_strength", 0.35D));
         AABB area = new AABB(center, center).inflate(radius);
         for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class, area, player -> player.distanceToSqr(center) <= radius * radius)) {
             Vec3 direction = player.position().subtract(center);
@@ -318,5 +343,8 @@ public final class GuardianJsonEventActions {
 
     private static String eventId(JsonObject event) {
         return readString(event, "event_id", "<unknown>");
+    }
+
+    private record ParsedAction(String name, JsonObject payload) {
     }
 }
