@@ -23,6 +23,7 @@ import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.boss.BossEventManager;
 import me.guardian.server.event.GuardianJsonEventActions;
 import me.guardian.server.state.GuardianWorldState;
+import me.guardian.server.structure.StructureSpawner;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -59,6 +60,11 @@ public final class GuardianCommand {
             "boss_overworld",
             "boss_nether",
             "boss_generic"
+    };
+    private static final String[] STRUCTURE_ID_SUGGESTIONS = {
+            "altar",
+            "boss_overworld_arena",
+            "boss_nether_arena"
     };
 
     private GuardianCommand() {
@@ -122,6 +128,11 @@ public final class GuardianCommand {
                                 .executes(context -> printAltarStats(context.getSource())))
                         .then(Commands.literal("reset")
                                 .executes(context -> resetAltarStats(context.getSource()))))
+                .then(Commands.literal("structure")
+                        .then(Commands.literal("place")
+                                .then(Commands.argument("structure_id", StringArgumentType.string())
+                                        .suggests((context, builder) -> suggest(STRUCTURE_ID_SUGGESTIONS, builder))
+                                        .executes(context -> placeStructure(context.getSource(), StringArgumentType.getString(context, "structure_id"))))))
                 .then(Commands.literal("reload")
                         .executes(context -> reload(context.getSource()))));
     }
@@ -314,6 +325,24 @@ public final class GuardianCommand {
         ServerPlayer player = source.getPlayerOrException();
         AltarRitualManager.resetPlayerUpgrades(player);
         source.sendSuccess(() -> Component.literal("Guardian altar upgrades reset"), true);
+        return 1;
+    }
+
+    private static int placeStructure(CommandSourceStack source, String structureId) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        Identifier id = StructureSpawner.parseStructureId(structureId);
+        if (id == null) {
+            source.sendFailure(Component.literal("Invalid guardian structure id: " + structureId));
+            return 0;
+        }
+
+        boolean placed = StructureSpawner.place(source.getLevel(), player.blockPosition(), id.toString());
+        if (!placed) {
+            source.sendFailure(Component.literal("Failed to place structure " + id + "; check server log for " + StructureSpawner.resourcePath(id)));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Placed guardian structure " + id), true);
         return 1;
     }
 

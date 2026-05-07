@@ -17,17 +17,17 @@ public final class StructureSpawner {
     private StructureSpawner() {
     }
 
-    public static void place(ServerLevel level, BlockPos center, String structureId) {
-        Identifier id = Identifier.tryParse(structureId);
+    public static boolean place(ServerLevel level, BlockPos center, String structureId) {
+        Identifier id = parseStructureId(structureId);
         if (id == null) {
             GuardianMod.LOGGER.warn("Invalid structure id: {}", structureId);
-            return;
+            return false;
         }
 
         Optional<StructureTemplate> template = level.getStructureManager().get(id);
         if (template.isEmpty()) {
-            GuardianMod.LOGGER.warn("Structure template {} was not found in data/{}/structures", id, id.getNamespace());
-            return;
+            GuardianMod.LOGGER.warn("Structure template {} was not found at {}", id, resourcePath(id));
+            return false;
         }
 
         StructureTemplate structure = template.get();
@@ -44,5 +44,22 @@ public final class StructureSpawner {
         if (!placed) {
             GuardianMod.LOGGER.warn("Structure template {} failed to place at {} in {}", id, origin, level.dimension().identifier());
         }
+        return placed;
+    }
+
+    public static Identifier parseStructureId(String structureId) {
+        if (structureId == null || structureId.isBlank()) {
+            return null;
+        }
+
+        String id = structureId.trim();
+        if (id.indexOf(':') < 0) {
+            id = GuardianMod.MOD_ID + ":" + id;
+        }
+        return Identifier.tryParse(id);
+    }
+
+    public static String resourcePath(Identifier id) {
+        return "data/" + id.getNamespace() + "/structures/" + id.getPath() + ".nbt";
     }
 }

@@ -35,11 +35,9 @@ public class BossEventSystem {
             level.getWorldBorder().lerpSizeBetween(level.getWorldBorder().getSize(), to, duration * 20L, level.getGameTime());
         }
 
-        // spawn_structure / spawn_structure_offset (Placeholder for now)
+        // spawn_structure / spawn_structure_offset
         if (eventData.has("spawn_structure")) {
-            String structureId = eventData.get("spawn_structure").getAsString();
-            BlockPos structurePos = center.offset(readOffset(eventData));
-            StructureSpawner.place(level, structurePos, structureId);
+            spawnStructure(level, eventData, center);
         }
 
         // give_fragment
@@ -82,11 +80,64 @@ public class BossEventSystem {
             return BlockPos.ZERO;
         }
 
-        JsonObject offset = eventData.getAsJsonObject("spawn_structure_offset");
-        int x = offset.has("x") ? offset.get("x").getAsInt() : 0;
-        int y = offset.has("y") ? offset.get("y").getAsInt() : 0;
-        int z = offset.has("z") ? offset.get("z").getAsInt() : 0;
+        return readBlockPos(eventData.getAsJsonObject("spawn_structure_offset"));
+    }
+
+    private static void spawnStructure(ServerLevel level, JsonObject eventData, BlockPos center) {
+        String structureId = null;
+        BlockPos offset = readOffset(eventData);
+
+        if (eventData.get("spawn_structure").isJsonPrimitive()) {
+            try {
+                structureId = eventData.get("spawn_structure").getAsString();
+            } catch (RuntimeException e) {
+                GuardianMod.LOGGER.warn("spawn_structure has invalid id value: {}", eventData.get("spawn_structure"));
+                return;
+            }
+        } else if (eventData.get("spawn_structure").isJsonObject()) {
+            JsonObject structure = eventData.getAsJsonObject("spawn_structure");
+            if (structure.has("id") && structure.get("id").isJsonPrimitive()) {
+                try {
+                    structureId = structure.get("id").getAsString();
+                } catch (RuntimeException e) {
+                    GuardianMod.LOGGER.warn("spawn_structure has invalid object id value: {}", structure.get("id"));
+                    return;
+                }
+            }
+            if (structure.has("offset") && structure.get("offset").isJsonObject()) {
+                offset = readBlockPos(structure.getAsJsonObject("offset"));
+            }
+        } else {
+            GuardianMod.LOGGER.warn("spawn_structure must be a string or object: {}", eventData.get("spawn_structure"));
+            return;
+        }
+
+        Identifier id = StructureSpawner.parseStructureId(structureId);
+        if (id == null) {
+            GuardianMod.LOGGER.warn("spawn_structure has invalid or missing id: {}", eventData.get("spawn_structure"));
+            return;
+        }
+
+        StructureSpawner.place(level, center.offset(offset), id.toString());
+    }
+
+    private static BlockPos readBlockPos(JsonObject object) {
+        int x = readInt(object, "x", 0);
+        int y = readInt(object, "y", 0);
+        int z = readInt(object, "z", 0);
         return new BlockPos(x, y, z);
+    }
+
+    private static int readInt(JsonObject object, String key, int fallback) {
+        if (!object.has(key) || !object.get(key).isJsonPrimitive()) {
+            return fallback;
+        }
+        try {
+            return object.get(key).getAsInt();
+        } catch (RuntimeException e) {
+            GuardianMod.LOGGER.warn("Invalid spawn_structure offset {} value: {}", key, object.get(key));
+            return fallback;
+        }
     }
 
     private static void giveFragment(ServerLevel level, String itemId, BlockPos center, Entity source, Map<UUID, Float> damageContributors) {
