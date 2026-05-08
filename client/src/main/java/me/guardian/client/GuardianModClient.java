@@ -33,13 +33,13 @@ public final class GuardianModClient implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (client.isSingleplayer()) {
                 ModState.serverModPresent = true;
-                refreshResourcePackLoaded(client.getResourceManager());
+                reloadBossAssets(client.getResourceManager());
                 GuardianMod.LOGGER.info("Guardian Mod: Singleplayer detected, enabling features.");
             } else {
                 ModState.serverModPresent = false;
                 waitingForHandshake = true;
                 handshakeTicks = 0;
-                refreshResourcePackLoaded(client.getResourceManager());
+                reloadBossAssets(client.getResourceManager());
 
                 if (ClientPlayNetworking.canSend(HandshakeC2SPayload.TYPE)) {
                     sender.sendPacket(new HandshakeC2SPayload());
@@ -70,7 +70,7 @@ public final class GuardianModClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(HandshakeOkS2CPayload.TYPE, (payload, context) -> {
             waitingForHandshake = false;
             ModState.serverModPresent = true;
-            refreshResourcePackLoaded(context.client().getResourceManager());
+            reloadBossAssets(context.client().getResourceManager());
             GuardianMod.LOGGER.info("Guardian Mod server handshake received, enabling features.");
         });
     }
@@ -95,21 +95,17 @@ public final class GuardianModClient implements ClientModInitializer {
 
             @Override
             public void onResourceManagerReload(ResourceManager manager) {
-                refreshResourcePackLoaded(manager);
+                reloadBossAssets(manager);
             }
         });
     }
 
-    private static void refreshResourcePackLoaded(ResourceManager manager) {
-        Identifier bossTexture = Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "textures/entity/boss_overworld.png");
-        ModState.resourcePackLoaded = manager.getResource(bossTexture).isPresent();
-        if (!ModState.resourcePackLoaded) {
-            GuardianMod.LOGGER.warn("Guardian Mod boss resource pack texture not detected; fallback boss assets will be used.");
-        }
+    private static void reloadBossAssets(ResourceManager manager) {
+        GuardianBossAssets.reload(manager);
     }
 
     @SuppressWarnings("unused")
-    private static void refreshResourcePackLoaded(Minecraft client) {
-        refreshResourcePackLoaded(client.getResourceManager());
+    private static void reloadBossAssets(Minecraft client) {
+        reloadBossAssets(client.getResourceManager());
     }
 }
