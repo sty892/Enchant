@@ -18,12 +18,12 @@ public final class GuardianBossModel<T extends Mob & GeoEntity> extends GeoModel
 
     public GuardianBossModel(String bossAssetName) {
         this.bossAssetName = bossAssetName;
-        this.bossModel = asset("geckolib/models/entity/" + bossAssetName + ".geo.json");
+        this.bossModel = asset("entity/" + bossAssetName);
         this.bossTexture = asset("textures/entity/" + bossAssetName + ".png");
-        this.bossAnimation = asset("geckolib/animations/entity/" + bossAssetName + ".animation.json");
-        this.fallbackModel = asset("geckolib/models/entity/boss_fallback.geo.json");
+        this.bossAnimation = asset("entity/" + bossAssetName);
+        this.fallbackModel = asset("entity/boss_fallback");
         this.fallbackTexture = asset("textures/entity/boss_fallback.png");
-        this.fallbackAnimation = asset("geckolib/animations/entity/boss_fallback.animation.json");
+        this.fallbackAnimation = asset("entity/boss_fallback");
     }
 
     @Override

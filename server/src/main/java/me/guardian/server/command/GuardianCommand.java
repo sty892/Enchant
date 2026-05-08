@@ -21,10 +21,14 @@ import me.guardian.entity.OverworldGuardianEntity;
 import me.guardian.event.GuardianEventExecutor;
 import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.boss.BossEventManager;
+import me.guardian.server.event.ScriptRunner;
 import me.guardian.server.state.GuardianWorldState;
+import me.guardian.server.structure.StructureSpawner;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.IdentifierArgument;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -103,6 +107,10 @@ public final class GuardianCommand {
                                 .then(Commands.argument("radius", IntegerArgumentType.integer(1, 64))
                                         .executes(context -> printKeyholeState(context.getSource(), IntegerArgumentType.getInteger(context, "radius"))))))
                 .then(Commands.literal("event")
+                        .then(Commands.literal("run")
+                                .then(Commands.argument("script_id", StringArgumentType.word())
+                                        .suggests((context, builder) -> suggestScripts(builder))
+                                        .executes(context -> ScriptRunner.runScript(context.getSource(), StringArgumentType.getString(context, "script_id")))))
                         .then(Commands.literal("test")
                                 .then(Commands.literal("key_insert")
                                         .then(Commands.argument("slot", IntegerArgumentType.integer(1, 8))
@@ -115,6 +123,15 @@ public final class GuardianCommand {
                                 .executes(context -> printAltarStats(context.getSource())))
                         .then(Commands.literal("reset")
                                 .executes(context -> resetAltarStats(context.getSource()))))
+                .then(Commands.literal("structure")
+                        .then(Commands.literal("place")
+                                .then(Commands.argument("structure_id", IdentifierArgument.id())
+                                        .executes(context -> placeStructure(context.getSource(), IdentifierArgument.getId(context, "structure_id").toString(), null))
+                                        .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                                .executes(context -> placeStructure(
+                                                        context.getSource(),
+                                                        IdentifierArgument.getId(context, "structure_id").toString(),
+                                                        BlockPosArgument.getLoadedBlockPos(context, "pos")))))))
                 .then(Commands.literal("reload")
                         .executes(context -> reload(context.getSource()))));
     }
@@ -297,6 +314,18 @@ public final class GuardianCommand {
         return 1;
     }
 
+    private static int placeStructure(CommandSourceStack source, String structureId, BlockPos requestedPos) {
+        BlockPos pos = requestedPos == null ? BlockPos.containing(source.getPosition()) : requestedPos;
+        boolean placed = StructureSpawner.place(source.getLevel(), pos, structureId);
+        if (!placed) {
+            source.sendFailure(Component.literal("Failed to place guardian structure: " + structureId));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.literal("Placed guardian structure " + structureId + " at " + pos.toShortString()), true);
+        return 1;
+    }
+
     private static int addWhitelist(CommandSourceStack source, String playerNameOrUuid) {
         UUID uuid = resolveUuid(source.getServer(), playerNameOrUuid);
         if (uuid == null) {
@@ -446,6 +475,16 @@ public final class GuardianCommand {
             String name = player.getScoreboardName();
             if (name.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {
                 builder.suggest(name);
+            }
+        }
+        return builder.buildFuture();
+    }
+
+    private static CompletableFuture<Suggestions> suggestScripts(SuggestionsBuilder builder) {
+        String remaining = builder.getRemainingLowerCase();
+        for (String scriptId : ScriptRunner.listScriptIds()) {
+            if (scriptId.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(scriptId);
             }
         }
         return builder.buildFuture();

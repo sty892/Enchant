@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import me.guardian.GuardianMod;
 import me.guardian.config.ConfigLoader;
 import me.guardian.server.event.BossEventSystem;
+import me.guardian.server.event.ScriptRunner;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -55,10 +56,26 @@ public class BossEventManager {
     }
 
     public static void triggerOnSpawn(String key, ServerLevel level, BlockPos center, Entity source) {
+        JsonObject config = getBossConfig(key);
+        runConfiguredScript(config, "on_spawn_script", level, center, source);
         BossEventSystem.executeEvent(level, getBossEvent(key, "on_spawn"), center, source, Collections.emptyMap());
     }
 
     public static void triggerOnDeath(String key, ServerLevel level, BlockPos center, Entity source, Map<UUID, Float> damageContributors) {
+        JsonObject config = getBossConfig(key);
+        runConfiguredScript(config, "on_death_script", level, center, source);
         BossEventSystem.executeEvent(level, getBossEvent(key, "on_death"), center, source, damageContributors);
+    }
+
+    private static void runConfiguredScript(JsonObject config, String fieldName, ServerLevel level, BlockPos center, Entity source) {
+        if (config == null || !config.has(fieldName) || !config.get(fieldName).isJsonPrimitive()) {
+            return;
+        }
+
+        String scriptId = config.get(fieldName).getAsString();
+        if (scriptId == null || scriptId.isBlank()) {
+            return;
+        }
+        ScriptRunner.runScript(level, center, source, scriptId);
     }
 }

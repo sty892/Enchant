@@ -4,6 +4,18 @@
     "animation.guardian_mod.boss_fallback.idle": {
       "loop": true,
       "bones": {}
+    },
+    "animation.guardian_mod.boss_overworld.idle": {
+      "loop": true,
+      "bones": {}
+    },
+    "animation.guardian_mod.boss_nether.idle": {
+      "loop": true,
+      "bones": {}
+    },
+    "animation.guardian_mod.boss_generic.idle": {
+      "loop": true,
+      "bones": {}
     }
   }
 }

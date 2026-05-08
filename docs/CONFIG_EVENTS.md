@@ -1,151 +1,42 @@
-# Guardian Configs And Events
+# Guardian Config Events
 
-Runtime configs are created under:
+Guardian Mod now prefers named command scripts for runtime events.
+
+Scripts live in:
 
 ```text
-config/guardian_mod
+config/guardian_mod/scripts
 ```
 
-Files:
+Run a script manually:
 
-- `boss_overworld.json`
-- `boss_nether.json`
-- `boss_generic.json`
-- `altar_config.json`
-- `keys_config.json`
-- `guardian_config.json`
+```mcfunction
+/guardian event run season_start
+```
 
-Defaults are written only when a file is missing. If an old config already exists, edit it manually or delete it so the mod can recreate the latest default.
-
-## keys_config.json
-
-Each key entry maps one key item to one keyhole slot:
+Boss configs use script fields:
 
 ```json
 {
-  "keys": [
-    {
-      "item_id": "guardian_mod:key_1",
-      "keyhole_id": "guardian_mod:keyhole_1",
-      "slot": 1,
-      "on_insert": {
-        "broadcast_title": "Key 1 inserted"
-      }
-    }
-  ],
-  "on_all_inserted": {
-    "world_border_expand": {
-      "to": 500,
-      "duration_seconds": 30
-    }
-  }
+  "boss_id": "guardian_mod:boss_overworld",
+  "on_spawn_script": "boss_overworld_spawn",
+  "on_death_script": "boss_overworld_death"
 }
 ```
 
-`keyhole_1` accepts `key_1`, `keyhole_2` accepts `key_2`, and so on through `keyhole_8`.
-
-`on_insert` runs after the matching key is consumed and the keyhole becomes filled. `on_all_inserted` runs when all eight nearby keyhole slots are filled.
-
-Manual event tests:
-
-```mcfunction
-/guardian event test key_insert 1
-/guardian event test all_keys
-```
-
-## altar_config.json
-
-```json
-{
-  "radius": 5,
-  "ritual_ticks": 100,
-  "stage_1": {
-    "max_speed": 3,
-    "max_protection": 3,
-    "max_damage": 3,
-    "max_recovery": 3
-  },
-  "stage_2": {
-    "max_speed": 7,
-    "max_protection": 7,
-    "max_damage": 7,
-    "max_recovery": 7
-  },
-  "stage_threshold_flag": "netherBossDefeated"
-}
-```
-
-`radius` controls how far aspect blocks search for `altar_core`. `ritual_ticks` controls ritual length; `100` ticks is five seconds.
-
-Stage 1 caps apply before the Nether Guardian is defeated. Stage 2 caps apply after `netherBossDefeated` is true. For testing:
-
-```mcfunction
-/guardian stage 1
-/guardian stage 2
-```
-
-## Boss Events
-
-Boss config events are JSON objects. Supported actions:
-
-- `world_border_expand`
-- `spawn_structure`
-- `spawn_structure_offset`
-- `give_fragment`
-- `set_flag`
-- `allow_diamonds`
-- `broadcast_title`
-- `play_animation`
-
-Example Overworld death event:
+Inline command objects are still supported for simple tests:
 
 ```json
 {
   "on_death": {
-    "world_border_expand": {
-      "to": 500,
-      "duration_seconds": 60
-    },
-    "spawn_structure": "guardian_mod:altar",
-    "spawn_structure_offset": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "give_fragment": "guardian_mod:fragment_overworld",
-    "set_flag": "overworldBossDefeated",
-    "allow_diamonds": true,
-    "broadcast_title": "Overworld Guardian defeated",
-    "play_animation": "death"
+    "commands": [
+      "say Boss died",
+      "guardian structure place guardian_mod:altar"
+    ]
   }
 }
 ```
 
-Example all-keys event that spawns a structure:
+Older special JSON actions such as `world_border_expand`, `give_fragment`, `set_flag`, `allow_diamonds`, `broadcast_title`, and direct `play_animation` are not part of the primary boss event path. Use normal commands in scripts instead.
 
-```json
-{
-  "on_all_inserted": {
-    "spawn_structure": "guardian_mod:altar",
-    "spawn_structure_offset": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "broadcast_title": "All keys inserted"
-  }
-}
-```
-
-Example generic boss death fragment:
-
-```json
-{
-  "on_death": {
-    "give_fragment": "guardian_mod:fragment_generic"
-  }
-}
-```
-
-`play_animation` is currently a placeholder hook. It logs the requested animation and is ready for a future client packet/renderer integration.
-
+See `docs/SCRIPTS.md` for script format, structure placement, and local test server steps.

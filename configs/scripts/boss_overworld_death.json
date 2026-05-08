@@ -1,0 +1,8 @@
+{
+  "commands": [
+    "say Overworld Guardian defeated",
+    "title @a title {\"text\":\"Overworld Guardian defeated\"}",
+    "give @p guardian_mod:fragment_overworld",
+    "guardian structure place guardian_mod:altar"
+  ]
+}

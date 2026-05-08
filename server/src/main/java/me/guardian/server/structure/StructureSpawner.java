@@ -17,24 +17,24 @@ public final class StructureSpawner {
     private StructureSpawner() {
     }
 
-    public static void place(ServerLevel level, BlockPos center, String structureId) {
+    public static boolean place(ServerLevel level, BlockPos center, String structureId) {
         Identifier id = Identifier.tryParse(structureId);
         if (id == null) {
             GuardianMod.LOGGER.warn("Invalid structure id: {}", structureId);
-            return;
+            return false;
         }
 
         Optional<StructureTemplate> template = ConfigStructureLoader.load(level, id)
                 .or(() -> level.getStructureManager().get(id));
         if (template.isEmpty()) {
-            GuardianMod.LOGGER.warn("Structure template {} was not found in config/guardian_mod/structures or data/{}/structures", id, id.getNamespace());
-            return;
+            GuardianMod.LOGGER.warn("Structure template {} was not found in config/guardian_mod/structures or data/{}/structure", id, id.getNamespace());
+            return false;
         }
 
-        placeTemplate(level, center, id, template.get());
+        return placeTemplate(level, center, id, template.get());
     }
 
-    private static void placeTemplate(ServerLevel level, BlockPos center, Identifier id, StructureTemplate structure) {
+    private static boolean placeTemplate(ServerLevel level, BlockPos center, Identifier id, StructureTemplate structure) {
         Vec3i size = structure.getSize();
         BlockPos origin = center.offset(-size.getX() / 2, 0, -size.getZ() / 2);
         StructurePlaceSettings settings = new StructurePlaceSettings()
@@ -48,5 +48,6 @@ public final class StructureSpawner {
         if (!placed) {
             GuardianMod.LOGGER.warn("Structure template {} failed to place at {} in {}", id, origin, level.dimension().identifier());
         }
+        return placed;
     }
 }

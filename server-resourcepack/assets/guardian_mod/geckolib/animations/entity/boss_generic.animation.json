@@ -1,0 +1,17 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.guardian_mod.boss_generic.idle": {
+      "loop": true,
+      "bones": {}
+    },
+    "animation.guardian_mod.boss_generic.walk": {
+      "loop": true,
+      "bones": {}
+    },
+    "animation.guardian_mod.boss_generic.attack": {
+      "loop": false,
+      "bones": {}
+    }
+  }
+}
