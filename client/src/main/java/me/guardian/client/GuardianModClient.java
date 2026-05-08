@@ -11,8 +11,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
@@ -77,11 +77,11 @@ public final class GuardianModClient implements ClientModInitializer {
 
     private static void registerEntityRenderers() {
         EntityRendererRegistry.register(ModEntities.OVERWORLD_GUARDIAN,
-                context -> new GeoEntityRenderer<>(context, ModEntities.OVERWORLD_GUARDIAN));
+                context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_overworld")));
         EntityRendererRegistry.register(ModEntities.NETHER_GUARDIAN,
-                context -> new GeoEntityRenderer<>(context, ModEntities.NETHER_GUARDIAN));
+                context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_nether")));
         EntityRendererRegistry.register(ModEntities.GENERIC_BOSS,
-                context -> new GeoEntityRenderer<>(context, ModEntities.GENERIC_BOSS));
+                context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_generic")));
     }
 
     private static void registerResourceReloadListener() {
