@@ -11,8 +11,13 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.resources.ResourceManager;
+import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
 public final class GuardianModClient implements ClientModInitializer {
     public static boolean waitingForHandshake = false;
@@ -23,18 +28,19 @@ public final class GuardianModClient implements ClientModInitializer {
         GuardianNetworking.registerPayloadTypes();
         GuardianMod.LOGGER.info("Guardian Mod client foundation initialized");
         registerEntityRenderers();
+        registerResourceReloadListener();
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (client.isSingleplayer()) {
                 ModState.serverModPresent = true;
-                refreshResourcePackLoaded(client);
+                refreshResourcePackLoaded(client.getResourceManager());
                 GuardianMod.LOGGER.info("Guardian Mod: Singleplayer detected, enabling features.");
             } else {
                 ModState.serverModPresent = false;
                 waitingForHandshake = true;
                 handshakeTicks = 0;
-                refreshResourcePackLoaded(client);
-                
+                refreshResourcePackLoaded(client.getResourceManager());
+
                 if (ClientPlayNetworking.canSend(HandshakeC2SPayload.TYPE)) {
                     sender.sendPacket(new HandshakeC2SPayload());
                 } else {
@@ -64,22 +70,46 @@ public final class GuardianModClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(HandshakeOkS2CPayload.TYPE, (payload, context) -> {
             waitingForHandshake = false;
             ModState.serverModPresent = true;
-            refreshResourcePackLoaded(context.client());
+            refreshResourcePackLoaded(context.client().getResourceManager());
             GuardianMod.LOGGER.info("Guardian Mod server handshake received, enabling features.");
         });
     }
 
     private static void registerEntityRenderers() {
-        EntityRendererRegistry.register(ModEntities.OVERWORLD_GUARDIAN, GuardianFallbackBossRenderer::new);
-        EntityRendererRegistry.register(ModEntities.NETHER_GUARDIAN, GuardianFallbackBossRenderer::new);
-        EntityRendererRegistry.register(ModEntities.GENERIC_BOSS, GuardianFallbackBossRenderer::new);
+        EntityRendererRegistry.register(ModEntities.OVERWORLD_GUARDIAN,
+                context -> new GeoEntityRenderer<>(context, ModEntities.OVERWORLD_GUARDIAN));
+        EntityRendererRegistry.register(ModEntities.NETHER_GUARDIAN,
+                context -> new GeoEntityRenderer<>(context, ModEntities.NETHER_GUARDIAN));
+        EntityRendererRegistry.register(ModEntities.GENERIC_BOSS,
+                context -> new GeoEntityRenderer<>(context, ModEntities.GENERIC_BOSS));
     }
 
-    private static void refreshResourcePackLoaded(Minecraft client) {
+    private static void registerResourceReloadListener() {
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
+            private final Identifier id = Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "boss_asset_reload");
+
+            @Override
+            public Identifier getFabricId() {
+                return id;
+            }
+
+            @Override
+            public void onResourceManagerReload(ResourceManager manager) {
+                refreshResourcePackLoaded(manager);
+            }
+        });
+    }
+
+    private static void refreshResourcePackLoaded(ResourceManager manager) {
         Identifier bossTexture = Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "textures/entity/boss_overworld.png");
-        ModState.resourcePackLoaded = client.getResourceManager().getResource(bossTexture).isPresent();
+        ModState.resourcePackLoaded = manager.getResource(bossTexture).isPresent();
         if (!ModState.resourcePackLoaded) {
-            GuardianMod.LOGGER.warn("Guardian Mod server resource pack not detected; boss renderers should use fallback assets.");
+            GuardianMod.LOGGER.warn("Guardian Mod boss resource pack texture not detected; fallback boss assets will be used.");
         }
+    }
+
+    @SuppressWarnings("unused")
+    private static void refreshResourcePackLoaded(Minecraft client) {
+        refreshResourcePackLoaded(client.getResourceManager());
     }
 }
