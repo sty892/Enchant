@@ -3,6 +3,7 @@ package me.guardian.config;
 import me.guardian.GuardianMod;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Map;
 
 public final class ConfigManager {
@@ -18,6 +19,7 @@ public final class ConfigManager {
                         "world_border_expand": { "to": 500, "duration_seconds": 60 },
                         "spawn_structure": "guardian_mod:altar",
                         "spawn_structure_offset": { "x": 0, "y": 0, "z": 0 },
+                        "run_command": "say Overworld Guardian defeated",
                         "give_fragment": "guardian_mod:fragment_overworld",
                         "set_flag": "overworldBossDefeated",
                         "broadcast_title": "Хранитель Верхнего Мира повержен!",
@@ -36,6 +38,7 @@ public final class ConfigManager {
                         "world_border_expand": { "to": 2000, "duration_seconds": 120 },
                         "spawn_structure": "guardian_mod:altar_nether",
                         "spawn_structure_offset": { "x": 0, "y": 0, "z": 0 },
+                        "run_command": "say Nether Guardian defeated",
                         "give_fragment": "guardian_mod:fragment_nether",
                         "set_flag": "netherBossDefeated",
                         "broadcast_title": "Хранитель Нижнего Мира повержен!"
@@ -46,6 +49,8 @@ public final class ConfigManager {
                     {
                       "boss_id": "guardian_mod:boss_generic",
                       "on_death": {
+                        "spawn_structure": "guardian_mod:generic_reward",
+                        "run_command": "say Generic Guardian defeated",
                         "give_fragment": "guardian_mod:fragment_generic"
                       }
                     }
@@ -103,6 +108,11 @@ public final class ConfigManager {
                 GuardianMod.LOGGER.error("Failed to create default config {}", fileName, e);
             }
         });
+        try {
+            Files.createDirectories(ConfigLoader.configRoot().resolve("structures"));
+        } catch (IOException e) {
+            GuardianMod.LOGGER.error("Failed to create guardian config structures directory", e);
+        }
     }
 
     public static String readRaw(String fileName) throws IOException {
