@@ -1,18 +1,24 @@
 package me.guardian.server.event;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import me.guardian.GuardianMod;
 import me.guardian.server.state.GuardianWorldState;
 import me.guardian.server.structure.StructureSpawner;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec2;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Collections;
 import java.util.Map;
@@ -35,12 +41,15 @@ public class BossEventSystem {
             level.getWorldBorder().lerpSizeBetween(level.getWorldBorder().getSize(), to, duration * 20L, level.getGameTime());
         }
 
-        // spawn_structure / spawn_structure_offset (Placeholder for now)
+        // spawn_structure / spawn_structure_offset
         if (eventData.has("spawn_structure")) {
             String structureId = eventData.get("spawn_structure").getAsString();
             BlockPos structurePos = center.offset(readOffset(eventData));
             StructureSpawner.place(level, structurePos, structureId);
         }
+
+        // run_command / run_commands
+        runConfiguredCommands(level, eventData, center, source);
 
         // give_fragment
         if (eventData.has("give_fragment")) {
@@ -69,7 +78,7 @@ public class BossEventSystem {
             String title = eventData.get("broadcast_title").getAsString();
             broadcastTitle(level, title);
         }
-        
+
         // play_animation (Placeholder for packet)
         if (eventData.has("play_animation")) {
             String animation = eventData.get("play_animation").getAsString();
@@ -87,6 +96,48 @@ public class BossEventSystem {
         int y = offset.has("y") ? offset.get("y").getAsInt() : 0;
         int z = offset.has("z") ? offset.get("z").getAsInt() : 0;
         return new BlockPos(x, y, z);
+    }
+
+    private static void runConfiguredCommands(ServerLevel level, JsonObject eventData, BlockPos center, Entity source) {
+        if (eventData.has("run_command")) {
+            runCommand(level, eventData.get("run_command"), center, source);
+        }
+        if (eventData.has("run_commands") && eventData.get("run_commands").isJsonArray()) {
+            JsonArray commands = eventData.getAsJsonArray("run_commands");
+            for (JsonElement command : commands) {
+                runCommand(level, command, center, source);
+            }
+        }
+    }
+
+    private static void runCommand(ServerLevel level, JsonElement commandElement, BlockPos center, Entity source) {
+        if (commandElement == null || !commandElement.isJsonPrimitive()) {
+            return;
+        }
+
+        String command = commandElement.getAsString().trim();
+        if (command.isEmpty()) {
+            return;
+        }
+        if (command.startsWith("/")) {
+            command = command.substring(1);
+        }
+
+        MinecraftServer server = level.getServer();
+        Vec3 position = source == null ? Vec3.atCenterOf(center) : source.position();
+        Vec2 rotation = source == null ? Vec2.ZERO : source.getRotationVector();
+        CommandSourceStack stack = new CommandSourceStack(
+                server,
+                position,
+                rotation,
+                level,
+                4,
+                "GuardianMod",
+                Component.literal("GuardianMod"),
+                server,
+                source
+        );
+        server.getCommands().performPrefixedCommand(stack, command);
     }
 
     private static void giveFragment(ServerLevel level, String itemId, BlockPos center, Entity source, Map<UUID, Float> damageContributors) {
