@@ -24,13 +24,17 @@ public final class StructureSpawner {
             return;
         }
 
-        Optional<StructureTemplate> template = level.getStructureManager().get(id);
+        Optional<StructureTemplate> template = ConfigStructureLoader.load(level, id)
+                .or(() -> level.getStructureManager().get(id));
         if (template.isEmpty()) {
-            GuardianMod.LOGGER.warn("Structure template {} was not found in data/{}/structures", id, id.getNamespace());
+            GuardianMod.LOGGER.warn("Structure template {} was not found in config/guardian_mod/structures or data/{}/structures", id, id.getNamespace());
             return;
         }
 
-        StructureTemplate structure = template.get();
+        placeTemplate(level, center, id, template.get());
+    }
+
+    private static void placeTemplate(ServerLevel level, BlockPos center, Identifier id, StructureTemplate structure) {
         Vec3i size = structure.getSize();
         BlockPos origin = center.offset(-size.getX() / 2, 0, -size.getZ() / 2);
         StructurePlaceSettings settings = new StructurePlaceSettings()
