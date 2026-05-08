@@ -10,13 +10,25 @@ Build jars:
 
 Use the generated jars from:
 
-- `common/build/libs/guardian_mod-common-1.0.0.jar`
-- `client/build/libs/guardian_mod-client-1.0.0.jar`
-- `server/build/libs/guardian_mod-server-1.0.0.jar`
+- `common/build/libs/guardian_mod-common-1.0.1.jar`
+- `client/build/libs/guardian_mod-client-1.0.1.jar`
+- `server/build/libs/guardian_mod-server-1.0.1.jar`
 
 For a dedicated server, install Fabric Loader for Minecraft `1.21.11`, then put Fabric API, GeckoLib, `guardian_mod-common`, and `guardian_mod-server` in the server `mods` folder.
 
 For a client, install Fabric Loader for Minecraft `1.21.11`, then put Fabric API, GeckoLib, `guardian_mod-common`, and `guardian_mod-client` in the client `mods` folder.
+
+## First Version Test Checklist
+
+Use this checklist before polishing mechanics further:
+
+1. Start a Fabric client with `guardian_mod-common`, `guardian_mod-client`, Fabric API, and GeckoLib.
+2. Start a Fabric server with `guardian_mod-common`, `guardian_mod-server`, Fabric API, and GeckoLib.
+3. Join the server and confirm the client handshake logs enable Guardian Mod features.
+4. Spawn each boss with `/guardian boss spawn boss_overworld`, `/guardian boss spawn boss_nether`, and `/guardian boss spawn boss_generic`.
+5. Confirm each boss is visible. If real boss assets are missing or disabled, a fallback model and texture should render instead of an invisible entity.
+6. Kill a boss and confirm the configured death event runs: structure spawn, command execution, fragment grant, flags, and titles.
+7. Test keyholes, altar flow, and diamond restriction with the commands below.
 
 ## Bosses
 
@@ -34,6 +46,67 @@ Remove all spawned guardian bosses:
 ```mcfunction
 /guardian boss kill all
 ```
+
+Boss death behavior is configured in runtime files under:
+
+```text
+config/guardian_mod/boss_overworld.json
+config/guardian_mod/boss_nether.json
+config/guardian_mod/boss_generic.json
+```
+
+Each boss `on_death` can choose which structure to spawn and which command to run:
+
+```json
+{
+  "on_death": {
+    "spawn_structure": "guardian_mod:altar",
+    "spawn_structure_offset": { "x": 0, "y": 0, "z": 0 },
+    "run_command": "say Overworld Guardian defeated"
+  }
+}
+```
+
+You can also run several commands:
+
+```json
+{
+  "on_death": {
+    "run_commands": [
+      "say First command",
+      "time set day"
+    ]
+  }
+}
+```
+
+Commands may be written with or without `/`. They run from the boss/event position with permission level 4.
+
+## Config Structures
+
+The mod creates this folder automatically:
+
+```text
+config/guardian_mod/structures
+```
+
+To add a custom structure that can be referenced from boss configs, put a `.nbt` structure file here:
+
+```text
+config/guardian_mod/structures/guardian_mod/my_structure.nbt
+```
+
+Then reference it in a boss config:
+
+```json
+{
+  "on_death": {
+    "spawn_structure": "guardian_mod:my_structure"
+  }
+}
+```
+
+Config structures are checked before datapack structures. If `config/guardian_mod/structures/guardian_mod/my_structure.nbt` exists, it will be used. If not, the mod falls back to datapack structures from `data/guardian_mod/structures`.
 
 ## Keyholes
 
@@ -121,4 +194,3 @@ Unlock diamonds for testing:
 ```
 
 Stage `1` marks the Overworld Guardian defeated. Stage `2` also marks the Nether Guardian defeated, enabling stage 2 altar caps.
-
