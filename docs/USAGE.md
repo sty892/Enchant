@@ -10,9 +10,9 @@ Build jars:
 
 Use the generated jars from:
 
-- `common/build/libs/guardian_mod-common-1.0.4.jar`
-- `client/build/libs/guardian_mod-client-1.0.4.jar`
-- `server/build/libs/guardian_mod-server-1.0.4.jar`
+- `common/build/libs/guardian_mod-common-1.0.5.jar`
+- `client/build/libs/guardian_mod-client-1.0.5.jar`
+- `server/build/libs/guardian_mod-server-1.0.5.jar`
 
 For a dedicated server, install Fabric Loader for Minecraft `1.21.11`, then put Fabric API, GeckoLib, `guardian_mod-common`, and `guardian_mod-server` in the server `mods` folder.
 

@@ -34,6 +34,8 @@ import java.util.UUID;
 
 public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final String BOSS_CONFIG_KEY = "overworld";
+    private static final String SPAWN_CONTROLLER_NAME = "Spawn";
+    private static final String SPAWN_TRIGGER_NAME = "spawn";
     private static final int FIREBALL_COOLDOWN_TICKS = 100;
     private static final int SPAWN_ANIMATION_TICKS = 80;
     private static final RawAnimation SPAWN_ANIMATION = RawAnimation.begin().thenPlay("spawn");
@@ -45,6 +47,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private boolean phase50Triggered = false;
     private boolean phase25Triggered = false;
     private boolean deathEventTriggered = false;
+    private boolean spawnAnimationTriggered = false;
     private int fireballCooldown = FIREBALL_COOLDOWN_TICKS;
 
     public OverworldGuardianEntity(EntityType<? extends Monster> entityType, Level level) {
@@ -88,6 +91,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         triggerSpawnEvent(level);
+        triggerSpawnAnimation();
         tickPhases();
         tickFireball(level);
     }
@@ -107,6 +111,14 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         }
         spawnEventTriggered = true;
         GuardianBossEventHooks.triggerOnSpawn(BOSS_CONFIG_KEY, level, this.blockPosition(), this);
+    }
+
+    private void triggerSpawnAnimation() {
+        if (spawnAnimationTriggered || this.tickCount < 2) {
+            return;
+        }
+        spawnAnimationTriggered = true;
+        this.triggerAnim(SPAWN_CONTROLLER_NAME, SPAWN_TRIGGER_NAME);
     }
 
     private void tickPhases() {
@@ -171,9 +183,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>("Spawn", state -> state.renderState().getAnimatableAge() <= SPAWN_ANIMATION_TICKS
+        controllers.add(new AnimationController<>(SPAWN_CONTROLLER_NAME, state -> state.renderState().getAnimatableAge() <= SPAWN_ANIMATION_TICKS
                 ? state.setAndContinue(SPAWN_ANIMATION)
-                : PlayState.STOP));
+                : PlayState.STOP)
+                .triggerableAnim(SPAWN_TRIGGER_NAME, SPAWN_ANIMATION));
     }
 
     @Override
