@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
 
 public final class ScriptRunner {
     private static final Gson GSON = new Gson();
@@ -37,24 +39,37 @@ public final class ScriptRunner {
     }
 
     public static List<String> listScriptIds() {
-        List<String> ids = new ArrayList<>();
+        Set<String> ids = new TreeSet<>();
         Path root = scriptsRoot();
-        if (Files.notExists(root)) {
-            return ids;
+        if (Files.exists(root)) {
+            try (var stream = Files.list(root)) {
+                stream.filter(Files::isRegularFile)
+                        .map(Path::getFileName)
+                        .map(Path::toString)
+                        .filter(name -> name.endsWith(".json"))
+                        .map(name -> name.substring(0, name.length() - ".json".length()))
+                        .forEach(ids::add);
+            } catch (IOException e) {
+                GuardianMod.LOGGER.warn("Failed to list guardian scripts", e);
+            }
         }
 
-        try (var stream = Files.list(root)) {
-            stream.filter(Files::isRegularFile)
-                    .map(Path::getFileName)
-                    .map(Path::toString)
-                    .filter(name -> name.endsWith(".json"))
-                    .map(name -> name.substring(0, name.length() - ".json".length()))
-                    .sorted()
-                    .forEach(ids::add);
-        } catch (IOException e) {
-            GuardianMod.LOGGER.warn("Failed to list guardian scripts", e);
+        Path configRoot = ConfigLoader.configRoot();
+        if (Files.exists(configRoot)) {
+            try (var stream = Files.list(configRoot)) {
+                stream.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().endsWith(".json"))
+                        .filter(ScriptRunner::looksLikeCommandScript)
+                        .map(Path::getFileName)
+                        .map(Path::toString)
+                        .map(name -> name.substring(0, name.length() - ".json".length()))
+                        .filter(id -> !ids.contains(id))
+                        .forEach(ids::add);
+            } catch (IOException e) {
+                GuardianMod.LOGGER.warn("Failed to list legacy guardian scripts", e);
+            }
         }
-        return ids;
+        return new ArrayList<>(ids);
     }
 
     public static void tick(MinecraftServer server) {
@@ -103,11 +118,47 @@ public final class ScriptRunner {
     }
 
     private static JsonObject loadScript(String scriptId) {
-        Path path = scriptPath(scriptId);
-        if (path == null || Files.notExists(path)) {
+        String normalizedId = normalizeScriptId(scriptId);
+        if (normalizedId == null) {
             return null;
         }
 
+        Path path = scriptPath(normalizedId);
+        Path legacyPath = legacyScriptPath(normalizedId);
+        if (path != null && Files.exists(path)) {
+            if (legacyPath != null && Files.exists(legacyPath)) {
+                GuardianMod.LOGGER.warn(
+                        "Guardian script {} exists in scripts/ and in the config root; using scripts/{} and ignoring {}",
+                        normalizedId,
+                        normalizedId + ".json",
+                        legacyPath
+                );
+            }
+            return loadScript(path, normalizedId);
+        }
+
+        if (legacyPath == null || Files.notExists(legacyPath)) {
+            return null;
+        }
+
+        if (!looksLikeCommandScript(legacyPath)) {
+            GuardianMod.LOGGER.warn(
+                    "Ignoring legacy guardian config root file {} for script {}; command scripts must contain a commands array",
+                    legacyPath,
+                    normalizedId
+            );
+            return null;
+        }
+
+        GuardianMod.LOGGER.warn(
+                "Loading guardian script {} from legacy config root path {}; move command scripts to config/guardian_mod/scripts",
+                normalizedId,
+                legacyPath
+        );
+        return loadScript(legacyPath, normalizedId);
+    }
+
+    private static JsonObject loadScript(Path path, String scriptId) {
         try {
             String raw = Files.readString(path, StandardCharsets.UTF_8);
             JsonObject object;
@@ -127,7 +178,7 @@ public final class ScriptRunner {
         }
     }
 
-    private static Path scriptPath(String scriptId) {
+    private static String normalizeScriptId(String scriptId) {
         String normalizedId = scriptId == null ? "" : scriptId.trim();
         if (normalizedId.endsWith(".json")) {
             normalizedId = normalizedId.substring(0, normalizedId.length() - ".json".length());
@@ -135,10 +186,29 @@ public final class ScriptRunner {
         if (normalizedId.isBlank() || !normalizedId.toLowerCase(Locale.ROOT).matches("[a-z0-9_./-]+")) {
             return null;
         }
+        return normalizedId;
+    }
 
+    private static Path scriptPath(String normalizedId) {
         Path root = scriptsRoot().normalize();
         Path path = root.resolve(normalizedId + ".json").normalize();
         return path.startsWith(root) ? path : null;
+    }
+
+    private static Path legacyScriptPath(String normalizedId) {
+        Path root = ConfigLoader.configRoot().normalize();
+        Path path = root.resolve(normalizedId + ".json").normalize();
+        return path.startsWith(root) ? path : null;
+    }
+
+    private static boolean looksLikeCommandScript(Path path) {
+        try {
+            String raw = Files.readString(path, StandardCharsets.UTF_8);
+            return raw.contains("\"commands\"");
+        } catch (IOException e) {
+            GuardianMod.LOGGER.warn("Failed to inspect guardian script candidate {}", path, e);
+            return false;
+        }
     }
 
     private static JsonArray readCommands(JsonObject script) {

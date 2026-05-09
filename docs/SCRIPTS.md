@@ -45,6 +45,14 @@ Run a script:
 
 Script ids tab-complete from files in `config/guardian_mod/scripts/*.json`.
 
+If the same script id exists in both `config/guardian_mod/scripts/<id>.json` and
+`config/guardian_mod/<id>.json`, the file in `scripts/` is used and the root
+file is ignored with a log warning. Root-level command scripts are only kept as
+a compatibility fallback when there is no matching file in `scripts/` and the
+root file contains a `commands` array. Boss configs such as
+`boss_overworld.json`, `boss_nether.json`, and `boss_generic.json` stay in the
+root `config/guardian_mod` folder.
+
 ## Boss Scripts
 
 Boss configs should prefer named scripts:

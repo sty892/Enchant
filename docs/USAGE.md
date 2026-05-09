@@ -10,9 +10,9 @@ Build jars:
 
 Use the generated jars from:
 
-- `common/build/libs/guardian_mod-common-1.0.2.jar`
-- `client/build/libs/guardian_mod-client-1.0.2.jar`
-- `server/build/libs/guardian_mod-server-1.0.2.jar`
+- `common/build/libs/guardian_mod-common-1.0.4.jar`
+- `client/build/libs/guardian_mod-client-1.0.4.jar`
+- `server/build/libs/guardian_mod-server-1.0.4.jar`
 
 For a dedicated server, install Fabric Loader for Minecraft `1.21.11`, then put Fabric API, GeckoLib, `guardian_mod-common`, and `guardian_mod-server` in the server `mods` folder.
 
@@ -70,6 +70,12 @@ Scripts live in:
 ```text
 config/guardian_mod/scripts
 ```
+
+Boss configs stay directly under `config/guardian_mod`. If a duplicate script
+exists in both `config/guardian_mod/scripts/<id>.json` and
+`config/guardian_mod/<id>.json`, the `scripts/` file wins. Root-level script
+files are only a legacy fallback when no matching `scripts/` file exists and the
+root file contains a `commands` array.
 
 Run one manually:
 

@@ -28,21 +28,21 @@ public final class GuardianBossModel<T extends Mob & GeoEntity> extends GeoModel
 
     @Override
     public Identifier getModelResource(GeoRenderState renderState) {
-        return shouldUseRealAsset() ? bossModel : fallbackModel;
+        return shouldUseRealVisualAsset() ? bossModel : fallbackModel;
     }
 
     @Override
     public Identifier getTextureResource(GeoRenderState renderState) {
-        return shouldUseRealAsset() ? bossTexture : fallbackTexture;
+        return shouldUseRealVisualAsset() ? bossTexture : fallbackTexture;
     }
 
     @Override
     public Identifier getAnimationResource(T animatable) {
-        return shouldUseRealAsset() ? bossAnimation : fallbackAnimation;
+        return GuardianBossAssets.hasAnimationAsset(bossAssetName) ? bossAnimation : fallbackAnimation;
     }
 
-    private boolean shouldUseRealAsset() {
-        return GuardianBossAssets.hasCompleteAsset(bossAssetName);
+    private boolean shouldUseRealVisualAsset() {
+        return GuardianBossAssets.hasVisibleAsset(bossAssetName);
     }
 
     private static Identifier asset(String path) {
