@@ -21,11 +21,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
 public final class ScriptRunner {
     private static final Gson GSON = new Gson();
+    private static final List<ScheduledCommand> SCHEDULED_COMMANDS = new ArrayList<>();
 
     private ScriptRunner() {
     }
@@ -53,6 +55,22 @@ public final class ScriptRunner {
             GuardianMod.LOGGER.warn("Failed to list guardian scripts", e);
         }
         return ids;
+    }
+
+    public static void tick(MinecraftServer server) {
+        if (SCHEDULED_COMMANDS.isEmpty()) {
+            return;
+        }
+
+        Iterator<ScheduledCommand> iterator = SCHEDULED_COMMANDS.iterator();
+        while (iterator.hasNext()) {
+            ScheduledCommand scheduled = iterator.next();
+            scheduled.delayTicks--;
+            if (scheduled.delayTicks <= 0) {
+                executeCommand(scheduled.source, scheduled.command);
+                iterator.remove();
+            }
+        }
     }
 
     public static int runScript(CommandSourceStack source, String scriptId) {
@@ -91,7 +109,13 @@ public final class ScriptRunner {
         }
 
         try {
-            JsonObject object = GSON.fromJson(Files.readString(path, StandardCharsets.UTF_8), JsonObject.class);
+            String raw = Files.readString(path, StandardCharsets.UTF_8);
+            JsonObject object;
+            try {
+                object = GSON.fromJson(raw, JsonObject.class);
+            } catch (RuntimeException parseError) {
+                object = parseLenientCommandScript(raw, scriptId);
+            }
             if (object == null || !object.has("commands") || !object.get("commands").isJsonArray()) {
                 GuardianMod.LOGGER.warn("Guardian script {} must contain a commands array", scriptId);
                 return null;
@@ -119,6 +143,51 @@ public final class ScriptRunner {
 
     private static JsonArray readCommands(JsonObject script) {
         return script.getAsJsonArray("commands");
+    }
+
+    private static JsonObject parseLenientCommandScript(String raw, String scriptId) {
+        JsonArray commands = new JsonArray();
+        boolean inCommands = false;
+
+        for (String line : raw.split("\\R")) {
+            String trimmed = line.trim();
+            if (!inCommands) {
+                if (trimmed.contains("\"commands\"") && trimmed.contains("[")) {
+                    inCommands = true;
+                }
+                continue;
+            }
+
+            if (trimmed.startsWith("]")) {
+                break;
+            }
+            if (trimmed.isBlank()) {
+                continue;
+            }
+            if (trimmed.endsWith(",")) {
+                trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
+            }
+
+            int firstQuote = trimmed.indexOf('"');
+            int lastQuote = trimmed.lastIndexOf('"');
+            if (firstQuote >= 0 && lastQuote > firstQuote) {
+                commands.add(trimmed.substring(firstQuote + 1, lastQuote)
+                        .replace("\\\"", "\"")
+                        .replace("\\\\", "\\"));
+            } else {
+                commands.add(trimmed);
+            }
+        }
+
+        if (commands.isEmpty()) {
+            GuardianMod.LOGGER.warn("Failed to leniently parse commands for guardian script {}", scriptId);
+            return null;
+        }
+
+        JsonObject object = new JsonObject();
+        object.add("commands", commands);
+        GuardianMod.LOGGER.warn("Guardian script {} used lenient command parsing; escape JSON quotes or keep one command per line.", scriptId);
+        return object;
     }
 
     private static CommandSourceStack sourceForCommands(CommandSourceStack source) {
@@ -155,26 +224,74 @@ public final class ScriptRunner {
     private static int runCommands(CommandSourceStack source, JsonArray commands) {
         int executed = 0;
         for (JsonElement element : commands) {
-            if (!element.isJsonPrimitive()) {
-                GuardianMod.LOGGER.warn("Ignoring non-string guardian script command: {}", element);
+            CommandEntry entry = readCommandEntry(element);
+            if (entry == null) {
                 continue;
             }
 
-            String command = element.getAsString().trim();
-            if (command.isEmpty()) {
-                continue;
-            }
-            if (command.startsWith("/")) {
-                command = command.substring(1);
-            }
-
-            try {
-                source.getServer().getCommands().performPrefixedCommand(source, command);
+            if (entry.delayTicks > 0) {
+                SCHEDULED_COMMANDS.add(new ScheduledCommand(source, entry.command, entry.delayTicks));
                 executed++;
-            } catch (RuntimeException e) {
-                GuardianMod.LOGGER.error("Guardian script command failed: {}", command, e);
+            } else if (executeCommand(source, entry.command)) {
+                executed++;
             }
         }
         return executed;
+    }
+
+    private static CommandEntry readCommandEntry(JsonElement element) {
+        String command = "";
+        int delayTicks = 0;
+
+        if (element.isJsonPrimitive()) {
+            command = element.getAsString();
+        } else if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            if (object.has("command") && object.get("command").isJsonPrimitive()) {
+                command = object.get("command").getAsString();
+            }
+            if (object.has("delay_ticks") && object.get("delay_ticks").isJsonPrimitive()) {
+                delayTicks = Math.max(0, object.get("delay_ticks").getAsInt());
+            } else if (object.has("delay_seconds") && object.get("delay_seconds").isJsonPrimitive()) {
+                delayTicks = Math.max(0, Math.round(object.get("delay_seconds").getAsFloat() * 20.0F));
+            }
+        } else {
+            GuardianMod.LOGGER.warn("Ignoring non-string guardian script command: {}", element);
+            return null;
+        }
+
+        command = command.trim();
+        if (command.isEmpty()) {
+            return null;
+        }
+        if (command.startsWith("/")) {
+            command = command.substring(1);
+        }
+        return new CommandEntry(command, delayTicks);
+    }
+
+    private static boolean executeCommand(CommandSourceStack source, String command) {
+        try {
+            source.getServer().getCommands().performPrefixedCommand(source, command);
+            return true;
+        } catch (RuntimeException e) {
+            GuardianMod.LOGGER.error("Guardian script command failed: {}", command, e);
+            return false;
+        }
+    }
+
+    private record CommandEntry(String command, int delayTicks) {
+    }
+
+    private static final class ScheduledCommand {
+        private final CommandSourceStack source;
+        private final String command;
+        private int delayTicks;
+
+        private ScheduledCommand(CommandSourceStack source, String command, int delayTicks) {
+            this.source = source;
+            this.command = command;
+            this.delayTicks = delayTicks;
+        }
     }
 }

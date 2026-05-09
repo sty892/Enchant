@@ -2,6 +2,8 @@
   "commands": [
     "say Overworld Guardian defeated",
     "title @a title {\"text\":\"Overworld Guardian defeated\"}",
+    "worldborder set 10000 120",
+    "guardian stage 1",
     "give @p guardian_mod:fragment_overworld",
     "guardian structure place guardian_mod:altar"
   ]

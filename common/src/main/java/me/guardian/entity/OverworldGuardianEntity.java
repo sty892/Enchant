@@ -25,6 +25,7 @@ import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animatable.manager.AnimatableManager;
 import software.bernie.geckolib.animation.AnimationController;
 import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.animation.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.HashMap;
@@ -34,7 +35,8 @@ import java.util.UUID;
 public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final String BOSS_CONFIG_KEY = "overworld";
     private static final int FIREBALL_COOLDOWN_TICKS = 100;
-    private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("animation.guardian_mod.boss_overworld.idle");
+    private static final int SPAWN_ANIMATION_TICKS = 80;
+    private static final RawAnimation SPAWN_ANIMATION = RawAnimation.begin().thenPlay("spawn");
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> damageContributors = new HashMap<>();
@@ -169,7 +171,9 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>("Idle", state -> state.setAndContinue(IDLE_ANIMATION)));
+        controllers.add(new AnimationController<>("Spawn", state -> state.renderState().getAnimatableAge() <= SPAWN_ANIMATION_TICKS
+                ? state.setAndContinue(SPAWN_ANIMATION)
+                : PlayState.STOP));
     }
 
     @Override

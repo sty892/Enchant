@@ -13,8 +13,10 @@ import me.guardian.server.altar.GuardianPlayerUpgrades;
 import me.guardian.server.boss.BossEventManager;
 import me.guardian.server.command.GuardianCommand;
 import me.guardian.server.event.BossEventSystem;
+import me.guardian.server.event.ScriptRunner;
 import me.guardian.server.restriction.DiamondRestrictionHandler;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerLevel;
@@ -32,6 +34,7 @@ public final class GuardianModServer implements ModInitializer {
         GuardianAltarRitualHooks.setSelectionHook(AltarRitualManager::selectAltarAspect);
         GuardianBossEventHooks.setSpawnHook(BossEventManager::triggerOnSpawn);
         GuardianBossEventHooks.setDeathHook(BossEventManager::triggerOnDeath);
+        ServerTickEvents.END_SERVER_TICK.register(ScriptRunner::tick);
         GuardianEventExecutor.setExecutor((level, eventData, center, source) -> {
             if (level instanceof ServerLevel serverLevel) {
                 BossEventSystem.executeEvent(serverLevel, eventData, center, source, java.util.Collections.emptyMap());

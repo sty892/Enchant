@@ -1,6 +1,10 @@
 {
   "format_version": "1.8.0",
   "animations": {
+    "spawn": {
+      "loop": false,
+      "bones": {}
+    },
     "animation.guardian_mod.boss_overworld.idle": {
       "loop": true,
       "bones": {}

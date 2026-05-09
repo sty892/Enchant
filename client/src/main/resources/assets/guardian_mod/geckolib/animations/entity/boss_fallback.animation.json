@@ -5,8 +5,16 @@
       "loop": true,
       "bones": {}
     },
+    "spawn": {
+      "loop": false,
+      "bones": {}
+    },
     "animation.guardian_mod.boss_overworld.idle": {
       "loop": true,
+      "bones": {}
+    },
+    "animation.guardian_mod.boss_overworld.spawn": {
+      "loop": false,
       "bones": {}
     },
     "animation.guardian_mod.boss_nether.idle": {

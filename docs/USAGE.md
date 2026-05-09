@@ -83,12 +83,17 @@ Script files contain a `commands` array:
 {
   "commands": [
     "say First command",
-    "guardian structure place guardian_mod:altar"
+    "guardian structure place guardian_mod:altar",
+    {
+      "delay_ticks": 100,
+      "command": "worldborder set 500 10"
+    }
   ]
 }
 ```
 
 Commands may be written with or without `/`. They run from the boss/event position with permission level 4.
+For commands containing quotes, prefer escaping them as `\"`; the script loader also has a lenient fallback for one command per line.
 
 ## Config Structures
 

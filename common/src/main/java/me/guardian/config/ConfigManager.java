@@ -74,7 +74,12 @@ public final class ConfigManager {
             "season_start.json", """
                     {
                       "commands": [
-                        "say Guardian season start"
+                        "say Guardian season start",
+                        "summon guardian_mod:boss_overworld ~ ~ ~",
+                        {
+                          "delay_ticks": 100,
+                          "command": "worldborder set 500 10"
+                        }
                       ]
                     }
                     """,
@@ -90,6 +95,8 @@ public final class ConfigManager {
                       "commands": [
                         "say Overworld Guardian defeated",
                         "title @a title {\\"text\\":\\"Overworld Guardian defeated\\"}",
+                        "worldborder set 10000 120",
+                        "guardian stage 1",
                         "give @p guardian_mod:fragment_overworld",
                         "guardian structure place guardian_mod:altar"
                       ]

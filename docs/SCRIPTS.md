@@ -12,12 +12,30 @@ Each script is a JSON file named `<script_id>.json`:
 {
   "commands": [
     "say Season start",
-    "summon lightning_bolt ~ ~ ~"
+    "summon lightning_bolt ~ ~ ~",
+    {
+      "delay_ticks": 100,
+      "command": "worldborder set 500 10"
+    }
   ]
 }
 ```
 
-Commands may be written with or without a leading `/`. They run with permission level 4 from the command source position. If the server console runs a script, commands run from the overworld spawn position.
+Commands may be written with or without a leading `/`. They run with permission level 4 from the command source position. If the server console runs a script, commands run in the overworld from the console command position.
+
+Command objects support `delay_ticks` or `delay_seconds`. Delays are useful for scripts that spawn a boss and then run a follow-up command a few seconds later.
+
+If a command itself contains unescaped quotes, for example:
+
+```text
+"/tellraw @a "привет""
+```
+
+the script loader has a lenient fallback parser for the `commands` array. Keep one command per line in that case. Valid JSON with escaped quotes is still preferred:
+
+```json
+"/tellraw @a \"привет\""
+```
 
 Run a script:
 
@@ -53,6 +71,16 @@ Inline commands are also supported for small tests:
 ```
 
 The Java boss event path no longer expands the world border, grants fragments, sets flags, broadcasts titles, or plays animations as hardcoded special actions. Put those behaviors in scripts as normal Minecraft or Guardian commands.
+
+Default `season_start` spawns `guardian_mod:boss_overworld`; the entity plays the `spawn` GeckoLib animation key for its first ticks. The provided resource pack must expose the Overworld boss model and animation through GeckoLib 5 paths:
+
+```text
+assets/guardian_mod/geckolib/models/entity/boss_overworld.geo.json
+assets/guardian_mod/geckolib/animations/entity/boss_overworld.animation.json
+assets/guardian_mod/textures/entity/boss_overworld.png
+```
+
+If a Blockbench export creates `assets/guardian_mod/models/entity/...` and `assets/guardian_mod/animations/...`, move those files into the `geckolib/` paths above for GeckoLib 5.
 
 ## Structures
 
