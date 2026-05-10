@@ -80,7 +80,7 @@ Inline commands are also supported for small tests:
 
 The Java boss event path no longer expands the world border, grants fragments, sets flags, broadcasts titles, or plays animations as hardcoded special actions. Put those behaviors in scripts as normal Minecraft or Guardian commands.
 
-Default `season_start` spawns `guardian_mod:boss_overworld`; the entity plays the `spawn` GeckoLib animation key for its first ticks. The provided resource pack must expose the Overworld boss model and animation through GeckoLib 5 paths:
+Default `season_start` spawns `guardian_mod:boss_overworld` at `0 70 0`, then runs `worldborder set 500 50s` after 80 ticks. The entity triggers the `spawn` GeckoLib animation key when it spawns. The provided resource pack must expose the Overworld boss model and animation through GeckoLib 5 paths:
 
 ```text
 assets/guardian_mod/geckolib/models/entity/boss_overworld.geo.json

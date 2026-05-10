@@ -10,9 +10,9 @@ Build jars:
 
 Use the generated jars from:
 
-- `common/build/libs/guardian_mod-common-1.0.5.jar`
-- `client/build/libs/guardian_mod-client-1.0.5.jar`
-- `server/build/libs/guardian_mod-server-1.0.5.jar`
+- `common/build/libs/guardian_mod-common-1.0.6.jar`
+- `client/build/libs/guardian_mod-client-1.0.6.jar`
+- `server/build/libs/guardian_mod-server-1.0.6.jar`
 
 For a dedicated server, install Fabric Loader for Minecraft `1.21.11`, then put Fabric API, GeckoLib, `guardian_mod-common`, and `guardian_mod-server` in the server `mods` folder.
 
@@ -88,11 +88,10 @@ Script files contain a `commands` array:
 ```json
 {
   "commands": [
-    "say First command",
-    "guardian structure place guardian_mod:altar",
+    "summon guardian_mod:boss_overworld 0 70 0",
     {
-      "delay_ticks": 100,
-      "command": "worldborder set 500 10"
+      "delay_ticks": 80,
+      "command": "worldborder set 500 50s"
     }
   ]
 }
@@ -227,10 +226,11 @@ The diamond should be removed and the actionbar should show:
 Нельзя получить алмазы пока не убит Хранитель Верхнего Мира
 ```
 
-Unlock diamonds for testing:
+Force progression stage for testing:
 
 ```mcfunction
+/guardian stage 0
 /guardian stage 1
 ```
 
-Stage `1` marks the Overworld Guardian defeated. Stage `2` also marks the Nether Guardian defeated, enabling stage 2 altar caps.
+Stage `0` clears both boss-defeated flags and locks diamonds again. Stage `1` marks the Overworld Guardian defeated. Stage `2` also marks the Nether Guardian defeated, enabling stage 2 altar caps.

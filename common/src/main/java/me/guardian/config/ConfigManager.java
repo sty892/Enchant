@@ -75,10 +75,10 @@ public final class ConfigManager {
                     {
                       "commands": [
                         "say Guardian season start",
-                        "summon guardian_mod:boss_overworld ~ ~ ~",
+                        "summon guardian_mod:boss_overworld 0 70 0",
                         {
-                          "delay_ticks": 100,
-                          "command": "worldborder set 500 10"
+                          "delay_ticks": 80,
+                          "command": "worldborder set 500 50s"
                         }
                       ]
                     }

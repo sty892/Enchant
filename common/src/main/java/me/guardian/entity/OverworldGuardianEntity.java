@@ -2,9 +2,14 @@ package me.guardian.entity;
 
 import me.guardian.GuardianMod;
 import me.guardian.event.GuardianBossEventHooks;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -19,6 +24,8 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.hurtingprojectile.SmallFireball;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
@@ -36,18 +43,27 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final String BOSS_CONFIG_KEY = "overworld";
     private static final String SPAWN_CONTROLLER_NAME = "Spawn";
     private static final String SPAWN_TRIGGER_NAME = "spawn";
+    private static final double LEASH_RADIUS = 15.0D;
+    private static final double LEASH_RADIUS_SQR = LEASH_RADIUS * LEASH_RADIUS;
+    private static final double BOSS_BAR_RADIUS_SQR = 30.0D * 30.0D;
     private static final int FIREBALL_COOLDOWN_TICKS = 100;
     private static final int SPAWN_ANIMATION_TICKS = 80;
     private static final RawAnimation SPAWN_ANIMATION = RawAnimation.begin().thenPlay("spawn");
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> damageContributors = new HashMap<>();
+    private final ServerBossEvent bossEvent = new ServerBossEvent(
+            Component.literal("Overworld Guardian"),
+            BossEvent.BossBarColor.GREEN,
+            BossEvent.BossBarOverlay.PROGRESS
+    );
     private boolean spawnEventTriggered = false;
     private boolean phase75Triggered = false;
     private boolean phase50Triggered = false;
     private boolean phase25Triggered = false;
     private boolean deathEventTriggered = false;
     private boolean spawnAnimationTriggered = false;
+    private BlockPos spawnCenter = null;
     private int fireballCooldown = FIREBALL_COOLDOWN_TICKS;
 
     public OverworldGuardianEntity(EntityType<? extends Monster> entityType, Level level) {
@@ -92,6 +108,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         super.customServerAiStep(level);
         triggerSpawnEvent(level);
         triggerSpawnAnimation();
+        tickLeash();
+        tickBossBar(level);
         tickPhases();
         tickFireball(level);
     }
@@ -102,7 +120,38 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             deathEventTriggered = true;
             GuardianBossEventHooks.triggerOnDeath(BOSS_CONFIG_KEY, serverLevel, this.blockPosition(), this, damageContributors);
         }
+        removeBossBarPlayers();
         super.die(damageSource);
+    }
+
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        removeBossBarPlayers();
+        super.remove(reason);
+    }
+
+    @Override
+    protected void addAdditionalSaveData(ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        if (spawnCenter != null) {
+            output.putInt("SpawnCenterX", spawnCenter.getX());
+            output.putInt("SpawnCenterY", spawnCenter.getY());
+            output.putInt("SpawnCenterZ", spawnCenter.getZ());
+        }
+    }
+
+    @Override
+    protected void readAdditionalSaveData(ValueInput input) {
+        super.readAdditionalSaveData(input);
+        if (input.getInt("SpawnCenterX").isPresent()
+                && input.getInt("SpawnCenterY").isPresent()
+                && input.getInt("SpawnCenterZ").isPresent()) {
+            this.spawnCenter = new BlockPos(
+                    input.getIntOr("SpawnCenterX", 0),
+                    input.getIntOr("SpawnCenterY", 0),
+                    input.getIntOr("SpawnCenterZ", 0)
+            );
+        }
     }
 
     private void triggerSpawnEvent(ServerLevel level) {
@@ -110,6 +159,9 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             return;
         }
         spawnEventTriggered = true;
+        if (spawnCenter == null) {
+            spawnCenter = this.blockPosition();
+        }
         GuardianBossEventHooks.triggerOnSpawn(BOSS_CONFIG_KEY, level, this.blockPosition(), this);
     }
 
@@ -119,6 +171,44 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         }
         spawnAnimationTriggered = true;
         this.triggerAnim(SPAWN_CONTROLLER_NAME, SPAWN_TRIGGER_NAME);
+    }
+
+    private void tickLeash() {
+        if (spawnCenter == null) {
+            spawnCenter = this.blockPosition();
+            return;
+        }
+
+        Vec3 center = Vec3.atCenterOf(spawnCenter);
+        Vec3 offset = this.position().subtract(center);
+        double horizontalDistanceSqr = offset.x * offset.x + offset.z * offset.z;
+        if (horizontalDistanceSqr <= LEASH_RADIUS_SQR) {
+            return;
+        }
+
+        double horizontalDistance = Math.sqrt(horizontalDistanceSqr);
+        double clampedX = center.x + offset.x / horizontalDistance * LEASH_RADIUS;
+        double clampedZ = center.z + offset.z / horizontalDistance * LEASH_RADIUS;
+        this.getNavigation().stop();
+        this.setDeltaMovement(Vec3.ZERO);
+        this.setPos(clampedX, this.getY(), clampedZ);
+    }
+
+    private void tickBossBar(ServerLevel level) {
+        bossEvent.setProgress(Math.max(0.0F, this.getHealth() / this.getMaxHealth()));
+        for (ServerPlayer player : level.players()) {
+            boolean near = player.distanceToSqr(this) <= BOSS_BAR_RADIUS_SQR;
+            boolean visible = bossEvent.getPlayers().contains(player);
+            if (near && !visible) {
+                bossEvent.addPlayer(player);
+            } else if (!near && visible) {
+                bossEvent.removePlayer(player);
+            }
+        }
+    }
+
+    private void removeBossBarPlayers() {
+        bossEvent.removeAllPlayers();
     }
 
     private void tickPhases() {
