@@ -38,16 +38,16 @@ client/src/main/resources/assets/guardian_mod/blockstates
 The client jar contains only fallback boss assets:
 
 ```text
-client/src/main/resources/assets/guardian_mod/models/entity/boss_fallback.geo.json
-client/src/main/resources/assets/guardian_mod/animations/boss_fallback.animation.json
+client/src/main/resources/assets/guardian_mod/geckolib/models/entity/boss_fallback.geo.json
+client/src/main/resources/assets/guardian_mod/geckolib/animations/entity/boss_fallback.animation.json
 client/src/main/resources/assets/guardian_mod/textures/entity/boss_fallback.png
 ```
 
 Real boss assets live outside the client jar in the server resource pack:
 
 ```text
-server-resourcepack/assets/guardian_mod/models/entity
-server-resourcepack/assets/guardian_mod/animations
+server-resourcepack/assets/guardian_mod/geckolib/models/entity
+server-resourcepack/assets/guardian_mod/geckolib/animations/entity
 server-resourcepack/assets/guardian_mod/textures/entity
 ```
 
@@ -77,8 +77,8 @@ To add a new block texture, add:
 Replace the server resource pack files:
 
 ```text
-server-resourcepack/assets/guardian_mod/models/entity/*.geo.json
-server-resourcepack/assets/guardian_mod/animations/*.animation.json
+server-resourcepack/assets/guardian_mod/geckolib/models/entity/*.geo.json
+server-resourcepack/assets/guardian_mod/geckolib/animations/entity/*.animation.json
 server-resourcepack/assets/guardian_mod/textures/entity/*.png
 ```
 
@@ -93,4 +93,3 @@ PowerShell example:
 ```powershell
 Compress-Archive -Path server-resourcepack\assets,server-resourcepack\pack.mcmeta -DestinationPath guardian-server-resourcepack.zip -Force
 ```
-

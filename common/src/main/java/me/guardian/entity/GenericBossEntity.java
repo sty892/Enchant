@@ -26,7 +26,8 @@ import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animatable.manager.AnimatableManager;
-import software.bernie.geckolib.constant.DefaultAnimations;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.HashMap;
@@ -37,6 +38,7 @@ import java.util.UUID;
 public class GenericBossEntity extends Monster implements GeoEntity {
     private static final String BOSS_CONFIG_KEY = "generic";
     private static final int CHARGE_COOLDOWN_TICKS = 200;
+    private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("animation.guardian_mod.boss_generic.idle");
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> damageContributors = new HashMap<>();
@@ -186,8 +188,7 @@ public class GenericBossEntity extends Monster implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(DefaultAnimations.genericWalkIdleController());
-        controllers.add(DefaultAnimations.genericAttackAnimation(DefaultAnimations.ATTACK_SWING));
+        controllers.add(new AnimationController<>("Idle", state -> state.setAndContinue(IDLE_ANIMATION)));
     }
 
     @Override

@@ -3,6 +3,7 @@ package me.guardian.config;
 import me.guardian.GuardianMod;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Map;
 
 public final class ConfigManager {
@@ -10,44 +11,21 @@ public final class ConfigManager {
             "boss_overworld.json", """
                     {
                       "boss_id": "guardian_mod:boss_overworld",
-                      "on_spawn": {
-                        "play_animation": "spawn",
-                        "world_border_expand": { "to": 200, "duration_seconds": 30 }
-                      },
-                      "on_death": {
-                        "world_border_expand": { "to": 500, "duration_seconds": 60 },
-                        "spawn_structure": "guardian_mod:altar",
-                        "spawn_structure_offset": { "x": 0, "y": 0, "z": 0 },
-                        "give_fragment": "guardian_mod:fragment_overworld",
-                        "set_flag": "overworldBossDefeated",
-                        "broadcast_title": "Хранитель Верхнего Мира повержен!",
-                        "allow_diamonds": true
-                      }
+                      "on_spawn_script": "boss_overworld_spawn",
+                      "on_death_script": "boss_overworld_death"
                     }
                     """,
             "boss_nether.json", """
                     {
                       "boss_id": "guardian_mod:boss_nether",
-                      "on_spawn": {
-                        "play_animation": "spawn",
-                        "world_border_expand": { "to": 800, "duration_seconds": 30 }
-                      },
-                      "on_death": {
-                        "world_border_expand": { "to": 2000, "duration_seconds": 120 },
-                        "spawn_structure": "guardian_mod:altar_nether",
-                        "spawn_structure_offset": { "x": 0, "y": 0, "z": 0 },
-                        "give_fragment": "guardian_mod:fragment_nether",
-                        "set_flag": "netherBossDefeated",
-                        "broadcast_title": "Хранитель Нижнего Мира повержен!"
-                      }
+                      "on_spawn_script": "boss_nether_spawn",
+                      "on_death_script": "boss_nether_death"
                     }
                     """,
             "boss_generic.json", """
                     {
                       "boss_id": "guardian_mod:boss_generic",
-                      "on_death": {
-                        "give_fragment": "guardian_mod:fragment_generic"
-                      }
+                      "on_death_script": "boss_generic_death"
                     }
                     """,
             "altar_config.json", """
@@ -92,6 +70,64 @@ public final class ConfigManager {
                     """
     );
 
+    private static final Map<String, String> DEFAULT_SCRIPTS = Map.of(
+            "season_start.json", """
+                    {
+                      "commands": [
+                        "say Guardian season start",
+                        "summon guardian_mod:boss_overworld 0 70 0",
+                        {
+                          "delay_ticks": 80,
+                          "command": "worldborder set 500 50s"
+                        }
+                      ]
+                    }
+                    """,
+            "boss_overworld_spawn.json", """
+                    {
+                      "commands": [
+                        "say Overworld Guardian has spawned"
+                      ]
+                    }
+                    """,
+            "boss_overworld_death.json", """
+                    {
+                      "commands": [
+                        "say Overworld Guardian defeated",
+                        "title @a title {\\"text\\":\\"Overworld Guardian defeated\\"}",
+                        "worldborder set 10000 120",
+                        "guardian stage 1",
+                        "give @p guardian_mod:fragment_overworld",
+                        "guardian structure place guardian_mod:altar"
+                      ]
+                    }
+                    """,
+            "boss_nether_spawn.json", """
+                    {
+                      "commands": [
+                        "say Nether Guardian has spawned"
+                      ]
+                    }
+                    """,
+            "boss_nether_death.json", """
+                    {
+                      "commands": [
+                        "say Nether Guardian defeated",
+                        "title @a title {\\"text\\":\\"Nether Guardian defeated\\"}",
+                        "give @p guardian_mod:fragment_nether"
+                      ]
+                    }
+                    """,
+            "boss_generic_death.json", """
+                    {
+                      "commands": [
+                        "say Generic Guardian defeated",
+                        "give @p guardian_mod:fragment_generic"
+                      ]
+                    }
+                    """
+    );
+
     private ConfigManager() {
     }
 
@@ -103,6 +139,19 @@ public final class ConfigManager {
                 GuardianMod.LOGGER.error("Failed to create default config {}", fileName, e);
             }
         });
+        DEFAULT_SCRIPTS.forEach((fileName, json) -> {
+            try {
+                ConfigLoader.writeDefaultIfMissing("scripts/" + fileName, json);
+            } catch (IOException e) {
+                GuardianMod.LOGGER.error("Failed to create default script {}", fileName, e);
+            }
+        });
+        try {
+            Files.createDirectories(ConfigLoader.configRoot().resolve("structures"));
+            Files.createDirectories(ConfigLoader.configRoot().resolve("scripts"));
+        } catch (IOException e) {
+            GuardianMod.LOGGER.error("Failed to create guardian config runtime directories", e);
+        }
     }
 
     public static String readRaw(String fileName) throws IOException {
