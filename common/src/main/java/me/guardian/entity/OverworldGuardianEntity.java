@@ -20,10 +20,12 @@ import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.hurtingprojectile.SmallFireball;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
@@ -88,10 +90,15 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         this.goalSelector.addGoal(1, new FloatGoal(this));
         this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 16.0F));
         this.goalSelector.addGoal(3, new RandomStrollGoal(this, 0.8));
-        this.goalSelector.addGoal(4, new MeleeAttackGoal(this, 1.0, true));
+        this.goalSelector.addGoal(4, new GuardianBossAttackGoal(this, 1.0D));
 
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
+    }
+
+    @Override
+    protected PathNavigation createNavigation(Level level) {
+        return new GuardianBossNavigation(this, level);
     }
 
     @Override
@@ -106,12 +113,18 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        GuardianBossAi.ensureSpawnHome(this);
         triggerSpawnEvent(level);
         triggerSpawnAnimation();
         tickLeash();
         tickBossBar(level);
         tickPhases();
         tickFireball(level);
+    }
+
+    @Override
+    public float getWalkTargetValue(BlockPos pos, LevelReader level) {
+        return GuardianBossAi.applySpawnDistancePenalty(this, pos, super.getWalkTargetValue(pos, level));
     }
 
     @Override
@@ -277,6 +290,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
                 ? state.setAndContinue(SPAWN_ANIMATION)
                 : PlayState.STOP)
                 .triggerableAnim(SPAWN_TRIGGER_NAME, SPAWN_ANIMATION));
+        controllers.add(new AnimationController<OverworldGuardianEntity>(GuardianBossAi.ATTACK_CONTROLLER, 0, state -> PlayState.STOP)
+                .triggerableAnim(GuardianBossAi.ATTACK_TRIGGER, RawAnimation.begin().thenPlay(GuardianBossAi.ATTACK_TRIGGER)));
     }
 
     @Override
