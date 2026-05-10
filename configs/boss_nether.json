@@ -1,15 +1,5 @@
 {
   "boss_id": "guardian_mod:boss_nether",
-  "on_spawn": {
-    "play_animation": "spawn",
-    "world_border_expand": { "to": 800, "duration_seconds": 30 }
-  },
-  "on_death": {
-    "world_border_expand": { "to": 2000, "duration_seconds": 120 },
-    "spawn_structure": "guardian_mod:altar_nether",
-    "spawn_structure_offset": { "x": 0, "y": 0, "z": 0 },
-    "give_fragment": "guardian_mod:fragment_nether",
-    "set_flag": "netherBossDefeated",
-    "broadcast_title": "Хранитель Нижнего Мира повержен!"
-  }
+  "on_spawn_script": "boss_nether_spawn",
+  "on_death_script": "boss_nether_death"
 }

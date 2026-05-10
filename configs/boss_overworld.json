@@ -1,16 +1,5 @@
 {
   "boss_id": "guardian_mod:boss_overworld",
-  "on_spawn": {
-    "play_animation": "spawn",
-    "world_border_expand": { "to": 200, "duration_seconds": 30 }
-  },
-  "on_death": {
-    "world_border_expand": { "to": 500, "duration_seconds": 60 },
-    "spawn_structure": "guardian_mod:altar",
-    "spawn_structure_offset": { "x": 0, "y": 0, "z": 0 },
-    "give_fragment": "guardian_mod:fragment_overworld",
-    "set_flag": "overworldBossDefeated",
-    "broadcast_title": "Хранитель Верхнего Мира повержен!",
-    "allow_diamonds": true
-  }
+  "on_spawn_script": "boss_overworld_spawn",
+  "on_death_script": "boss_overworld_death"
 }

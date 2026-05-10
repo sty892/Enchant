@@ -10,13 +10,25 @@ Build jars:
 
 Use the generated jars from:
 
-- `common/build/libs/guardian_mod-common-1.0.0.jar`
-- `client/build/libs/guardian_mod-client-1.0.0.jar`
-- `server/build/libs/guardian_mod-server-1.0.0.jar`
+- `common/build/libs/guardian_mod-common-1.0.6.jar`
+- `client/build/libs/guardian_mod-client-1.0.6.jar`
+- `server/build/libs/guardian_mod-server-1.0.6.jar`
 
 For a dedicated server, install Fabric Loader for Minecraft `1.21.11`, then put Fabric API, GeckoLib, `guardian_mod-common`, and `guardian_mod-server` in the server `mods` folder.
 
 For a client, install Fabric Loader for Minecraft `1.21.11`, then put Fabric API, GeckoLib, `guardian_mod-common`, and `guardian_mod-client` in the client `mods` folder.
+
+## First Version Test Checklist
+
+Use this checklist before polishing mechanics further:
+
+1. Start a Fabric client with `guardian_mod-common`, `guardian_mod-client`, Fabric API, and GeckoLib.
+2. Start a Fabric server with `guardian_mod-common`, `guardian_mod-server`, Fabric API, and GeckoLib.
+3. Join the server and confirm the client handshake logs enable Guardian Mod features.
+4. Spawn each boss with `/guardian boss spawn boss_overworld`, `/guardian boss spawn boss_nether`, and `/guardian boss spawn boss_generic`.
+5. Confirm each boss is visible. If real boss assets are missing or disabled, a fallback model and texture should render instead of an invisible entity.
+6. Kill a boss and confirm the configured death script runs.
+7. Test keyholes, altar flow, and diamond restriction with the commands below.
 
 ## Bosses
 
@@ -34,6 +46,106 @@ Remove all spawned guardian bosses:
 ```mcfunction
 /guardian boss kill all
 ```
+
+Boss death behavior is configured in runtime files under:
+
+```text
+config/guardian_mod/boss_overworld.json
+config/guardian_mod/boss_nether.json
+config/guardian_mod/boss_generic.json
+```
+
+Each boss should point at named command scripts:
+
+```json
+{
+  "boss_id": "guardian_mod:boss_overworld",
+  "on_spawn_script": "boss_overworld_spawn",
+  "on_death_script": "boss_overworld_death"
+}
+```
+
+Scripts live in:
+
+```text
+config/guardian_mod/scripts
+```
+
+Boss configs stay directly under `config/guardian_mod`. If a duplicate script
+exists in both `config/guardian_mod/scripts/<id>.json` and
+`config/guardian_mod/<id>.json`, the `scripts/` file wins. Root-level script
+files are only a legacy fallback when no matching `scripts/` file exists and the
+root file contains a `commands` array.
+
+Run one manually:
+
+```mcfunction
+/guardian event run season_start
+```
+
+Script files contain a `commands` array:
+
+```json
+{
+  "commands": [
+    "summon guardian_mod:boss_overworld 0 70 0",
+    {
+      "delay_ticks": 80,
+      "command": "worldborder set 500 50s"
+    }
+  ]
+}
+```
+
+Commands may be written with or without `/`. They run from the boss/event position with permission level 4.
+For commands containing quotes, prefer escaping them as `\"`; the script loader also has a lenient fallback for one command per line.
+
+## Config Structures
+
+The mod creates this folder automatically:
+
+```text
+config/guardian_mod/structures
+```
+
+To add a custom structure that can be referenced from boss configs, put a `.nbt` structure file here:
+
+```text
+config/guardian_mod/structures/guardian_mod/my_structure.nbt
+```
+
+Then reference it in a boss config:
+
+```json
+{
+  "on_death": {
+    "spawn_structure": "guardian_mod:my_structure"
+  }
+}
+```
+
+Bundled or datapack structures use Minecraft's current folder:
+
+```text
+data/guardian_mod/structure/altar.nbt
+```
+
+Bundled `.nbt` files are structure templates. Vanilla placement:
+
+```mcfunction
+/place template guardian_mod:altar
+```
+
+`/place structure` is for worldgen configured structures, not these `.nbt` template files.
+
+Config structures are checked before datapack structures by the Guardian command. If `config/guardian_mod/structures/guardian_mod/my_structure.nbt` exists, it will be used. If not, the mod falls back to datapack structures from `data/guardian_mod/structure`.
+
+```mcfunction
+/guardian structure place guardian_mod:my_structure
+/guardian structure place guardian_mod:my_structure ~ ~ ~
+```
+
+See `docs/SCRIPTS.md` for the full script and structure workflow.
 
 ## Keyholes
 
@@ -114,11 +226,11 @@ The diamond should be removed and the actionbar should show:
 Нельзя получить алмазы пока не убит Хранитель Верхнего Мира
 ```
 
-Unlock diamonds for testing:
+Force progression stage for testing:
 
 ```mcfunction
+/guardian stage 0
 /guardian stage 1
 ```
 
-Stage `1` marks the Overworld Guardian defeated. Stage `2` also marks the Nether Guardian defeated, enabling stage 2 altar caps.
-
+Stage `0` clears both boss-defeated flags and locks diamonds again. Stage `1` marks the Overworld Guardian defeated. Stage `2` also marks the Nether Guardian defeated, enabling stage 2 altar caps.

@@ -19,13 +19,14 @@ import java.util.Map;
 import java.util.UUID;
 
 public class BossEventSystem {
-
     public static void executeEvent(ServerLevel level, JsonObject eventData, BlockPos center) {
         executeEvent(level, eventData, center, null, Collections.emptyMap());
     }
 
     public static void executeEvent(ServerLevel level, JsonObject eventData, BlockPos center, Entity source, Map<UUID, Float> damageContributors) {
         if (eventData == null) return;
+
+        ScriptRunner.runInlineCommands(level, center, source, eventData);
 
         // world_border_expand
         if (eventData.has("world_border_expand")) {

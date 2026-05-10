@@ -21,6 +21,10 @@ public final class ConfigLoader {
         Files.createDirectories(root);
         Path target = root.resolve(fileName);
         if (Files.notExists(target)) {
+            Path parent = target.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
             Files.writeString(target, json, StandardCharsets.UTF_8);
         }
     }

@@ -22,11 +22,14 @@ import me.guardian.event.GuardianEventExecutor;
 import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.boss.BossEventManager;
 import me.guardian.server.event.GuardianJsonEventActions;
+import me.guardian.server.event.ScriptRunner;
 import me.guardian.server.state.GuardianWorldState;
 import me.guardian.server.structure.StructureSpawner;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.IdentifierArgument;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -101,8 +104,8 @@ public final class GuardianCommand {
                 .then(Commands.literal("reset")
                         .executes(context -> resetState(context.getSource())))
                 .then(Commands.literal("stage")
-                        .then(Commands.argument("stage", IntegerArgumentType.integer(1, 2))
-                                .suggests((context, builder) -> suggest(new String[]{"1", "2"}, builder))
+                        .then(Commands.argument("stage", IntegerArgumentType.integer(0, 2))
+                                .suggests((context, builder) -> suggest(new String[]{"0", "1", "2"}, builder))
                                 .executes(context -> setStage(context.getSource(), IntegerArgumentType.getInteger(context, "stage")))))
                 .then(Commands.literal("keyholes")
                         .then(Commands.literal("reset")
@@ -113,6 +116,10 @@ public final class GuardianCommand {
                                         .executes(context -> printKeyholeState(context.getSource(), IntegerArgumentType.getInteger(context, "radius"))))))
                 .then(Commands.literal("event")
                         .then(Commands.literal("run")
+                                .then(Commands.argument("script_id", StringArgumentType.word())
+                                        .suggests((context, builder) -> suggestScripts(builder))
+                                        .executes(context -> ScriptRunner.runScript(context.getSource(), StringArgumentType.getString(context, "script_id")))))
+                        .then(Commands.literal("run_json")
                                 .then(Commands.argument("event_file", StringArgumentType.string())
                                         .suggests((context, builder) -> suggestEventFiles(builder))
                                         .executes(context -> runJsonEvent(context.getSource(), StringArgumentType.getString(context, "event_file")))))
@@ -132,7 +139,12 @@ public final class GuardianCommand {
                         .then(Commands.literal("place")
                                 .then(Commands.argument("structure_id", StringArgumentType.string())
                                         .suggests((context, builder) -> suggest(STRUCTURE_ID_SUGGESTIONS, builder))
-                                        .executes(context -> placeStructure(context.getSource(), StringArgumentType.getString(context, "structure_id"))))))
+                                        .executes(context -> placeStructure(context.getSource(), StringArgumentType.getString(context, "structure_id"), null))
+                                        .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                                .executes(context -> placeStructure(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "structure_id"),
+                                                        BlockPosArgument.getLoadedBlockPos(context, "pos")))))))
                 .then(Commands.literal("reload")
                         .executes(context -> reload(context.getSource()))));
     }
@@ -328,21 +340,21 @@ public final class GuardianCommand {
         return 1;
     }
 
-    private static int placeStructure(CommandSourceStack source, String structureId) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
+    private static int placeStructure(CommandSourceStack source, String structureId, BlockPos requestedPos) {
         Identifier id = StructureSpawner.parseStructureId(structureId);
         if (id == null) {
             source.sendFailure(Component.literal("Invalid guardian structure id: " + structureId));
             return 0;
         }
 
-        boolean placed = StructureSpawner.place(source.getLevel(), player.blockPosition(), id.toString());
+        BlockPos pos = requestedPos == null ? BlockPos.containing(source.getPosition()) : requestedPos;
+        boolean placed = StructureSpawner.place(source.getLevel(), pos, id.toString());
         if (!placed) {
             source.sendFailure(Component.literal("Failed to place structure " + id + "; check server log for " + StructureSpawner.resourcePath(id)));
             return 0;
         }
 
-        source.sendSuccess(() -> Component.literal("Placed guardian structure " + id), true);
+        source.sendSuccess(() -> Component.literal("Placed guardian structure " + id + " at " + pos.toShortString()), true);
         return 1;
     }
 
@@ -531,6 +543,16 @@ public final class GuardianCommand {
             String name = player.getScoreboardName();
             if (name.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {
                 builder.suggest(name);
+            }
+        }
+        return builder.buildFuture();
+    }
+
+    private static CompletableFuture<Suggestions> suggestScripts(SuggestionsBuilder builder) {
+        String remaining = builder.getRemainingLowerCase();
+        for (String scriptId : ScriptRunner.listScriptIds()) {
+            if (scriptId.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(scriptId);
             }
         }
         return builder.buildFuture();

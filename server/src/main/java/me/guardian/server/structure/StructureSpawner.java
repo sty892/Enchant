@@ -24,13 +24,17 @@ public final class StructureSpawner {
             return false;
         }
 
-        Optional<StructureTemplate> template = level.getStructureManager().get(id);
+        Optional<StructureTemplate> template = ConfigStructureLoader.load(level, id)
+                .or(() -> level.getStructureManager().get(id));
         if (template.isEmpty()) {
-            GuardianMod.LOGGER.warn("Structure template {} was not found at {}", id, resourcePath(id));
+            GuardianMod.LOGGER.warn("Structure template {} was not found in config/guardian_mod/structures or data/{}/structure", id, id.getNamespace());
             return false;
         }
 
-        StructureTemplate structure = template.get();
+        return placeTemplate(level, center, id, template.get());
+    }
+
+    private static boolean placeTemplate(ServerLevel level, BlockPos center, Identifier id, StructureTemplate structure) {
         Vec3i size = structure.getSize();
         BlockPos origin = center.offset(-size.getX() / 2, 0, -size.getZ() / 2);
         StructurePlaceSettings settings = new StructurePlaceSettings()
@@ -60,6 +64,6 @@ public final class StructureSpawner {
     }
 
     public static String resourcePath(Identifier id) {
-        return "data/" + id.getNamespace() + "/structures/" + id.getPath() + ".nbt";
+        return "data/" + id.getNamespace() + "/structure/" + id.getPath() + ".nbt";
     }
 }

@@ -1,18 +1,38 @@
 package me.guardian.entity;
 
+import me.guardian.GuardianMod;
 import me.guardian.event.GuardianBossEventHooks;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.hurtingprojectile.SmallFireball;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animatable.manager.AnimatableManager;
-import software.bernie.geckolib.constant.DefaultAnimations;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.animation.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.HashMap;
@@ -21,11 +41,30 @@ import java.util.UUID;
 
 public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final String BOSS_CONFIG_KEY = "overworld";
+    private static final String SPAWN_CONTROLLER_NAME = "Spawn";
+    private static final String SPAWN_TRIGGER_NAME = "spawn";
+    private static final double LEASH_RADIUS = 15.0D;
+    private static final double LEASH_RADIUS_SQR = LEASH_RADIUS * LEASH_RADIUS;
+    private static final double BOSS_BAR_RADIUS_SQR = 30.0D * 30.0D;
+    private static final int FIREBALL_COOLDOWN_TICKS = 100;
+    private static final int SPAWN_ANIMATION_TICKS = 80;
+    private static final RawAnimation SPAWN_ANIMATION = RawAnimation.begin().thenPlay("spawn");
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> damageContributors = new HashMap<>();
+    private final ServerBossEvent bossEvent = new ServerBossEvent(
+            Component.literal("Overworld Guardian"),
+            BossEvent.BossBarColor.GREEN,
+            BossEvent.BossBarOverlay.PROGRESS
+    );
     private boolean spawnEventTriggered = false;
+    private boolean phase75Triggered = false;
+    private boolean phase50Triggered = false;
+    private boolean phase25Triggered = false;
     private boolean deathEventTriggered = false;
+    private boolean spawnAnimationTriggered = false;
+    private BlockPos spawnCenter = null;
+    private int fireballCooldown = FIREBALL_COOLDOWN_TICKS;
 
     public OverworldGuardianEntity(EntityType<? extends Monster> entityType, Level level) {
         super(entityType, level);
@@ -46,7 +85,13 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     @Override
     protected void registerGoals() {
-        // Bosses are event targets for now; they intentionally do not move or attack.
+        this.goalSelector.addGoal(1, new FloatGoal(this));
+        this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 16.0F));
+        this.goalSelector.addGoal(3, new RandomStrollGoal(this, 0.8));
+        this.goalSelector.addGoal(4, new MeleeAttackGoal(this, 1.0, true));
+
+        this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
+        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
     }
 
     @Override
@@ -62,9 +107,11 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         triggerSpawnEvent(level);
-        this.setTarget(null);
-        this.getNavigation().stop();
-        this.setDeltaMovement(0.0D, 0.0D, 0.0D);
+        triggerSpawnAnimation();
+        tickLeash();
+        tickBossBar(level);
+        tickPhases();
+        tickFireball(level);
     }
 
     @Override
@@ -73,7 +120,38 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             deathEventTriggered = true;
             GuardianBossEventHooks.triggerOnDeath(BOSS_CONFIG_KEY, serverLevel, this.blockPosition(), this, damageContributors);
         }
+        removeBossBarPlayers();
         super.die(damageSource);
+    }
+
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        removeBossBarPlayers();
+        super.remove(reason);
+    }
+
+    @Override
+    protected void addAdditionalSaveData(ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        if (spawnCenter != null) {
+            output.putInt("SpawnCenterX", spawnCenter.getX());
+            output.putInt("SpawnCenterY", spawnCenter.getY());
+            output.putInt("SpawnCenterZ", spawnCenter.getZ());
+        }
+    }
+
+    @Override
+    protected void readAdditionalSaveData(ValueInput input) {
+        super.readAdditionalSaveData(input);
+        if (input.getInt("SpawnCenterX").isPresent()
+                && input.getInt("SpawnCenterY").isPresent()
+                && input.getInt("SpawnCenterZ").isPresent()) {
+            this.spawnCenter = new BlockPos(
+                    input.getIntOr("SpawnCenterX", 0),
+                    input.getIntOr("SpawnCenterY", 0),
+                    input.getIntOr("SpawnCenterZ", 0)
+            );
+        }
     }
 
     private void triggerSpawnEvent(ServerLevel level) {
@@ -81,12 +159,124 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             return;
         }
         spawnEventTriggered = true;
+        if (spawnCenter == null) {
+            spawnCenter = this.blockPosition();
+        }
         GuardianBossEventHooks.triggerOnSpawn(BOSS_CONFIG_KEY, level, this.blockPosition(), this);
+    }
+
+    private void triggerSpawnAnimation() {
+        if (spawnAnimationTriggered || this.tickCount < 2) {
+            return;
+        }
+        spawnAnimationTriggered = true;
+        this.triggerAnim(SPAWN_CONTROLLER_NAME, SPAWN_TRIGGER_NAME);
+    }
+
+    private void tickLeash() {
+        if (spawnCenter == null) {
+            spawnCenter = this.blockPosition();
+            return;
+        }
+
+        Vec3 center = Vec3.atCenterOf(spawnCenter);
+        Vec3 offset = this.position().subtract(center);
+        double horizontalDistanceSqr = offset.x * offset.x + offset.z * offset.z;
+        if (horizontalDistanceSqr <= LEASH_RADIUS_SQR) {
+            return;
+        }
+
+        double horizontalDistance = Math.sqrt(horizontalDistanceSqr);
+        double clampedX = center.x + offset.x / horizontalDistance * LEASH_RADIUS;
+        double clampedZ = center.z + offset.z / horizontalDistance * LEASH_RADIUS;
+        this.getNavigation().stop();
+        this.setDeltaMovement(Vec3.ZERO);
+        this.setPos(clampedX, this.getY(), clampedZ);
+    }
+
+    private void tickBossBar(ServerLevel level) {
+        bossEvent.setProgress(Math.max(0.0F, this.getHealth() / this.getMaxHealth()));
+        for (ServerPlayer player : level.players()) {
+            boolean near = player.distanceToSqr(this) <= BOSS_BAR_RADIUS_SQR;
+            boolean visible = bossEvent.getPlayers().contains(player);
+            if (near && !visible) {
+                bossEvent.addPlayer(player);
+            } else if (!near && visible) {
+                bossEvent.removePlayer(player);
+            }
+        }
+    }
+
+    private void removeBossBarPlayers() {
+        bossEvent.removeAllPlayers();
+    }
+
+    private void tickPhases() {
+        float healthRatio = this.getHealth() / this.getMaxHealth();
+        if (!phase75Triggered && healthRatio <= 0.75F) {
+            phase75Triggered = true;
+            setBaseAttribute(Attributes.MOVEMENT_SPEED, 0.30);
+            GuardianMod.LOGGER.info("Overworld Guardian 75% phase hook triggered; generic summon is deferred until Module 10");
+        }
+        if (!phase50Triggered && healthRatio <= 0.50F) {
+            phase50Triggered = true;
+            leapAtTarget();
+            GuardianMod.LOGGER.info("Overworld Guardian 50% phase hook triggered");
+        }
+        if (!phase25Triggered && healthRatio <= 0.25F) {
+            phase25Triggered = true;
+            setBaseAttribute(Attributes.MOVEMENT_SPEED, 0.50);
+            setBaseAttribute(Attributes.ATTACK_DAMAGE, 22.5);
+            GuardianMod.LOGGER.info("Overworld Guardian 25% berserk phase hook triggered");
+        }
+    }
+
+    private void setBaseAttribute(net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, double value) {
+        var instance = this.getAttribute(attribute);
+        if (instance != null) {
+            instance.setBaseValue(value);
+        }
+    }
+
+    private void leapAtTarget() {
+        LivingEntity target = this.getTarget();
+        if (target == null) {
+            return;
+        }
+
+        Vec3 direction = target.position().subtract(this.position()).horizontal();
+        if (direction.lengthSqr() > 0.0001D) {
+            this.setDeltaMovement(direction.normalize().scale(1.2D).add(0.0D, 0.45D, 0.0D));
+        }
+    }
+
+    private void tickFireball(ServerLevel level) {
+        if (fireballCooldown > 0) {
+            fireballCooldown--;
+            return;
+        }
+
+        LivingEntity target = this.getTarget();
+        if (target == null || !target.isAlive()) {
+            fireballCooldown = 20;
+            return;
+        }
+
+        Vec3 origin = this.position().add(0.0D, this.getEyeHeight() * 0.75D, 0.0D);
+        Vec3 targetPos = target.position().add(0.0D, target.getEyeHeight() * 0.5D, 0.0D);
+        Vec3 direction = targetPos.subtract(origin).normalize();
+        SmallFireball fireball = new SmallFireball(level, this, direction);
+        fireball.setPos(origin.x, origin.y, origin.z);
+        level.addFreshEntity(fireball);
+        fireballCooldown = FIREBALL_COOLDOWN_TICKS;
     }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(DefaultAnimations.genericWalkIdleController());
+        controllers.add(new AnimationController<>(SPAWN_CONTROLLER_NAME, state -> state.renderState().getAnimatableAge() <= SPAWN_ANIMATION_TICKS
+                ? state.setAndContinue(SPAWN_ANIMATION)
+                : PlayState.STOP)
+                .triggerableAnim(SPAWN_TRIGGER_NAME, SPAWN_ANIMATION));
     }
 
     @Override
