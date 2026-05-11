@@ -28,7 +28,7 @@ public final class TriggerAreaClient {
     }
 
     public static void initialize() {
-        WorldRenderEvents.BEFORE_DEBUG_RENDER.register(TriggerAreaClient::render);
+        WorldRenderEvents.END_MAIN.register(TriggerAreaClient::render);
         ClientPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.Sync.TYPE, (payload, context) -> context.client().execute(() -> {
             AREAS.clear();
             for (String serializedArea : payload.areas()) {
@@ -132,7 +132,7 @@ public final class TriggerAreaClient {
             }
             AABB box = new AABB(area.min.getX(), area.min.getY(), area.min.getZ(),
                     area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D);
-            ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.lines()),
+            ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.secondaryBlockOutline()),
                     Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, 0xFFFFFFFF, 1.0F);
         }
     }
