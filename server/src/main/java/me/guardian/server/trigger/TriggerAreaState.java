@@ -50,4 +50,12 @@ public final class TriggerAreaState extends SavedData {
         areas.add(area);
         setDirty();
     }
+
+    public boolean remove(UUID id) {
+        boolean removed = areas.removeIf(existing -> existing.id.equals(id));
+        if (removed) {
+            setDirty();
+        }
+        return removed;
+    }
 }

@@ -69,6 +69,7 @@ public final class TriggerAreaManager {
             } catch (RuntimeException ignored) {
             }
         });
+        ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.Delete.TYPE, (payload, context) -> deleteArea(context.server(), payload.areaId()));
     }
 
     public static void setPoint(Player player, BlockPos pos, boolean second) {
@@ -261,7 +262,18 @@ public final class TriggerAreaManager {
         ServerPlayNetworking.send(player, new TriggerAreaPayloads.Sync(serializedAreas(TriggerAreaState.get(player.level()))));
     }
 
-    private static void syncAll(MinecraftServer server) {
+    public static boolean deleteArea(MinecraftServer server, UUID id) {
+        boolean removed = TriggerAreaState.get(server.overworld()).remove(id);
+        if (removed) {
+            for (Set<UUID> inside : INSIDE_AREAS.values()) {
+                inside.remove(id);
+            }
+            syncAll(server);
+        }
+        return removed;
+    }
+
+    public static void syncAll(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             sync(player);
         }

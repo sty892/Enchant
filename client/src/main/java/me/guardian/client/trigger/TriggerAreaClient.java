@@ -4,6 +4,8 @@ import me.guardian.client.screen.TriggerAreaEditorScreen;
 import me.guardian.item.ModItems;
 import me.guardian.network.TriggerAreaPayloads;
 import me.guardian.trigger.TriggerArea;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -132,9 +134,42 @@ public final class TriggerAreaClient {
             }
             AABB box = new AABB(area.min.getX(), area.min.getY(), area.min.getZ(),
                     area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D);
+            renderFill(context, box, viewer);
             ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.secondaryBlockOutline()),
-                    Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, 0xFFFFFFFF, 1.0F);
+                    Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, 0xFFFFFFFF, 4.0F);
         }
+    }
+
+    private static void renderFill(WorldRenderContext context, AABB box, Vec3 viewer) {
+        double minX = box.minX - viewer.x;
+        double minY = box.minY - viewer.y;
+        double minZ = box.minZ - viewer.z;
+        double maxX = box.maxX - viewer.x;
+        double maxY = box.maxY - viewer.y;
+        double maxZ = box.maxZ - viewer.z;
+        VertexConsumer buffer = context.consumers().getBuffer(RenderTypes.debugQuads());
+        PoseStack.Pose pose = context.matrices().last();
+        int color = 0x2855DFFF;
+        quad(buffer, pose, minX, minY, minZ, maxX, minY, minZ, maxX, maxY, minZ, minX, maxY, minZ, color);
+        quad(buffer, pose, maxX, minY, maxZ, minX, minY, maxZ, minX, maxY, maxZ, maxX, maxY, maxZ, color);
+        quad(buffer, pose, minX, minY, maxZ, minX, minY, minZ, minX, maxY, minZ, minX, maxY, maxZ, color);
+        quad(buffer, pose, maxX, minY, minZ, maxX, minY, maxZ, maxX, maxY, maxZ, maxX, maxY, minZ, color);
+        quad(buffer, pose, minX, minY, maxZ, maxX, minY, maxZ, maxX, minY, minZ, minX, minY, minZ, color);
+        quad(buffer, pose, minX, maxY, minZ, maxX, maxY, minZ, maxX, maxY, maxZ, minX, maxY, maxZ, color);
+    }
+
+    private static void quad(VertexConsumer buffer, PoseStack.Pose pose,
+                             double x1, double y1, double z1, double x2, double y2, double z2,
+                             double x3, double y3, double z3, double x4, double y4, double z4,
+                             int color) {
+        vertex(buffer, pose, x1, y1, z1, color);
+        vertex(buffer, pose, x2, y2, z2, color);
+        vertex(buffer, pose, x3, y3, z3, color);
+        vertex(buffer, pose, x4, y4, z4, color);
+    }
+
+    private static void vertex(VertexConsumer buffer, PoseStack.Pose pose, double x, double y, double z, int color) {
+        buffer.addVertex(pose, (float) x, (float) y, (float) z).setColor(color);
     }
 
     private static Vec3 center(TriggerArea area) {

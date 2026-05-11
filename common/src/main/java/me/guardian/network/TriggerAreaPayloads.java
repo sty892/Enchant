@@ -114,6 +114,24 @@ public final class TriggerAreaPayloads {
         }
     }
 
+    public record Delete(UUID areaId) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<Delete> TYPE = new CustomPacketPayload.Type<>(id("trigger_delete"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Delete> CODEC = StreamCodec.ofMember(Delete::write, Delete::read);
+
+        private void write(RegistryFriendlyByteBuf buf) {
+            buf.writeUUID(areaId);
+        }
+
+        private static Delete read(RegistryFriendlyByteBuf buf) {
+            return new Delete(buf.readUUID());
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, path);
     }

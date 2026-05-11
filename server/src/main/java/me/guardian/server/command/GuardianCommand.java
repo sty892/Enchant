@@ -26,6 +26,9 @@ import me.guardian.server.event.KeyFoundEventHandler;
 import me.guardian.server.event.ScriptRunner;
 import me.guardian.server.state.GuardianWorldState;
 import me.guardian.server.structure.StructureSpawner;
+import me.guardian.server.trigger.TriggerAreaManager;
+import me.guardian.server.trigger.TriggerAreaState;
+import me.guardian.trigger.TriggerArea;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -130,6 +133,13 @@ public final class GuardianCommand {
                                                 .executes(context -> removeKeyWhitelist(context.getSource(), StringArgumentType.getString(context, "player")))))
                                 .then(Commands.literal("list")
                                         .executes(context -> listKeyWhitelist(context.getSource())))))
+                .then(Commands.literal("trigger")
+                        .then(Commands.literal("delete")
+                                .then(Commands.literal("nearest")
+                                        .executes(context -> deleteNearestTrigger(context.getSource())))
+                                .then(Commands.argument("id", StringArgumentType.string())
+                                        .suggests((context, builder) -> suggestTriggerIds(context.getSource(), builder))
+                                        .executes(context -> deleteTrigger(context.getSource(), StringArgumentType.getString(context, "id"))))))
                 .then(Commands.literal("event")
                         .then(Commands.literal("run")
                                 .then(Commands.argument("script_id", StringArgumentType.word())
@@ -290,6 +300,58 @@ public final class GuardianCommand {
         int count = KeyFoundEventHandler.resetFoundKeys(source.getServer());
         source.sendSuccess(() -> Component.literal("Reset found key state entries: " + count), true);
         return count;
+    }
+
+    private static int deleteTrigger(CommandSourceStack source, String idRaw) {
+        UUID id;
+        try {
+            id = UUID.fromString(idRaw);
+        } catch (IllegalArgumentException e) {
+            source.sendFailure(Component.literal("Invalid trigger id: " + idRaw));
+            return 0;
+        }
+        boolean removed = TriggerAreaManager.deleteArea(source.getServer(), id);
+        if (!removed) {
+            source.sendFailure(Component.literal("No trigger found with id: " + id));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Deleted trigger: " + id), true);
+        return 1;
+    }
+
+    private static int deleteNearestTrigger(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        String dimension = player.level().dimension().identifier().toString();
+        TriggerArea nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
+            if (!area.dimension.equals(dimension)) {
+                continue;
+            }
+            double distance = areaCenterDistanceSqr(area, player.getX(), player.getY(), player.getZ());
+            if (distance < nearestDistance) {
+                nearest = area;
+                nearestDistance = distance;
+            }
+        }
+        if (nearest == null) {
+            source.sendFailure(Component.literal("No trigger found in this dimension"));
+            return 0;
+        }
+        UUID id = nearest.id;
+        TriggerAreaManager.deleteArea(source.getServer(), id);
+        source.sendSuccess(() -> Component.literal("Deleted nearest trigger: " + id), true);
+        return 1;
+    }
+
+    private static double areaCenterDistanceSqr(TriggerArea area, double x, double y, double z) {
+        double centerX = (area.min.getX() + area.max.getX() + 1.0D) * 0.5D;
+        double centerY = (area.min.getY() + area.max.getY() + 1.0D) * 0.5D;
+        double centerZ = (area.min.getZ() + area.max.getZ() + 1.0D) * 0.5D;
+        double dx = centerX - x;
+        double dy = centerY - y;
+        double dz = centerZ - z;
+        return dx * dx + dy * dy + dz * dz;
     }
 
     private static int printKeyholeState(CommandSourceStack source, int radius) throws CommandSyntaxException {
@@ -631,6 +693,17 @@ public final class GuardianCommand {
         for (String scriptId : ScriptRunner.listScriptIds()) {
             if (scriptId.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {
                 builder.suggest(scriptId);
+            }
+        }
+        return builder.buildFuture();
+    }
+
+    private static CompletableFuture<Suggestions> suggestTriggerIds(CommandSourceStack source, SuggestionsBuilder builder) {
+        String remaining = builder.getRemainingLowerCase();
+        for (TriggerArea area : TriggerAreaState.get(source.getLevel()).areas) {
+            String id = area.id.toString();
+            if (id.startsWith(remaining)) {
+                builder.suggest(id);
             }
         }
         return builder.buildFuture();
