@@ -105,7 +105,7 @@ public final class GuardianModClient implements ClientModInitializer {
     }
 
     private static void refreshTriggerVisibility(Minecraft client) {
-        boolean visible = client.player != null && client.player.isHolding(ModItems.TRIGGER_REVEALER);
+        boolean visible = TriggerAreaClient.isRevealEnabled();
         if (visible != triggerRevealVisible) {
             triggerRevealVisible = visible;
             if (client.levelRenderer != null) {
