@@ -50,15 +50,16 @@ public final class ConfigManager {
             "keys_config.json", """
                     {
                       "keys": [
-                        { "item_id": "guardian_mod:key_1", "keyhole_id": "guardian_mod:keyhole_1", "slot": 1, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_2", "keyhole_id": "guardian_mod:keyhole_2", "slot": 2, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_3", "keyhole_id": "guardian_mod:keyhole_3", "slot": 3, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_4", "keyhole_id": "guardian_mod:keyhole_4", "slot": 4, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_5", "keyhole_id": "guardian_mod:keyhole_5", "slot": 5, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_6", "keyhole_id": "guardian_mod:keyhole_6", "slot": 6, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_7", "keyhole_id": "guardian_mod:keyhole_7", "slot": 7, "on_insert": {} },
-                        { "item_id": "guardian_mod:key_8", "keyhole_id": "guardian_mod:keyhole_8", "slot": 8, "on_insert": {} }
+                        { "item_id": "guardian_mod:key_1", "keyhole_id": "guardian_mod:keyhole_1", "slot": 1, "on_found_script": "key_found", "on_insert_script": "key_inserted", "on_insert": {} },
+                        { "item_id": "guardian_mod:key_2", "keyhole_id": "guardian_mod:keyhole_2", "slot": 2, "on_found_script": "key_found", "on_insert_script": "key_inserted", "on_insert": {} },
+                        { "item_id": "guardian_mod:key_3", "keyhole_id": "guardian_mod:keyhole_3", "slot": 3, "on_found_script": "key_found", "on_insert_script": "key_inserted", "on_insert": {} },
+                        { "item_id": "guardian_mod:key_4", "keyhole_id": "guardian_mod:keyhole_4", "slot": 4, "on_found_script": "key_found", "on_insert_script": "key_inserted", "on_insert": {} },
+                        { "item_id": "guardian_mod:key_5", "keyhole_id": "guardian_mod:keyhole_5", "slot": 5, "on_found_script": "key_found", "on_insert_script": "key_inserted", "on_insert": {} },
+                        { "item_id": "guardian_mod:key_6", "keyhole_id": "guardian_mod:keyhole_6", "slot": 6, "on_found_script": "key_found", "on_insert_script": "key_inserted", "on_insert": {} },
+                        { "item_id": "guardian_mod:key_7", "keyhole_id": "guardian_mod:keyhole_7", "slot": 7, "on_found_script": "key_found", "on_insert_script": "key_inserted", "on_insert": {} },
+                        { "item_id": "guardian_mod:key_8", "keyhole_id": "guardian_mod:keyhole_8", "slot": 8, "on_found_script": "key_found", "on_insert_script": "key_inserted", "on_insert": {} }
                       ],
+                      "on_all_inserted_script": "all_keyholes_filled",
                       "on_all_inserted": {}
                     }
                     """,
@@ -134,7 +135,8 @@ public final class ConfigManager {
             "guardian_config.json", """
                     {
                       "diamond_restriction_enabled": true,
-                      "op_diamond_whitelist": []
+                      "op_diamond_whitelist": [],
+                      "key_whitelist": []
                     }
                     """
     );
@@ -192,6 +194,27 @@ public final class ConfigManager {
                       "commands": [
                         "say Generic Guardian defeated",
                         "give @p guardian_mod:fragment_generic"
+                      ]
+                    }
+                    """,
+            "key_found.json", """
+                    {
+                      "commands": [
+                        "say Player [nickname] found a key"
+                      ]
+                    }
+                    """,
+            "key_inserted.json", """
+                    {
+                      "commands": [
+                        "say Player [nickname] inserted a key"
+                      ]
+                    }
+                    """,
+            "all_keyholes_filled.json", """
+                    {
+                      "commands": [
+                        "say All keyholes are filled"
                       ]
                     }
                     """

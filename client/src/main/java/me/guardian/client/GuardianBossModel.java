@@ -21,8 +21,8 @@ public final class GuardianBossModel<T extends Mob & GeoEntity> extends GeoModel
         this.bossModel = asset("entity/" + bossAssetName);
         this.bossTexture = asset("textures/entity/" + bossAssetName + ".png");
         this.bossAnimation = asset("entity/" + bossAssetName);
-        this.fallbackModel = asset("entity/boss_fallback");
-        this.fallbackTexture = asset("textures/entity/boss_fallback.png");
+        this.fallbackModel = asset("entity/" + fallbackName(bossAssetName));
+        this.fallbackTexture = asset("textures/entity/" + fallbackName(bossAssetName) + ".png");
         this.fallbackAnimation = asset("entity/boss_fallback");
     }
 
@@ -43,5 +43,9 @@ public final class GuardianBossModel<T extends Mob & GeoEntity> extends GeoModel
 
     private static Identifier asset(String path) {
         return Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, path);
+    }
+
+    private static String fallbackName(String bossAssetName) {
+        return "boss_nether".equals(bossAssetName) ? "boss_nether_fallback" : "boss_fallback";
     }
 }

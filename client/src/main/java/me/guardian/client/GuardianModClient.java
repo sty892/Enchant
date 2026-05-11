@@ -2,7 +2,10 @@ package me.guardian.client;
 
 import me.guardian.GuardianMod;
 import me.guardian.ModState;
+import me.guardian.block.ModBlocks;
+import me.guardian.client.trigger.TriggerAreaClient;
 import me.guardian.entity.ModEntities;
+import me.guardian.item.ModItems;
 import me.guardian.network.GuardianNetworking;
 import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
@@ -10,10 +13,13 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap;
+import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -22,12 +28,15 @@ import software.bernie.geckolib.renderer.GeoEntityRenderer;
 public final class GuardianModClient implements ClientModInitializer {
     public static boolean waitingForHandshake = false;
     public static int handshakeTicks = 0;
+    private static boolean triggerRevealVisible = false;
 
     @Override
     public void onInitializeClient() {
         GuardianNetworking.registerPayloadTypes();
         GuardianMod.LOGGER.info("Guardian Mod client foundation initialized");
         registerEntityRenderers();
+        registerTriggerVisibility();
+        TriggerAreaClient.initialize();
         registerResourceReloadListener();
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
@@ -54,6 +63,7 @@ public final class GuardianModClient implements ClientModInitializer {
             ModState.serverModPresent = false;
             waitingForHandshake = false;
             ModState.resourcePackLoaded = false;
+            TriggerAreaClient.clear();
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -65,6 +75,8 @@ public final class GuardianModClient implements ClientModInitializer {
                     GuardianMod.LOGGER.info("Guardian Mod server not detected (timeout), disabling spoiler features.");
                 }
             }
+            refreshTriggerVisibility(client);
+            TriggerAreaClient.tick(client);
         });
 
         ClientPlayNetworking.registerGlobalReceiver(HandshakeOkS2CPayload.TYPE, (payload, context) -> {
@@ -82,6 +94,24 @@ public final class GuardianModClient implements ClientModInitializer {
                 context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_nether")));
         EntityRendererRegistry.register(ModEntities.GENERIC_BOSS,
                 context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_generic")));
+    }
+
+    private static void registerTriggerVisibility() {
+        BlockRenderLayerMap.putBlocks(ChunkSectionLayer.TRANSLUCENT, ModBlocks.DIMENSION_TRIGGER, ModBlocks.DIMENSION_RETURN_TRIGGER);
+        ColorProviderRegistry.BLOCK.register((state, level, pos, tintIndex) -> triggerRevealVisible ? 0x88FF4FD8 : 0x00FFFFFF,
+                ModBlocks.DIMENSION_TRIGGER);
+        ColorProviderRegistry.BLOCK.register((state, level, pos, tintIndex) -> triggerRevealVisible ? 0x884DFFB8 : 0x00FFFFFF,
+                ModBlocks.DIMENSION_RETURN_TRIGGER);
+    }
+
+    private static void refreshTriggerVisibility(Minecraft client) {
+        boolean visible = client.player != null && client.player.isHolding(ModItems.TRIGGER_REVEALER);
+        if (visible != triggerRevealVisible) {
+            triggerRevealVisible = visible;
+            if (client.levelRenderer != null) {
+                client.levelRenderer.allChanged();
+            }
+        }
     }
 
     private static void registerResourceReloadListener() {

@@ -4,6 +4,7 @@
   "package": "me.guardian.server.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "LivingDamageRestrictionMixin",
     "PlayerRecoveryMixin"
   ],
   "injectors": {

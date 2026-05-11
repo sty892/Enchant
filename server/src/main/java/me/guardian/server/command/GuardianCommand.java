@@ -22,6 +22,7 @@ import me.guardian.event.GuardianEventExecutor;
 import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.boss.BossEventManager;
 import me.guardian.server.event.GuardianJsonEventActions;
+import me.guardian.server.event.KeyFoundEventHandler;
 import me.guardian.server.event.ScriptRunner;
 import me.guardian.server.state.GuardianWorldState;
 import me.guardian.server.structure.StructureSpawner;
@@ -114,6 +115,21 @@ public final class GuardianCommand {
                         .then(Commands.literal("state")
                                 .then(Commands.argument("radius", IntegerArgumentType.integer(1, 64))
                                         .executes(context -> printKeyholeState(context.getSource(), IntegerArgumentType.getInteger(context, "radius"))))))
+                .then(Commands.literal("keys")
+                        .then(Commands.literal("found")
+                                .then(Commands.literal("reset")
+                                        .executes(context -> resetFoundKeys(context.getSource()))))
+                        .then(Commands.literal("whitelist")
+                                .then(Commands.literal("add")
+                                        .then(Commands.argument("player", StringArgumentType.word())
+                                                .suggests((context, builder) -> suggestOnlinePlayers(context.getSource(), builder))
+                                                .executes(context -> addKeyWhitelist(context.getSource(), StringArgumentType.getString(context, "player")))))
+                                .then(Commands.literal("remove")
+                                        .then(Commands.argument("player", StringArgumentType.word())
+                                                .suggests((context, builder) -> suggestOnlinePlayers(context.getSource(), builder))
+                                                .executes(context -> removeKeyWhitelist(context.getSource(), StringArgumentType.getString(context, "player")))))
+                                .then(Commands.literal("list")
+                                        .executes(context -> listKeyWhitelist(context.getSource())))))
                 .then(Commands.literal("event")
                         .then(Commands.literal("run")
                                 .then(Commands.argument("script_id", StringArgumentType.word())
@@ -270,6 +286,12 @@ public final class GuardianCommand {
         return changed;
     }
 
+    private static int resetFoundKeys(CommandSourceStack source) {
+        int count = KeyFoundEventHandler.resetFoundKeys(source.getServer());
+        source.sendSuccess(() -> Component.literal("Reset found key state entries: " + count), true);
+        return count;
+    }
+
     private static int printKeyholeState(CommandSourceStack source, int radius) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = source.getLevel();
@@ -373,6 +395,21 @@ public final class GuardianCommand {
         return 1;
     }
 
+    private static int addKeyWhitelist(CommandSourceStack source, String playerNameOrUuid) {
+        UUID uuid = resolveUuid(source.getServer(), playerNameOrUuid);
+        if (uuid == null) {
+            source.sendFailure(Component.literal("Player must be online or specified by UUID: " + playerNameOrUuid));
+            return 0;
+        }
+
+        JsonObject config = readGuardianConfig();
+        Set<UUID> whitelist = readUuidList(config, "key_whitelist");
+        whitelist.add(uuid);
+        writeUuidList(config, "key_whitelist", whitelist);
+        source.sendSuccess(() -> Component.literal("Added key whitelist UUID: " + uuid), true);
+        return 1;
+    }
+
     private static int removeWhitelist(CommandSourceStack source, String playerNameOrUuid) {
         UUID uuid = resolveUuid(source.getServer(), playerNameOrUuid);
         if (uuid == null) {
@@ -388,9 +425,30 @@ public final class GuardianCommand {
         return removed ? 1 : 0;
     }
 
+    private static int removeKeyWhitelist(CommandSourceStack source, String playerNameOrUuid) {
+        UUID uuid = resolveUuid(source.getServer(), playerNameOrUuid);
+        if (uuid == null) {
+            source.sendFailure(Component.literal("Player must be online or specified by UUID: " + playerNameOrUuid));
+            return 0;
+        }
+
+        JsonObject config = readGuardianConfig();
+        Set<UUID> whitelist = readUuidList(config, "key_whitelist");
+        boolean removed = whitelist.remove(uuid);
+        writeUuidList(config, "key_whitelist", whitelist);
+        source.sendSuccess(() -> Component.literal((removed ? "Removed" : "UUID was not present") + " key whitelist UUID: " + uuid), true);
+        return removed ? 1 : 0;
+    }
+
     private static int listWhitelist(CommandSourceStack source) {
         Set<UUID> whitelist = readWhitelist(readGuardianConfig());
         source.sendSuccess(() -> Component.literal("Diamond whitelist UUIDs: " + whitelist), false);
+        return whitelist.size();
+    }
+
+    private static int listKeyWhitelist(CommandSourceStack source) {
+        Set<UUID> whitelist = readUuidList(readGuardianConfig(), "key_whitelist");
+        source.sendSuccess(() -> Component.literal("Key whitelist UUIDs: " + whitelist), false);
         return whitelist.size();
     }
 
@@ -411,6 +469,7 @@ public final class GuardianCommand {
             JsonObject object = new JsonObject();
             object.addProperty("diamond_restriction_enabled", true);
             object.add("op_diamond_whitelist", new JsonArray());
+            object.add("key_whitelist", new JsonArray());
             return object;
         }
     }
@@ -430,10 +489,29 @@ public final class GuardianCommand {
         return whitelist;
     }
 
+    private static Set<UUID> readUuidList(JsonObject config, String key) {
+        Set<UUID> whitelist = new HashSet<>();
+        JsonArray entries = config.has(key) && config.get(key).isJsonArray()
+                ? config.getAsJsonArray(key)
+                : new JsonArray();
+        for (JsonElement entry : entries) {
+            try {
+                whitelist.add(UUID.fromString(entry.getAsString()));
+            } catch (IllegalArgumentException ignored) {
+                GuardianMod.LOGGER.warn("Ignoring invalid guardian_config {} entry: {}", key, entry);
+            }
+        }
+        return whitelist;
+    }
+
     private static void writeWhitelist(JsonObject config, Set<UUID> whitelist) {
+        writeUuidList(config, "op_diamond_whitelist", whitelist);
+    }
+
+    private static void writeUuidList(JsonObject config, String key, Set<UUID> whitelist) {
         JsonArray entries = new JsonArray();
         whitelist.stream().map(UUID::toString).sorted().forEach(entries::add);
-        config.add("op_diamond_whitelist", entries);
+        config.add(key, entries);
         try {
             ConfigLoader.write(GUARDIAN_CONFIG, GSON.toJson(config));
         } catch (IOException e) {

@@ -21,9 +21,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -89,32 +91,44 @@ public final class ScriptRunner {
     }
 
     public static int runScript(CommandSourceStack source, String scriptId) {
+        return runScript(source, scriptId, Collections.emptyMap());
+    }
+
+    public static int runScript(CommandSourceStack source, String scriptId, Map<String, String> variables) {
         JsonObject script = loadScript(scriptId);
         if (script == null) {
             source.sendFailure(Component.literal("Guardian script not found or invalid: " + scriptId));
             return 0;
         }
 
-        int executed = runCommands(sourceForCommands(source), readCommands(script));
+        int executed = runCommands(sourceForCommands(source), readCommands(script), variables);
         int result = executed;
         source.sendSuccess(() -> Component.literal("Executed guardian script " + scriptId + " commands=" + result), true);
         return executed;
     }
 
     public static int runScript(ServerLevel level, BlockPos center, Entity sourceEntity, String scriptId) {
+        return runScript(level, center, sourceEntity, scriptId, Collections.emptyMap());
+    }
+
+    public static int runScript(ServerLevel level, BlockPos center, Entity sourceEntity, String scriptId, Map<String, String> variables) {
         JsonObject script = loadScript(scriptId);
         if (script == null) {
             GuardianMod.LOGGER.warn("Guardian script not found or invalid: {}", scriptId);
             return 0;
         }
-        return runCommands(sourceForCommands(level, center, sourceEntity), readCommands(script));
+        return runCommands(sourceForCommands(level, center, sourceEntity), readCommands(script), variables);
     }
 
     public static int runInlineCommands(ServerLevel level, BlockPos center, Entity sourceEntity, JsonObject eventData) {
+        return runInlineCommands(level, center, sourceEntity, eventData, Collections.emptyMap());
+    }
+
+    public static int runInlineCommands(ServerLevel level, BlockPos center, Entity sourceEntity, JsonObject eventData, Map<String, String> variables) {
         if (eventData == null || !eventData.has("commands") || !eventData.get("commands").isJsonArray()) {
             return 0;
         }
-        return runCommands(sourceForCommands(level, center, sourceEntity), eventData.getAsJsonArray("commands"));
+        return runCommands(sourceForCommands(level, center, sourceEntity), eventData.getAsJsonArray("commands"), variables);
     }
 
     private static JsonObject loadScript(String scriptId) {
@@ -291,7 +305,7 @@ public final class ScriptRunner {
         );
     }
 
-    private static int runCommands(CommandSourceStack source, JsonArray commands) {
+    private static int runCommands(CommandSourceStack source, JsonArray commands, Map<String, String> variables) {
         int executed = 0;
         for (JsonElement element : commands) {
             CommandEntry entry = readCommandEntry(element);
@@ -300,13 +314,24 @@ public final class ScriptRunner {
             }
 
             if (entry.delayTicks > 0) {
-                SCHEDULED_COMMANDS.add(new ScheduledCommand(source, entry.command, entry.delayTicks));
+                SCHEDULED_COMMANDS.add(new ScheduledCommand(source, applyVariables(entry.command, variables), entry.delayTicks));
                 executed++;
-            } else if (executeCommand(source, entry.command)) {
+            } else if (executeCommand(source, applyVariables(entry.command, variables))) {
                 executed++;
             }
         }
         return executed;
+    }
+
+    private static String applyVariables(String command, Map<String, String> variables) {
+        String result = command;
+        for (Map.Entry<String, String> entry : variables.entrySet()) {
+            String value = entry.getValue() == null ? "" : entry.getValue();
+            result = result.replace("[" + entry.getKey() + "]", value)
+                    .replace("{" + entry.getKey() + "}", value)
+                    .replace("%" + entry.getKey() + "%", value);
+        }
+        return result;
     }
 
     private static CommandEntry readCommandEntry(JsonElement element) {

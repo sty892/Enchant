@@ -15,6 +15,11 @@ public final class GuardianNetworking {
 
         PayloadTypeRegistry.playC2S().register(HandshakeC2SPayload.TYPE, HandshakeC2SPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(HandshakeOkS2CPayload.TYPE, HandshakeOkS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(TriggerAreaPayloads.Sync.TYPE, TriggerAreaPayloads.Sync.CODEC);
+        PayloadTypeRegistry.playC2S().register(TriggerAreaPayloads.SetPoint.TYPE, TriggerAreaPayloads.SetPoint.CODEC);
+        PayloadTypeRegistry.playC2S().register(TriggerAreaPayloads.OpenEditor.TYPE, TriggerAreaPayloads.OpenEditor.CODEC);
+        PayloadTypeRegistry.playS2C().register(TriggerAreaPayloads.EditorData.TYPE, TriggerAreaPayloads.EditorData.CODEC);
+        PayloadTypeRegistry.playC2S().register(TriggerAreaPayloads.SaveEditor.TYPE, TriggerAreaPayloads.SaveEditor.CODEC);
         payloadTypesRegistered = true;
     }
 }

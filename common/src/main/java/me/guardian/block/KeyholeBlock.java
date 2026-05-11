@@ -102,14 +102,27 @@ public class KeyholeBlock extends Block implements EntityBlock {
         level.setBlock(pos, nextState, 3);
         keyholeBe.setFilled(true);
 
-        if (keyConfig.has("on_insert") && keyConfig.get("on_insert").isJsonObject()) {
-            GuardianEventExecutor.execute(level, keyConfig.getAsJsonObject("on_insert"), pos, player);
+        if (isKeyWhitelisted(player)) {
+            return InteractionResult.SUCCESS;
         }
-        if (areAllKeyholesFilledNearby(level, pos) && config.has("on_all_inserted") && config.get("on_all_inserted").isJsonObject()) {
-            GuardianEventExecutor.execute(level, config.getAsJsonObject("on_all_inserted"), pos, player);
+
+        executeConfiguredEvent(level, pos, player, keyConfig, "on_insert", "on_insert_script");
+        if (areAllKeyholesFilledNearby(level, pos)) {
+            executeConfiguredEvent(level, pos, player, config, "on_all_inserted", "on_all_inserted_script");
         }
 
         return InteractionResult.SUCCESS;
+    }
+
+    private void executeConfiguredEvent(Level level, BlockPos pos, Player player, JsonObject config, String eventKey, String scriptKey) {
+        if (config.has(eventKey) && config.get(eventKey).isJsonObject()) {
+            GuardianEventExecutor.execute(level, config.getAsJsonObject(eventKey), pos, player);
+        }
+        if (config.has(scriptKey) && config.get(scriptKey).isJsonPrimitive()) {
+            JsonObject event = new JsonObject();
+            event.addProperty("script", config.get(scriptKey).getAsString());
+            GuardianEventExecutor.execute(level, event, pos, player);
+        }
     }
 
     private JsonObject readKeysConfig() {
@@ -119,6 +132,23 @@ public class KeyholeBlock extends Block implements EntityBlock {
             GuardianMod.LOGGER.warn("Failed to read keys_config.json", e);
             return null;
         }
+    }
+
+    private boolean isKeyWhitelisted(Player player) {
+        try {
+            JsonObject config = GSON.fromJson(ConfigManager.readRaw("guardian_config.json"), JsonObject.class);
+            if (config == null || !config.has("key_whitelist") || !config.get("key_whitelist").isJsonArray()) {
+                return false;
+            }
+            for (JsonElement entry : config.getAsJsonArray("key_whitelist")) {
+                if (player.getUUID().toString().equalsIgnoreCase(entry.getAsString())) {
+                    return true;
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            GuardianMod.LOGGER.warn("Failed to read key whitelist", e);
+        }
+        return false;
     }
 
     private JsonObject findKeyConfig(JsonArray keys, Identifier heldItemId) {

@@ -34,6 +34,8 @@ public class ModBlocks {
     public static Block KEYHOLE_6;
     public static Block KEYHOLE_7;
     public static Block KEYHOLE_8;
+    public static Block DIMENSION_TRIGGER;
+    public static Block DIMENSION_RETURN_TRIGGER;
 
     // Block Entity Types
     public static BlockEntityType<AltarBlockEntity> ALTAR_BE_TYPE;
@@ -56,6 +58,8 @@ public class ModBlocks {
         KEYHOLE_6 = register("keyhole_6", properties -> new KeyholeBlock(properties, 6, () -> KEYHOLE_BE_TYPE));
         KEYHOLE_7 = register("keyhole_7", properties -> new KeyholeBlock(properties, 7, () -> KEYHOLE_BE_TYPE));
         KEYHOLE_8 = register("keyhole_8", properties -> new KeyholeBlock(properties, 8, () -> KEYHOLE_BE_TYPE));
+        DIMENSION_TRIGGER = register("dimension_trigger", properties -> new DimensionTriggerBlock(properties.noOcclusion().replaceable().instabreak(), false));
+        DIMENSION_RETURN_TRIGGER = register("dimension_return_trigger", properties -> new DimensionTriggerBlock(properties.noOcclusion().replaceable().instabreak(), true));
 
         ALTAR_BE_TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
                 Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "altar_be"),

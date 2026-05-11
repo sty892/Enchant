@@ -15,6 +15,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,7 +27,14 @@ public class BossEventSystem {
     public static void executeEvent(ServerLevel level, JsonObject eventData, BlockPos center, Entity source, Map<UUID, Float> damageContributors) {
         if (eventData == null) return;
 
-        ScriptRunner.runInlineCommands(level, center, source, eventData);
+        Map<String, String> variables = variables(source);
+        ScriptRunner.runInlineCommands(level, center, source, eventData, variables);
+        if (eventData.has("script") && eventData.get("script").isJsonPrimitive()) {
+            ScriptRunner.runScript(level, center, source, eventData.get("script").getAsString(), variables);
+        }
+        if (eventData.has("script_id") && eventData.get("script_id").isJsonPrimitive()) {
+            ScriptRunner.runScript(level, center, source, eventData.get("script_id").getAsString(), variables);
+        }
 
         // world_border_expand
         if (eventData.has("world_border_expand")) {
@@ -179,5 +187,15 @@ public class BossEventSystem {
         for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
             player.connection.send(packet);
         }
+    }
+
+    private static Map<String, String> variables(Entity source) {
+        Map<String, String> variables = new HashMap<>();
+        if (source instanceof ServerPlayer player) {
+            variables.put("nickname", player.getScoreboardName());
+            variables.put("player", player.getScoreboardName());
+            variables.put("uuid", player.getUUID().toString());
+        }
+        return variables;
     }
 }
