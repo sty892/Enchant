@@ -82,8 +82,8 @@ public final class TriggerAreaClient {
             return;
         }
 
-        Optional<TriggerArea> lookedAtArea = revealEnabled ? findLookedAtArea(client) : Optional.empty();
-        if (lookedAtArea.isPresent()) {
+        Optional<TriggerArea> lookedAtArea = revealEnabled && usePressed ? findLookedAtArea(client) : Optional.empty();
+        if (usePressed && lookedAtArea.isPresent()) {
             ClientPlayNetworking.send(new TriggerAreaPayloads.OpenEditor(lookedAtArea.get().id));
             return;
         }
@@ -137,13 +137,15 @@ public final class TriggerAreaClient {
             }
             AABB box = new AABB(area.min.getX(), area.min.getY(), area.min.getZ(),
                     area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D).inflate(0.03D);
-            renderFill(context, box, viewer);
+            int fillColor = area.isPrivate() ? 0x35FF3030 : 0x2855DFFF;
+            int outlineColor = area.isPrivate() ? 0xFFFF4040 : 0xFFFFFFFF;
+            renderFill(context, box, viewer, fillColor);
             ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.secondaryBlockOutline()),
-                    Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, 0xFFFFFFFF, 4.0F);
+                    Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, outlineColor, 4.0F);
         }
     }
 
-    private static void renderFill(WorldRenderContext context, AABB box, Vec3 viewer) {
+    private static void renderFill(WorldRenderContext context, AABB box, Vec3 viewer, int color) {
         double minX = box.minX - viewer.x;
         double minY = box.minY - viewer.y;
         double minZ = box.minZ - viewer.z;
@@ -152,7 +154,6 @@ public final class TriggerAreaClient {
         double maxZ = box.maxZ - viewer.z;
         VertexConsumer buffer = context.consumers().getBuffer(RenderTypes.debugQuads());
         PoseStack.Pose pose = context.matrices().last();
-        int color = 0x2855DFFF;
         quad(buffer, pose, minX, minY, minZ, maxX, minY, minZ, maxX, maxY, minZ, minX, maxY, minZ, color);
         quad(buffer, pose, maxX, minY, maxZ, minX, minY, maxZ, minX, maxY, maxZ, maxX, maxY, maxZ, color);
         quad(buffer, pose, minX, minY, maxZ, minX, minY, minZ, minX, maxY, minZ, minX, maxY, maxZ, color);

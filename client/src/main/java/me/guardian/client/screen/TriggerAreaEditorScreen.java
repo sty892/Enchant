@@ -5,6 +5,7 @@ import me.guardian.trigger.TriggerArea;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.CommandSuggestions;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -19,99 +20,140 @@ public final class TriggerAreaEditorScreen extends Screen {
     private final TriggerArea area;
     private final List<String> commandValues;
     private final List<EditBox> commandFields = new ArrayList<>();
-    private EditBox triggerSelectors;
-    private EditBox restrictionSelectors;
+    private final List<CommandSuggestions> commandSuggestions = new ArrayList<>();
+    private String triggerType;
     private boolean runOnce;
     private String triggerMode;
-    private boolean globalRestrictions;
-    private String restrictionMode;
-    private final List<CommandSuggestions> commandSuggestions = new ArrayList<>();
+    private String triggerSelectors;
+    private String privateSelectors;
+    private boolean restrictBlockBreaking;
+    private boolean restrictAttacking;
+    private boolean restrictInteractions;
+    private Button typeButton;
     private Button runButton;
-    private Button triggerButton;
-    private Button globalButton;
-    private Button restrictionButton;
+    private Button triggerModeButton;
     private Button addCommandButton;
+    private EditBox triggerSelectorField;
+    private EditBox privateSelectorField;
 
     public TriggerAreaEditorScreen(TriggerArea area) {
         super(Component.translatable("screen.guardian_mod.trigger_area"));
         this.area = area;
         this.commandValues = new ArrayList<>(area.commands.isEmpty() ? List.of("") : area.commands);
+        this.triggerType = area.triggerType;
         this.runOnce = area.runOnce;
         this.triggerMode = area.triggerMode;
-        this.globalRestrictions = area.globalRestrictions;
-        this.restrictionMode = area.restrictionMode;
+        this.triggerSelectors = area.triggerSelectors;
+        this.privateSelectors = area.privateSelectors;
+        this.restrictBlockBreaking = area.restrictBlockBreaking;
+        this.restrictAttacking = area.restrictAttacking;
+        this.restrictInteractions = area.restrictInteractions;
     }
 
     @Override
     protected void init() {
-        int panelWidth = Math.min(600, width - 40);
-        int left = (width - panelWidth) / 2;
-        int top = 28;
         commandFields.clear();
         commandSuggestions.clear();
-        int commandFieldWidth = panelWidth - 34;
-        for (int i = 0; i < commandValues.size(); i++) {
-            EditBox commandField = new EditBox(font, left, top + 28 + i * 24, commandFieldWidth, 20,
-                    Component.translatable("screen.guardian_mod.trigger_area.console_command"));
-            commandField.setMaxLength(32767);
-            commandField.setValue(commandValues.get(i));
-            commandField.setResponder(value -> updateCommandSuggestions(commandField));
-            commandFields.add(commandField);
-            addRenderableWidget(commandField);
-            CommandSuggestions suggestions = new CommandSuggestions(minecraft, this, commandField, font,
-                    true, true, 0, 7, false, 0x80000000);
-            suggestions.setAllowSuggestions(true);
-            suggestions.updateCommandInfo();
-            commandSuggestions.add(suggestions);
+
+        int panelWidth = Math.min(640, width - 40);
+        int left = (width - panelWidth) / 2;
+        int y = 36;
+
+        typeButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
+            saveCommandValues();
+            triggerType = TriggerArea.TYPE_COMMANDS.equals(triggerType) ? TriggerArea.TYPE_PRIVATE : TriggerArea.TYPE_COMMANDS;
+            rebuildWidgets();
+        }).bounds(left, y, 190, 20).build());
+
+        if (TriggerArea.TYPE_COMMANDS.equals(triggerType)) {
+            y = initCommandControls(left, y, panelWidth);
+        } else {
+            y = initPrivateControls(left, y, panelWidth);
         }
-        addCommandButton = addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.add_command"), button -> addCommandField())
-                .bounds(left + commandFieldWidth + 6, top + 28, 28, 20)
-                .build());
 
-        int controlsTop = top + 28 + commandValues.size() * 24 + 28;
-
-        int buttonWidth = (panelWidth - 20) / 3;
-        runButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
-            runOnce = !runOnce;
-            updateLabels();
-        }).bounds(left, controlsTop, buttonWidth, 20).build());
-
-        triggerButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
-            triggerMode = "everyone".equals(triggerMode) ? "selectors" : "everyone";
-            updateLabels();
-        }).bounds(left + buttonWidth + 10, controlsTop, buttonWidth, 20).build());
-
-        globalButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
-            globalRestrictions = !globalRestrictions;
-            updateLabels();
-        }).bounds(left + (buttonWidth + 10) * 2, controlsTop, buttonWidth, 20).build());
-
-        triggerSelectors = new EditBox(font, left, controlsTop + 32, panelWidth, 20,
-                Component.translatable("screen.guardian_mod.trigger_area.selectors"));
-        triggerSelectors.setMaxLength(32767);
-        triggerSelectors.setValue(area.triggerSelectors);
-        addRenderableWidget(triggerSelectors);
-
-        restrictionButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
-            restrictionMode = switch (restrictionMode) {
-                case "everyone" -> "only_matching";
-                case "only_matching" -> "except_matching";
-                default -> "everyone";
-            };
-            updateLabels();
-        }).bounds(left, controlsTop + 62, 190, 20).build());
-
-        restrictionSelectors = new EditBox(font, left, controlsTop + 92, panelWidth, 20,
-                Component.translatable("screen.guardian_mod.trigger_area.restriction_selectors"));
-        restrictionSelectors.setMaxLength(32767);
-        restrictionSelectors.setValue(area.restrictionSelectors);
-        addRenderableWidget(restrictionSelectors);
-
-        int bottom = Math.min(height - 36, controlsTop + 124);
+        int bottom = Math.min(height - 30, y + 18);
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> save()).bounds(left, bottom, 148, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), button -> onClose()).bounds(left + 158, bottom, 148, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.delete"), button -> delete()).bounds(left + panelWidth - 148, bottom, 148, 20).build());
         updateLabels();
+    }
+
+    private int initCommandControls(int left, int y, int panelWidth) {
+        runButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
+            runOnce = !runOnce;
+            updateLabels();
+        }).bounds(left + 200, y, 150, 20).build());
+
+        triggerModeButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
+            triggerMode = "everyone".equals(triggerMode) ? "selectors" : "everyone";
+            updateLabels();
+        }).bounds(left + 360, y, 220, 20).build());
+
+        y += 42;
+        int commandFieldWidth = panelWidth - 74;
+        for (int i = 0; i < commandValues.size(); i++) {
+            addCommandRow(left, y + i * 24, commandFieldWidth, i);
+        }
+        addCommandButton = addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.add_command"), button -> addCommandField())
+                .bounds(left + commandFieldWidth + 6, y, 28, 20)
+                .build());
+
+        y += commandValues.size() * 24 + 18;
+        triggerSelectorField = new EditBox(font, left, y + 12, panelWidth, 20,
+                Component.translatable("screen.guardian_mod.trigger_area.trigger_selectors"));
+        triggerSelectorField.setMaxLength(32767);
+        triggerSelectorField.setValue(triggerSelectors);
+        addRenderableWidget(triggerSelectorField);
+        return y + 42;
+    }
+
+    private int initPrivateControls(int left, int y, int panelWidth) {
+        y += 42;
+        addRenderableWidget(Checkbox.builder(Component.translatable("checkbox.guardian_mod.private.block_breaking"), font)
+                .pos(left, y)
+                .selected(restrictBlockBreaking)
+                .onValueChange((checkbox, selected) -> restrictBlockBreaking = selected)
+                .build());
+        addRenderableWidget(Checkbox.builder(Component.translatable("checkbox.guardian_mod.private.attacking"), font)
+                .pos(left + 210, y)
+                .selected(restrictAttacking)
+                .onValueChange((checkbox, selected) -> restrictAttacking = selected)
+                .build());
+        addRenderableWidget(Checkbox.builder(Component.translatable("checkbox.guardian_mod.private.interactions"), font)
+                .pos(left + 420, y)
+                .selected(restrictInteractions)
+                .onValueChange((checkbox, selected) -> restrictInteractions = selected)
+                .build());
+
+        y += 48;
+        privateSelectorField = new EditBox(font, left, y + 12, panelWidth, 20,
+                Component.translatable("screen.guardian_mod.trigger_area.private_selectors"));
+        privateSelectorField.setMaxLength(32767);
+        privateSelectorField.setValue(privateSelectors);
+        addRenderableWidget(privateSelectorField);
+        return y + 42;
+    }
+
+    private void addCommandRow(int left, int y, int commandFieldWidth, int index) {
+        EditBox commandField = new EditBox(font, left, y, commandFieldWidth, 20,
+                Component.translatable("screen.guardian_mod.trigger_area.console_command"));
+        commandField.setMaxLength(32767);
+        commandField.setValue(commandValues.get(index));
+        commandField.setResponder(value -> updateCommandSuggestions(commandField));
+        commandFields.add(commandField);
+        addRenderableWidget(commandField);
+
+        CommandSuggestions suggestions = new CommandSuggestions(minecraft, this, commandField, font,
+                true, true, 0, 7, false, 0x80000000);
+        suggestions.setAllowSuggestions(true);
+        suggestions.updateCommandInfo();
+        commandSuggestions.add(suggestions);
+
+        if (index > 0) {
+            addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.remove_command"), button -> removeCommandField(index))
+                    .bounds(left + commandFieldWidth + 40, y, 28, 20)
+                    .build());
+        }
     }
 
     @Override
@@ -119,18 +161,21 @@ public final class TriggerAreaEditorScreen extends Screen {
         renderTransparentBackground(graphics);
         Component heading = Component.translatable("screen.guardian_mod.trigger_area.title");
         graphics.drawString(font, heading, width / 2 - font.width(heading) / 2, 10, 0xFFFFFF);
-        if (!commandFields.isEmpty()) {
-            graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.console_command"),
-                    commandFields.get(0).getX(), commandFields.get(0).getY() - 11, 0xA0A0A0);
+
+        if (TriggerArea.TYPE_COMMANDS.equals(triggerType)) {
+            if (!commandFields.isEmpty()) {
+                graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.console_command"),
+                        commandFields.get(0).getX(), commandFields.get(0).getY() - 11, 0xA0A0A0);
+            }
+            if (triggerSelectorField != null && triggerSelectorField.isVisible()) {
+                graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.trigger_selectors"),
+                        triggerSelectorField.getX(), triggerSelectorField.getY() - 10, 0xA0A0A0);
+            }
+        } else if (privateSelectorField != null) {
+            graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.private_selectors"),
+                    privateSelectorField.getX(), privateSelectorField.getY() - 10, 0xA0A0A0);
         }
-        if (triggerSelectors.isVisible()) {
-            graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.selectors"),
-                    triggerSelectors.getX(), triggerSelectors.getY() - 10, 0xA0A0A0);
-        }
-        if (restrictionSelectors.isVisible()) {
-            graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.restriction_selectors"),
-                    restrictionSelectors.getX(), restrictionSelectors.getY() - 10, 0xA0A0A0);
-        }
+
         super.render(graphics, mouseX, mouseY, delta);
         CommandSuggestions suggestions = activeCommandSuggestions();
         if (suggestions != null) {
@@ -184,8 +229,14 @@ public final class TriggerAreaEditorScreen extends Screen {
                 .map(String::trim)
                 .filter(command -> !command.isEmpty())
                 .toList();
-        TriggerArea edited = area.edited(commands, runOnce, triggerMode, triggerSelectors.getValue(),
-                globalRestrictions, restrictionMode, restrictionSelectors.getValue());
+        if (triggerSelectorField != null) {
+            triggerSelectors = triggerSelectorField.getValue();
+        }
+        if (privateSelectorField != null) {
+            privateSelectors = privateSelectorField.getValue();
+        }
+        TriggerArea edited = area.edited(commands, runOnce, triggerType, triggerMode, triggerSelectors,
+                privateSelectors, restrictBlockBreaking, restrictAttacking, restrictInteractions);
         ClientPlayNetworking.send(new TriggerAreaPayloads.SaveEditor(edited.serialize()));
         onClose();
     }
@@ -201,7 +252,18 @@ public final class TriggerAreaEditorScreen extends Screen {
         rebuildWidgets();
     }
 
+    private void removeCommandField(int index) {
+        saveCommandValues();
+        if (index > 0 && index < commandValues.size()) {
+            commandValues.remove(index);
+            rebuildWidgets();
+        }
+    }
+
     private void saveCommandValues() {
+        if (!TriggerArea.TYPE_COMMANDS.equals(triggerType) || commandFields.isEmpty()) {
+            return;
+        }
         commandValues.clear();
         for (EditBox field : commandFields) {
             commandValues.add(field.getValue());
@@ -209,24 +271,26 @@ public final class TriggerAreaEditorScreen extends Screen {
     }
 
     private void updateLabels() {
-        runButton.setMessage(Component.translatable(runOnce ? "button.guardian_mod.trigger.run_once" : "button.guardian_mod.trigger.run_every_time"));
-        triggerButton.setMessage(Component.translatable("button.guardian_mod.trigger.triggered_by",
-                Component.translatable("button.guardian_mod.trigger.mode." + ("everyone".equals(triggerMode) ? "everyone" : "selectors"))));
-        globalButton.setMessage(Component.translatable(globalRestrictions ? "button.guardian_mod.trigger.global_restricted" : "button.guardian_mod.trigger.global_off"));
-        restrictionButton.setMessage(Component.translatable("button.guardian_mod.trigger.restrict",
-                Component.translatable(switch (restrictionMode) {
-                    case "only_matching" -> "button.guardian_mod.trigger.restrict.only_selectors";
-                    case "except_matching" -> "button.guardian_mod.trigger.restrict.except_selectors";
-                    default -> "button.guardian_mod.trigger.restrict.everyone";
-                })));
-        triggerSelectors.setVisible(!"everyone".equals(triggerMode));
-        restrictionSelectors.setVisible(globalRestrictions && !"everyone".equals(restrictionMode));
+        typeButton.setMessage(Component.translatable("button.guardian_mod.trigger.type",
+                Component.translatable(TriggerArea.TYPE_PRIVATE.equals(triggerType)
+                        ? "button.guardian_mod.trigger.type.private"
+                        : "button.guardian_mod.trigger.type.commands")));
+        if (runButton != null) {
+            runButton.setMessage(Component.translatable(runOnce ? "button.guardian_mod.trigger.run_once" : "button.guardian_mod.trigger.run_every_time"));
+        }
+        if (triggerModeButton != null) {
+            triggerModeButton.setMessage(Component.translatable("button.guardian_mod.trigger.triggered_by",
+                    Component.translatable("button.guardian_mod.trigger.mode." + ("everyone".equals(triggerMode) ? "everyone" : "selectors"))));
+        }
+        if (triggerSelectorField != null) {
+            triggerSelectorField.setVisible(!"everyone".equals(triggerMode));
+        }
     }
 
     private CommandSuggestions activeCommandSuggestions() {
+        Object focused = getFocused();
         for (int i = 0; i < commandFields.size(); i++) {
-            EditBox field = commandFields.get(i);
-            if (field.isFocused()) {
+            if (focused == commandFields.get(i)) {
                 return i < commandSuggestions.size() ? commandSuggestions.get(i) : null;
             }
         }

@@ -38,7 +38,9 @@ import software.bernie.geckolib.animation.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class OverworldGuardianEntity extends Monster implements GeoEntity {
@@ -63,7 +65,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private final OverworldGuardianThreatTable threatTable = new OverworldGuardianThreatTable();
     private final OverworldGuardianAttackController attackController = new OverworldGuardianAttackController(this);
     private final ServerBossEvent bossEvent = new ServerBossEvent(
-            phaseName(1),
+            bossName(),
             BossEvent.BossBarColor.GREEN,
             BossEvent.BossBarOverlay.NOTCHED_6
     );
@@ -282,7 +284,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             setBaseAttribute(Attributes.ATTACK_DAMAGE, nextPhase.attackDamage());
             bossEvent.setColor(nextPhase.bossBarColor());
             bossEvent.setOverlay(BossEvent.BossBarOverlay.NOTCHED_6);
-            bossEvent.setName(phaseName(nextPhase.id()));
+            bossEvent.setName(bossName());
         }
     }
 
@@ -300,14 +302,21 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private void tickBossBar(ServerLevel level) {
         bossEvent.setProgress(Math.max(0.0F, this.getHealth() / this.getMaxHealth()));
         bossEvent.setOverlay(BossEvent.BossBarOverlay.NOTCHED_6);
-        bossEvent.setName(phaseName(getBossPhase().id()));
+        bossEvent.setName(bossName());
+        Set<ServerPlayer> eligiblePlayers = new HashSet<>();
         for (ServerPlayer player : level.players()) {
-            boolean near = player.distanceToSqr(this) <= BOSS_BAR_RADIUS_SQR;
-            boolean visible = bossEvent.getPlayers().contains(player);
-            if (near && !visible) {
-                bossEvent.addPlayer(player);
-            } else if (!near && visible) {
+            if (player.distanceToSqr(this) <= BOSS_BAR_RADIUS_SQR) {
+                eligiblePlayers.add(player);
+            }
+        }
+        for (ServerPlayer player : Set.copyOf(bossEvent.getPlayers())) {
+            if (!eligiblePlayers.contains(player)) {
                 bossEvent.removePlayer(player);
+            }
+        }
+        for (ServerPlayer player : eligiblePlayers) {
+            if (!bossEvent.getPlayers().contains(player)) {
+                bossEvent.addPlayer(player);
             }
         }
     }
@@ -316,8 +325,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         bossEvent.removeAllPlayers();
     }
 
-    private static Component phaseName(int phase) {
-        return Component.translatable("entity.guardian_mod.boss_overworld.phase", phase);
+    private static Component bossName() {
+        return Component.translatable("entity.guardian_mod.boss_overworld");
     }
 
     @Override

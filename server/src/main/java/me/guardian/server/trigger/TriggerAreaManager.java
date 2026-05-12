@@ -8,7 +8,9 @@ import me.guardian.network.TriggerAreaPayloads;
 import me.guardian.trigger.TriggerArea;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
@@ -50,6 +52,18 @@ public final class TriggerAreaManager {
         });
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
                 !(player instanceof ServerPlayer serverPlayer) || !blocksBlockBreak(serverPlayer, pos));
+        AttackEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
+            if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer && blocksEntityAttack(serverPlayer, entity)) {
+                return InteractionResult.FAIL;
+            }
+            return InteractionResult.PASS;
+        });
+        UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
+            if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer && blocksEntityInteraction(serverPlayer, entity)) {
+                return InteractionResult.FAIL;
+            }
+            return InteractionResult.PASS;
+        });
         ServerTickEvents.END_SERVER_TICK.register(TriggerAreaManager::tick);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sync(handler.player));
         ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.OpenEditor.TYPE, (payload, context) -> {
@@ -101,10 +115,10 @@ public final class TriggerAreaManager {
         }
         Entity attacker = source.getEntity();
         for (TriggerArea area : TriggerAreaState.get(level).areas) {
-            if (!area.globalRestrictions || (!area.contains(target) && (attacker == null || !area.contains(attacker)))) {
+            if (!area.isPrivate() || !area.restrictAttacking || (!area.intersects(target) && (attacker == null || !area.intersects(attacker)))) {
                 continue;
             }
-            if (isRestricted(area, target) || attacker != null && isRestricted(area, attacker)) {
+            if (privateAppliesTo(area, target) || attacker != null && privateAppliesTo(area, attacker)) {
                 return true;
             }
         }
@@ -113,7 +127,25 @@ public final class TriggerAreaManager {
 
     private static boolean blocksBlockBreak(ServerPlayer player, BlockPos pos) {
         for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
-            if (area.globalRestrictions && area.contains(player.level().dimension(), pos) && isRestricted(area, player)) {
+            if (area.isPrivate() && area.restrictBlockBreaking && area.contains(player.level().dimension(), pos) && privateAppliesTo(area, player)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean blocksEntityAttack(ServerPlayer player, Entity target) {
+        for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
+            if (area.isPrivate() && area.restrictAttacking && (area.intersects(player) || area.intersects(target)) && privateAppliesTo(area, player)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean blocksEntityInteraction(ServerPlayer player, Entity target) {
+        for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
+            if (area.isPrivate() && area.restrictInteractions && (area.intersects(player) || area.intersects(target)) && privateAppliesTo(area, player)) {
                 return true;
             }
         }
@@ -121,42 +153,64 @@ public final class TriggerAreaManager {
     }
 
     private static void tick(MinecraftServer server) {
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            tickPlayer(player);
+        Set<UUID> seenEntities = new HashSet<>();
+        for (ServerLevel level : server.getAllLevels()) {
+            if (!TriggerAreaState.get(level).areas.isEmpty()) {
+                tickLevel(level, seenEntities);
+            }
+        }
+        INSIDE_AREAS.keySet().retainAll(seenEntities);
+    }
+
+    private static void tickLevel(ServerLevel level, Set<UUID> seenEntities) {
+        Set<UUID> processed = new HashSet<>();
+        for (Entity entity : level.getAllEntities()) {
+            if (entity.isVehicle() && !entity.getPassengers().isEmpty()) {
+                continue;
+            }
+            if (!processed.add(entity.getUUID())) {
+                continue;
+            }
+            seenEntities.add(entity.getUUID());
+            tickEntity(level, entity);
         }
     }
 
-    private static void tickPlayer(ServerPlayer player) {
-        Set<UUID> inside = INSIDE_AREAS.computeIfAbsent(player.getUUID(), uuid -> new HashSet<>());
-        for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
-            boolean fullyInside = area.contains(player);
-            boolean fullyOutside = !area.intersects(player);
+    private static void tickEntity(ServerLevel level, Entity entity) {
+        Set<UUID> inside = INSIDE_AREAS.computeIfAbsent(entity.getUUID(), uuid -> new HashSet<>());
+        for (TriggerArea area : TriggerAreaState.get(level).areas) {
+            boolean fullyInside = area.contains(entity);
+            boolean fullyOutside = !area.intersects(entity);
             boolean wasInside = inside.contains(area.id);
             if (fullyInside && !wasInside) {
                 inside.add(area.id);
-                trigger(area, player);
+                trigger(area, entity);
             } else if (fullyOutside && wasInside) {
                 inside.remove(area.id);
             }
         }
     }
 
-    private static void trigger(TriggerArea area, ServerPlayer player) {
-        if ((area.runOnce && area.runCount > 0) || !matchesTrigger(area, player)) {
+    private static void trigger(TriggerArea area, Entity entity) {
+        if (!TriggerArea.TYPE_COMMANDS.equals(area.triggerType) || (area.runOnce && area.runCount > 0) || !matchesTrigger(area, entity)) {
             return;
         }
 
-        MinecraftServer server = player.level().getServer();
+        if (!(entity.level() instanceof ServerLevel level)) {
+            return;
+        }
+        Entity sourceEntity = entity.isPassenger() ? entity.getRootVehicle() : entity;
+        MinecraftServer server = level.getServer();
         CommandSourceStack source = new CommandSourceStack(
                 server,
-                player.position(),
-                player.getRotationVector(),
-                player.level(),
+                sourceEntity.position(),
+                sourceEntity.getRotationVector(),
+                level,
                 PermissionSet.ALL_PERMISSIONS,
-                player.getScoreboardName(),
-                player.getDisplayName(),
+                sourceEntity.getScoreboardName(),
+                sourceEntity.getDisplayName(),
                 server,
-                player
+                sourceEntity
         );
         for (String command : area.commands) {
             String trimmed = command.trim();
@@ -168,19 +222,15 @@ public final class TriggerAreaManager {
             }
         }
         area.runCount++;
-        TriggerAreaState.get(player.level()).setDirty();
+        TriggerAreaState.get(level).setDirty();
     }
 
     private static boolean matchesTrigger(TriggerArea area, Entity entity) {
         return "everyone".equals(area.triggerMode) || matchesSelectorList(area.triggerSelectors, entity);
     }
 
-    private static boolean isRestricted(TriggerArea area, Entity entity) {
-        return switch (area.restrictionMode) {
-            case "only_matching" -> matchesSelectorList(area.restrictionSelectors, entity);
-            case "except_matching" -> !matchesSelectorList(area.restrictionSelectors, entity);
-            default -> true;
-        };
+    private static boolean privateAppliesTo(TriggerArea area, Entity entity) {
+        return matchesSelectorList(area.privateSelectors, entity);
     }
 
     private static boolean matchesSelectorList(String raw, Entity entity) {
@@ -264,7 +314,10 @@ public final class TriggerAreaManager {
     }
 
     public static boolean deleteArea(MinecraftServer server, UUID id) {
-        boolean removed = TriggerAreaState.get(server.overworld()).remove(id);
+        boolean removed = false;
+        for (ServerLevel level : server.getAllLevels()) {
+            removed |= TriggerAreaState.get(level).remove(id);
+        }
         if (removed) {
             for (Set<UUID> inside : INSIDE_AREAS.values()) {
                 inside.remove(id);
