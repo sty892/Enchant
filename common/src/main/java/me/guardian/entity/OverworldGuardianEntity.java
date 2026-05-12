@@ -46,8 +46,9 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final String SPAWN_CONTROLLER_NAME = "Spawn";
     private static final String SPAWN_TRIGGER_NAME = "spawn";
     private static final String PHASE_SHIFT_TRIGGER = "phase_shift";
-    private static final double LEASH_RADIUS = 15.0D;
-    private static final double LEASH_RADIUS_SQR = LEASH_RADIUS * LEASH_RADIUS;
+    private static final double PREFERRED_HOME_RADIUS = 16.0D;
+    private static final double SOFT_RETURN_RADIUS = 19.0D;
+    private static final double SOFT_RETURN_RADIUS_SQR = SOFT_RETURN_RADIUS * SOFT_RETURN_RADIUS;
     private static final double BOSS_BAR_RADIUS_SQR = 30.0D * 30.0D;
     private static final int SPAWN_ANIMATION_TICKS = 80;
     private static final RawAnimation SPAWN_ANIMATION = RawAnimation.begin().thenPlay("spawn");
@@ -64,7 +65,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private final ServerBossEvent bossEvent = new ServerBossEvent(
             phaseName(1),
             BossEvent.BossBarColor.GREEN,
-            BossEvent.BossBarOverlay.PROGRESS
+            BossEvent.BossBarOverlay.NOTCHED_6
     );
     private OverworldGuardianPhase appliedPhase = OverworldGuardianPhase.ONE;
     private boolean spawnEventTriggered = false;
@@ -135,10 +136,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         GuardianBossAi.ensureSpawnHome(this);
         triggerSpawnEvent(level);
         triggerSpawnAnimation();
-        tickLeash();
         threatTable.tick(this, level);
         tickTarget(level);
         tickPhase();
+        tickSoftHomeReturn();
         attackController.tick(level);
         tickBossBar(level);
     }
@@ -209,25 +210,53 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         this.triggerAnim(SPAWN_CONTROLLER_NAME, SPAWN_TRIGGER_NAME);
     }
 
-    private void tickLeash() {
+    public boolean shouldReturnTowardHome() {
+        if (spawnCenter == null) {
+            return false;
+        }
+        return distanceToHomeSqr() > SOFT_RETURN_RADIUS_SQR;
+    }
+
+    public Vec3 homeCenter() {
+        return Vec3.atCenterOf(spawnCenter == null ? this.blockPosition() : spawnCenter);
+    }
+
+    public boolean isNearHome(LivingEntity entity, double extraRadius) {
+        if (spawnCenter == null) {
+            return true;
+        }
+        double radius = PREFERRED_HOME_RADIUS + extraRadius;
+        return entity.position().distanceToSqr(homeCenter()) <= radius * radius;
+    }
+
+    private void tickSoftHomeReturn() {
         if (spawnCenter == null) {
             spawnCenter = this.blockPosition();
             return;
         }
-
         Vec3 center = Vec3.atCenterOf(spawnCenter);
         Vec3 offset = this.position().subtract(center);
         double horizontalDistanceSqr = offset.x * offset.x + offset.z * offset.z;
-        if (horizontalDistanceSqr <= LEASH_RADIUS_SQR) {
+        double preferredRadiusSqr = PREFERRED_HOME_RADIUS * PREFERRED_HOME_RADIUS;
+        if (horizontalDistanceSqr <= preferredRadiusSqr) {
             return;
         }
 
         double horizontalDistance = Math.sqrt(horizontalDistanceSqr);
-        double clampedX = center.x + offset.x / horizontalDistance * LEASH_RADIUS;
-        double clampedZ = center.z + offset.z / horizontalDistance * LEASH_RADIUS;
-        this.getNavigation().stop();
-        this.setDeltaMovement(Vec3.ZERO);
-        this.setPos(clampedX, this.getY(), clampedZ);
+        Vec3 inward = new Vec3(center.x - this.getX(), 0.0D, center.z - this.getZ()).normalize();
+        double excess = horizontalDistance - PREFERRED_HOME_RADIUS;
+        double strength = Math.min(0.09D, 0.015D + excess * 0.008D);
+        this.addDeltaMovement(inward.scale(strength));
+    }
+
+    private double distanceToHomeSqr() {
+        if (spawnCenter == null) {
+            return 0.0D;
+        }
+        Vec3 center = Vec3.atCenterOf(spawnCenter);
+        double x = this.getX() - center.x;
+        double z = this.getZ() - center.z;
+        return x * x + z * z;
     }
 
     private void tickTarget(ServerLevel level) {
@@ -252,6 +281,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             setBaseAttribute(Attributes.MOVEMENT_SPEED, nextPhase.movementSpeed());
             setBaseAttribute(Attributes.ATTACK_DAMAGE, nextPhase.attackDamage());
             bossEvent.setColor(nextPhase.bossBarColor());
+            bossEvent.setOverlay(BossEvent.BossBarOverlay.NOTCHED_6);
             bossEvent.setName(phaseName(nextPhase.id()));
         }
     }
@@ -269,6 +299,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     private void tickBossBar(ServerLevel level) {
         bossEvent.setProgress(Math.max(0.0F, this.getHealth() / this.getMaxHealth()));
+        bossEvent.setOverlay(BossEvent.BossBarOverlay.NOTCHED_6);
         bossEvent.setName(phaseName(getBossPhase().id()));
         for (ServerPlayer player : level.players()) {
             boolean near = player.distanceToSqr(this) <= BOSS_BAR_RADIUS_SQR;
