@@ -9,10 +9,16 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.FallingBlockEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class OverworldGuardianAttackController {
@@ -22,16 +28,22 @@ public final class OverworldGuardianAttackController {
             ParticleTypes.DUST_PILLAR,
             Blocks.DIRT.defaultBlockState()
     );
+    private static final BlockParticleOption STONE_PARTICLE = new BlockParticleOption(
+            ParticleTypes.DUST_PILLAR,
+            Blocks.STONE.defaultBlockState()
+    );
     private static final DustParticleOptions WHITE_DUST = new DustParticleOptions(0xF4FFFF, 1.2F);
 
     private final OverworldGuardianEntity boss;
     private final Attack[] attacks;
+    private final Map<UUID, Integer> closeShieldTicks = new HashMap<>();
     private RunningAttack runningAttack;
     private int globalDelay = 20;
 
     public OverworldGuardianAttackController(OverworldGuardianEntity boss) {
         this.boss = boss;
         this.attacks = new Attack[]{
+                new AntiShieldAttack(),
                 new FissureAttack(),
                 new RockfallAttack(),
                 new ShockwaveAttack(),
@@ -40,6 +52,7 @@ public final class OverworldGuardianAttackController {
     }
 
     public void tick(ServerLevel level) {
+        tickCloseShieldPressure(level);
         for (Attack attack : attacks) {
             attack.tickCooldown();
         }
@@ -55,7 +68,10 @@ public final class OverworldGuardianAttackController {
         LivingEntity target = boss.getTarget();
         if (target != null && target.isAlive()) {
             boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
-            if (boss.distanceToSqr(target) > MELEE_RANGE_SQR) {
+            if (boss.shouldReturnTowardHome()) {
+                Vec3 home = boss.homeCenter();
+                boss.getNavigation().moveTo(home.x, home.y, home.z, 1.05D);
+            } else if (boss.distanceToSqr(target) > MELEE_RANGE_SQR) {
                 boss.getNavigation().moveTo(target, boss.getBossPhase().id() >= 3 ? 1.18D : 1.0D);
             }
         }
@@ -75,6 +91,12 @@ public final class OverworldGuardianAttackController {
     }
 
     private Attack selectAttack(ServerLevel level) {
+        for (Attack attack : attacks) {
+            if (attack.highPriority() && attack.canStart(boss, level)) {
+                return attack;
+            }
+        }
+
         int totalWeight = 0;
         for (Attack attack : attacks) {
             if (attack.canStart(boss, level)) {
@@ -123,6 +145,10 @@ public final class OverworldGuardianAttackController {
             return 1;
         }
 
+        boolean highPriority() {
+            return false;
+        }
+
         abstract boolean canUse(OverworldGuardianEntity boss, ServerLevel level);
 
         abstract RunningAttack start(ServerLevel level);
@@ -132,6 +158,51 @@ public final class OverworldGuardianAttackController {
 
     private interface RunningAttack {
         boolean tick(ServerLevel level);
+    }
+
+    private final class AntiShieldAttack extends Attack {
+        @Override
+        boolean highPriority() {
+            return true;
+        }
+
+        @Override
+        int weight(OverworldGuardianEntity boss) {
+            return 8;
+        }
+
+        @Override
+        boolean canUse(OverworldGuardianEntity boss, ServerLevel level) {
+            return findShieldPunishTarget(level) != null;
+        }
+
+        @Override
+        RunningAttack start(ServerLevel level) {
+            UUID targetId = findShieldPunishTarget(level);
+            boss.swing(InteractionHand.MAIN_HAND);
+            boss.swing(InteractionHand.OFF_HAND);
+            boss.triggerAttackAnimation("shockwave");
+            return new TimedAttack(24) {
+                @Override
+                protected void onTick(ServerLevel level, int tick) {
+                    ServerPlayer target = targetId == null ? null : findPlayer(level, targetId);
+                    if (target == null) {
+                        return;
+                    }
+                    boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
+                    if (tick != 12 || boss.distanceToSqr(target) > 6.0D * 6.0D) {
+                        return;
+                    }
+                    punishShield(level, target);
+                    closeShieldTicks.remove(target.getUUID());
+                }
+            };
+        }
+
+        @Override
+        int cooldownTicks(OverworldGuardianEntity boss) {
+            return boss.getBossPhase().id() == 3 ? 70 : 90;
+        }
     }
 
     private final class MeleeAttack extends Attack {
@@ -202,13 +273,14 @@ public final class OverworldGuardianAttackController {
                 protected void onTick(ServerLevel level, int tick) {
                     if (tick == 14) {
                         for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 16.0D, maxTargets())) {
-                            level.sendParticles(DIRT_PARTICLE, player.getX(), player.getY() + 6.0D, player.getZ(),
-                                    16, 0.8D, 0.5D, 0.8D, 0.03D);
+                            double height = boss.getBossPhase().id() == 3 ? 10.0D : 6.0D;
+                            level.sendParticles(DIRT_PARTICLE, player.getX(), player.getY() + height, player.getZ(),
+                                    24, 1.4D, 0.7D, 1.4D, 0.03D);
                         }
                     }
                     if (tick == 24) {
                         for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 16.0D, maxTargets())) {
-                            spawnFallingDirt(level, player.blockPosition(), boss.getBossPhase().id() == 3);
+                            spawnRockfallCluster(level, player.blockPosition());
                         }
                     }
                 }
@@ -337,25 +409,80 @@ public final class OverworldGuardianAttackController {
         protected abstract void onTick(ServerLevel level, int tick);
     }
 
-    private void spawnFallingDirt(ServerLevel level, BlockPos targetPos, boolean cluster) {
-        spawnFallingDirtAt(level, targetPos);
-        if (!cluster) {
-            return;
+    private void tickCloseShieldPressure(ServerLevel level) {
+        closeShieldTicks.entrySet().removeIf(entry -> findPlayer(level, entry.getKey()) == null);
+        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 7.0D, 8)) {
+            if (boss.distanceToSqr(player) <= 5.25D * 5.25D && isBlockingWithShield(player)) {
+                closeShieldTicks.merge(player.getUUID(), 1, Integer::sum);
+            } else {
+                closeShieldTicks.computeIfPresent(player.getUUID(), (uuid, ticks) -> ticks > 1 ? ticks - 2 : null);
+            }
         }
-        spawnFallingDirtAt(level, targetPos.north());
-        spawnFallingDirtAt(level, targetPos.east());
     }
 
-    private void spawnFallingDirtAt(ServerLevel level, BlockPos targetPos) {
-        BlockPos start = targetPos.above(8);
+    private UUID findShieldPunishTarget(ServerLevel level) {
+        UUID best = null;
+        int bestTicks = 0;
+        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 6.0D, 8)) {
+            int ticks = closeShieldTicks.getOrDefault(player.getUUID(), 0);
+            if (ticks >= 35 && ticks > bestTicks && isBlockingWithShield(player)) {
+                best = player.getUUID();
+                bestTicks = ticks;
+            }
+        }
+        return best;
+    }
+
+    private void punishShield(ServerLevel level, ServerPlayer target) {
+        ItemStack shield = target.getItemBlockingWith();
+        if (!shield.is(Items.SHIELD)) {
+            shield = target.getMainHandItem().is(Items.SHIELD) ? target.getMainHandItem() : target.getOffhandItem();
+        }
+        if (shield.is(Items.SHIELD)) {
+            target.stopUsingItem();
+            target.getCooldowns().addCooldown(shield, boss.getBossPhase().id() == 3 ? 140 : 110);
+            shield.hurtAndBreak(boss.getBossPhase().id() == 3 ? 100 : 75, level, target, item -> {
+            });
+        }
+        target.hurtServer(level, boss.damageSources().mobAttack(boss), boss.getBossPhase().id() == 3 ? 24.0F : 18.0F);
+        Vec3 away = target.position().subtract(boss.position()).horizontal();
+        if (away.lengthSqr() < 0.0001D) {
+            away = new Vec3(0.0D, 0.0D, 1.0D);
+        }
+        target.setDeltaMovement(away.normalize().scale(0.75D).add(0.0D, 1.1D, 0.0D));
+    }
+
+    private boolean isBlockingWithShield(ServerPlayer player) {
+        return player.isBlocking() && player.getItemBlockingWith().is(Items.SHIELD);
+    }
+
+    private void spawnRockfallCluster(ServerLevel level, BlockPos targetPos) {
+        boolean phaseThree = boss.getBossPhase().id() == 3;
+        int count = phaseThree ? 8 + boss.getRandom().nextInt(3) : 5 + boss.getRandom().nextInt(2);
+        int height = phaseThree ? 12 : 8;
+        for (int i = 0; i < count; i++) {
+            double angle = boss.getRandom().nextDouble() * Math.PI * 2.0D;
+            double radius = boss.getRandom().nextDouble() * (phaseThree ? 2.6D : 2.0D);
+            int x = targetPos.getX() + (int) Math.round(Math.cos(angle) * radius);
+            int z = targetPos.getZ() + (int) Math.round(Math.sin(angle) * radius);
+            BlockState state = phaseThree && i % 3 == 0 ? Blocks.STONE.defaultBlockState() : Blocks.DIRT.defaultBlockState();
+            spawnFallingBlockAt(level, new BlockPos(x, targetPos.getY(), z), height + boss.getRandom().nextInt(3), state);
+        }
+    }
+
+    private void spawnFallingBlockAt(ServerLevel level, BlockPos targetPos, int height, BlockState state) {
+        BlockPos start = targetPos.above(height);
         for (int i = 0; i < 6 && !level.getBlockState(start).isAir(); i++) {
             start = start.above();
         }
         if (!level.getBlockState(start).isAir()) {
             return;
         }
-        FallingBlockEntity fallingBlock = FallingBlockEntity.fall(level, start, Blocks.DIRT.defaultBlockState());
-        fallingBlock.setHurtsEntities(4.0F + boss.getBossPhase().id() * 1.5F, 24);
+        FallingBlockEntity fallingBlock = FallingBlockEntity.fall(level, start, state);
+        boolean stone = state.is(Blocks.STONE);
+        fallingBlock.setHurtsEntities(stone ? 9.0F : 6.0F + boss.getBossPhase().id(), stone ? 32 : 24);
+        level.sendParticles(stone ? STONE_PARTICLE : DIRT_PARTICLE, start.getX() + 0.5D, start.getY(), start.getZ() + 0.5D,
+                8, 0.25D, 0.2D, 0.25D, 0.03D);
     }
 
     private void telegraphCircle(ServerLevel level, double radius, int points) {

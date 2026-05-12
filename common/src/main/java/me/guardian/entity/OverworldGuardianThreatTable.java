@@ -85,7 +85,7 @@ public final class OverworldGuardianThreatTable {
         double rangeSqr = range * range;
         List<ScoredPlayer> players = new ArrayList<>();
         for (ServerPlayer player : level.players()) {
-            if (!isValidPlayer(player) || player.distanceToSqr(boss) > rangeSqr) {
+            if (!isValidPlayer(player) || player.distanceToSqr(boss) > rangeSqr || !boss.isNearHome(player, 8.0D)) {
                 continue;
             }
             ThreatEntry entry = entries.get(player.getUUID());

@@ -5,7 +5,7 @@ import net.minecraft.world.entity.Mob;
 import software.bernie.geckolib.animatable.GeoEntity;
 
 public final class GuardianBossAi {
-    public static final int HOME_RADIUS = 15;
+    public static final int HOME_RADIUS = 16;
     public static final double ATTACK_RANGE = 16.0D;
     public static final float ATTACK_DAMAGE = 3.0F;
     public static final String ATTACK_CONTROLLER = "attack_controller";
