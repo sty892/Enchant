@@ -1,5 +1,8 @@
 package me.guardian.client.screen;
 
+import com.mojang.brigadier.ParseResults;
+import com.mojang.brigadier.suggestion.Suggestion;
+import com.mojang.brigadier.suggestion.Suggestions;
 import me.guardian.network.TriggerAreaPayloads;
 import me.guardian.trigger.TriggerArea;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -7,7 +10,12 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.ClientSuggestionProvider;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +35,10 @@ public final class TriggerAreaEditorScreen extends Screen {
     private Button globalButton;
     private Button restrictionButton;
     private Button addCommandButton;
+    private EditBox suggestionField;
+    private List<Suggestion> suggestions = List.of();
+    private String suggestionInput = "";
+    private int selectedSuggestion;
 
     public TriggerAreaEditorScreen(TriggerArea area) {
         super(Component.literal("Trigger Area"));
@@ -49,6 +61,7 @@ public final class TriggerAreaEditorScreen extends Screen {
             EditBox commandField = new EditBox(font, left, top + 28 + i * 24, commandFieldWidth, 20, Component.literal("Console command"));
             commandField.setMaxLength(32767);
             commandField.setValue(commandValues.get(i));
+            commandField.setResponder(value -> refreshSuggestions());
             commandFields.add(commandField);
             addRenderableWidget(commandField);
         }
@@ -114,11 +127,53 @@ public final class TriggerAreaEditorScreen extends Screen {
             graphics.drawString(font, "Global restriction selectors", restrictionSelectors.getX(), restrictionSelectors.getY() - 10, 0xA0A0A0);
         }
         super.render(graphics, mouseX, mouseY, delta);
+        refreshSuggestions();
+        renderSuggestions(graphics);
     }
 
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (!suggestions.isEmpty()) {
+            if (event.key() == GLFW.GLFW_KEY_DOWN) {
+                selectedSuggestion = Math.min(selectedSuggestion + 1, suggestions.size() - 1);
+                return true;
+            }
+            if (event.key() == GLFW.GLFW_KEY_UP) {
+                selectedSuggestion = Math.max(selectedSuggestion - 1, 0);
+                return true;
+            }
+            if (event.key() == GLFW.GLFW_KEY_TAB || event.key() == GLFW.GLFW_KEY_ENTER) {
+                applySuggestion(selectedSuggestion);
+                return true;
+            }
+        }
+        boolean handled = super.keyPressed(event);
+        refreshSuggestions();
+        return handled;
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (!suggestions.isEmpty() && suggestionField != null) {
+            int x = suggestionField.getX();
+            int y = suggestionField.getY() + suggestionField.getHeight() + 2;
+            int width = suggestionField.getWidth();
+            int rowHeight = 12;
+            for (int i = 0; i < suggestions.size(); i++) {
+                if (event.x() >= x && event.x() <= x + width && event.y() >= y + i * rowHeight && event.y() <= y + (i + 1) * rowHeight) {
+                    applySuggestion(i);
+                    return true;
+                }
+            }
+        }
+        boolean handled = super.mouseClicked(event, doubleClick);
+        refreshSuggestions();
+        return handled;
     }
 
     private void save() {
@@ -162,5 +217,81 @@ public final class TriggerAreaEditorScreen extends Screen {
         }));
         triggerSelectors.setVisible(!"everyone".equals(triggerMode));
         restrictionSelectors.setVisible(globalRestrictions && !"everyone".equals(restrictionMode));
+    }
+
+    private void refreshSuggestions() {
+        EditBox focused = focusedCommandField();
+        if (focused == null) {
+            suggestions = List.of();
+            suggestionField = null;
+            return;
+        }
+        String raw = focused.getValue();
+        String input = raw.startsWith("/") ? raw.substring(1) : raw;
+        if (input.isBlank()) {
+            suggestions = List.of();
+            suggestionField = null;
+            return;
+        }
+        ClientPacketListener connection = minecraft.getConnection();
+        if (connection == null) {
+            suggestions = List.of();
+            suggestionField = null;
+            return;
+        }
+        int cursor = Math.max(0, focused.getCursorPosition() - (raw.startsWith("/") ? 1 : 0));
+        try {
+            ClientSuggestionProvider provider = connection.getSuggestionsProvider();
+            ParseResults<ClientSuggestionProvider> parse = connection.getCommands().parse(input, provider);
+            Suggestions resolved = connection.getCommands().getCompletionSuggestions(parse, cursor).getNow(null);
+            if (resolved == null || resolved.isEmpty()) {
+                suggestions = List.of();
+                suggestionField = null;
+                return;
+            }
+            suggestions = resolved.getList().stream().limit(7).toList();
+            suggestionField = focused;
+            suggestionInput = input;
+            selectedSuggestion = Math.min(selectedSuggestion, suggestions.size() - 1);
+        } catch (RuntimeException e) {
+            suggestions = List.of();
+            suggestionField = null;
+        }
+    }
+
+    private EditBox focusedCommandField() {
+        for (EditBox field : commandFields) {
+            if (field.isFocused()) {
+                return field;
+            }
+        }
+        return null;
+    }
+
+    private void renderSuggestions(GuiGraphics graphics) {
+        if (suggestions.isEmpty() || suggestionField == null) {
+            return;
+        }
+        int x = suggestionField.getX();
+        int y = suggestionField.getY() + suggestionField.getHeight() + 2;
+        int width = suggestionField.getWidth();
+        int rowHeight = 12;
+        for (int i = 0; i < suggestions.size(); i++) {
+            int rowY = y + i * rowHeight;
+            graphics.fill(x, rowY, x + width, rowY + rowHeight, i == selectedSuggestion ? 0xE0606060 : 0xE0101010);
+            graphics.drawString(font, suggestions.get(i).getText(), x + 4, rowY + 2, 0xE0E0E0);
+        }
+    }
+
+    private void applySuggestion(int index) {
+        if (suggestionField == null || index < 0 || index >= suggestions.size()) {
+            return;
+        }
+        boolean slash = suggestionField.getValue().startsWith("/");
+        String applied = suggestions.get(index).apply(suggestionInput);
+        suggestionField.setValue(slash ? "/" + applied : applied);
+        suggestionField.setCursorPosition(suggestionField.getValue().length());
+        suggestions = List.of();
+        suggestionField = null;
     }
 }

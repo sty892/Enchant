@@ -133,7 +133,7 @@ public final class TriggerAreaClient {
                 continue;
             }
             AABB box = new AABB(area.min.getX(), area.min.getY(), area.min.getZ(),
-                    area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D);
+                    area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D).inflate(0.03D);
             renderFill(context, box, viewer);
             ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.secondaryBlockOutline()),
                     Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, 0xFFFFFFFF, 4.0F);

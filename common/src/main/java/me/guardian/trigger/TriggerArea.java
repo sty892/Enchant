@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,10 +60,11 @@ public final class TriggerArea {
     }
 
     public boolean contains(Entity entity) {
+        AABB box = entity.getBoundingBox();
         return entity.level().dimension().identifier().toString().equals(dimension)
-                && entity.getX() >= min.getX() && entity.getX() <= max.getX() + 1.0D
-                && entity.getY() >= min.getY() && entity.getY() <= max.getY() + 1.0D
-                && entity.getZ() >= min.getZ() && entity.getZ() <= max.getZ() + 1.0D;
+                && box.minX >= min.getX() && box.maxX <= max.getX() + 1.0D
+                && box.minY >= min.getY() && box.maxY <= max.getY() + 1.0D
+                && box.minZ >= min.getZ() && box.maxZ <= max.getZ() + 1.0D;
     }
 
     public boolean contains(ResourceKey<Level> level, BlockPos pos) {
