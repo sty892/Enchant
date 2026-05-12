@@ -74,6 +74,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private boolean deathEventTriggered = false;
     private boolean spawnAnimationTriggered = false;
     private BlockPos spawnCenter = null;
+    private int unansweredHits = 0;
+    private UUID counterTargetId = null;
 
     public OverworldGuardianEntity(EntityType<? extends Monster> entityType, Level level) {
         super(entityType, level);
@@ -105,6 +107,16 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     }
 
     @Override
+    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+        return false;
+    }
+
+    @Override
+    public boolean requiresCustomPersistence() {
+        return true;
+    }
+
+    @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_PHASE, OverworldGuardianPhase.ONE.id());
@@ -125,9 +137,13 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         boolean damaged = super.hurtServer(level, source, amount);
-        if (damaged && source.getEntity() instanceof ServerPlayer player) {
-            damageContributors.merge(player.getUUID(), amount, Float::sum);
-            threatTable.recordDamage(player, amount, this.tickCount);
+        if (damaged && source.getEntity() instanceof LivingEntity attacker && attacker != this) {
+            counterTargetId = attacker.getUUID();
+            unansweredHits++;
+            if (attacker instanceof ServerPlayer player) {
+                damageContributors.merge(player.getUUID(), amount, Float::sum);
+                threatTable.recordDamage(player, amount, this.tickCount);
+            }
         }
         return damaged;
     }
@@ -229,6 +245,38 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         }
         double radius = PREFERRED_HOME_RADIUS + extraRadius;
         return entity.position().distanceToSqr(homeCenter()) <= radius * radius;
+    }
+
+    public LivingEntity peekCounterTarget(ServerLevel level) {
+        return counterTarget(level, false);
+    }
+
+    public LivingEntity consumeCounterTarget(ServerLevel level) {
+        return counterTarget(level, true);
+    }
+
+    public void recordSuccessfulHit() {
+        unansweredHits = 0;
+        counterTargetId = null;
+    }
+
+    private LivingEntity counterTarget(ServerLevel level, boolean consume) {
+        if (getBossPhase().id() < 2 || unansweredHits < 3 || counterTargetId == null) {
+            return null;
+        }
+        for (Entity entity : level.getAllEntities()) {
+            if (counterTargetId.equals(entity.getUUID()) && entity instanceof LivingEntity living && living.isAlive()) {
+                if (consume) {
+                    unansweredHits = 0;
+                }
+                return living;
+            }
+        }
+        if (consume) {
+            unansweredHits = 0;
+            counterTargetId = null;
+        }
+        return null;
     }
 
     private void tickSoftHomeReturn() {

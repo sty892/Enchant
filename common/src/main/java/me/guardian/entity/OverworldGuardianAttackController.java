@@ -11,7 +11,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -44,6 +43,7 @@ public final class OverworldGuardianAttackController {
         this.boss = boss;
         this.attacks = new Attack[]{
                 new AntiShieldAttack(),
+                new CounterLeapAttack(),
                 new FissureAttack(),
                 new RockfallAttack(),
                 new ShockwaveAttack(),
@@ -66,6 +66,11 @@ public final class OverworldGuardianAttackController {
         }
 
         LivingEntity target = boss.getTarget();
+        ServerPlayer shieldTarget = findShieldPressureTarget(level, 14.0D);
+        if (shieldTarget != null && !boss.shouldReturnTowardHome()) {
+            target = shieldTarget;
+            boss.setTarget(shieldTarget);
+        }
         if (target != null && target.isAlive()) {
             boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
             if (boss.shouldReturnTowardHome()) {
@@ -182,7 +187,7 @@ public final class OverworldGuardianAttackController {
             boss.swing(InteractionHand.MAIN_HAND);
             boss.swing(InteractionHand.OFF_HAND);
             boss.triggerAttackAnimation("shockwave");
-            return new TimedAttack(24) {
+            return new TimedAttack(26) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
                     ServerPlayer target = targetId == null ? null : findPlayer(level, targetId);
@@ -190,7 +195,10 @@ public final class OverworldGuardianAttackController {
                         return;
                     }
                     boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
-                    if (tick != 12 || boss.distanceToSqr(target) > 6.0D * 6.0D) {
+                    if (boss.distanceToSqr(target) > 4.5D * 4.5D) {
+                        boss.getNavigation().moveTo(target, 1.22D);
+                    }
+                    if ((tick != 8 && tick != 16 && tick != 24) || boss.distanceToSqr(target) > 6.5D * 6.5D) {
                         return;
                     }
                     punishShield(level, target);
@@ -201,7 +209,73 @@ public final class OverworldGuardianAttackController {
 
         @Override
         int cooldownTicks(OverworldGuardianEntity boss) {
-            return boss.getBossPhase().id() == 3 ? 70 : 90;
+            return boss.getBossPhase().id() == 3 ? 10 : 14;
+        }
+    }
+
+    private final class CounterLeapAttack extends Attack {
+        @Override
+        int minPhase() {
+            return 2;
+        }
+
+        @Override
+        boolean highPriority() {
+            return true;
+        }
+
+        @Override
+        int weight(OverworldGuardianEntity boss) {
+            return 10;
+        }
+
+        @Override
+        boolean canUse(OverworldGuardianEntity boss, ServerLevel level) {
+            LivingEntity target = boss.peekCounterTarget(level);
+            return target != null && target.isAlive() && boss.distanceToSqr(target) <= 24.0D * 24.0D;
+        }
+
+        @Override
+        RunningAttack start(ServerLevel level) {
+            LivingEntity target = boss.consumeCounterTarget(level);
+            boss.triggerAttackAnimation("phase_shift");
+            boss.setShiftKeyDown(true);
+            return new TimedAttack(36) {
+                private boolean landed;
+
+                @Override
+                protected void onTick(ServerLevel level, int tick) {
+                    if (target == null || !target.isAlive()) {
+                        boss.setShiftKeyDown(false);
+                        return;
+                    }
+                    boss.getLookControl().setLookAt(target, 35.0F, 35.0F);
+                    if (tick <= 12) {
+                        boss.setShiftKeyDown(true);
+                        level.sendParticles(DIRT_PARTICLE, boss.getX(), boss.getY() + 0.1D, boss.getZ(),
+                                8, 1.0D, 0.1D, 1.0D, 0.02D);
+                        return;
+                    }
+                    if (tick == 13) {
+                        boss.setShiftKeyDown(false);
+                        Vec3 direction = target.position().subtract(boss.position()).horizontal();
+                        if (direction.lengthSqr() < 0.0001D) {
+                            direction = boss.getLookAngle().horizontal();
+                        }
+                        boss.setDeltaMovement(direction.normalize().scale(1.55D).add(0.0D, 0.82D, 0.0D));
+                        boss.hurtMarked = true;
+                    }
+                    if (!landed && (tick >= 19 && (boss.onGround() || boss.distanceToSqr(target) <= 3.2D * 3.2D) || tick == 30)) {
+                        landed = true;
+                        smashImpact(level, target.position());
+                    }
+                }
+            };
+        }
+
+        @Override
+        int cooldownTicks(OverworldGuardianEntity boss) {
+            return boss.getBossPhase().id() == 3 ? 65 : 85;
         }
     }
 
@@ -234,6 +308,7 @@ public final class OverworldGuardianAttackController {
                         case THREE -> 19.0F;
                     };
                     target.hurtServer(level, boss.damageSources().mobAttack(boss), damage);
+                    boss.recordSuccessfulHit();
                     target.knockback(0.65D, boss.getX() - target.getX(), boss.getZ() - target.getZ());
                 }
             };
@@ -356,29 +431,23 @@ public final class OverworldGuardianAttackController {
 
         @Override
         RunningAttack start(ServerLevel level) {
-            List<UUID> targetIds = boss.getThreatTable().topAggroedPlayers(boss, level, 24.0D, 2)
+            List<Vec3> targetPositions = boss.getThreatTable().topAggroedPlayers(boss, level, 24.0D, 2)
                     .stream()
-                    .map(ServerPlayer::getUUID)
+                    .map(ServerPlayer::position)
                     .toList();
             boss.triggerAttackAnimation("fissure");
             return new TimedAttack(42) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
                     if (tick < 18 && tick % 3 == 0) {
-                        for (UUID targetId : targetIds) {
-                            ServerPlayer target = findPlayer(level, targetId);
-                            if (target != null) {
-                                renderFissureLine(level, target.position(), false);
-                            }
+                        for (Vec3 targetPosition : targetPositions) {
+                            renderFissureLine(level, targetPosition, false);
                         }
                     }
                     if (tick == 23 || tick == 31) {
-                        for (UUID targetId : targetIds) {
-                            ServerPlayer target = findPlayer(level, targetId);
-                            if (target != null) {
-                                renderFissureLine(level, target.position(), true);
-                                damageFissure(level, target.position());
-                            }
+                        for (Vec3 targetPosition : targetPositions) {
+                            renderFissureLine(level, targetPosition, true);
+                            damageFissure(level, targetPosition);
                         }
                     }
                 }
@@ -411,21 +480,34 @@ public final class OverworldGuardianAttackController {
 
     private void tickCloseShieldPressure(ServerLevel level) {
         closeShieldTicks.entrySet().removeIf(entry -> findPlayer(level, entry.getKey()) == null);
-        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 7.0D, 8)) {
-            if (boss.distanceToSqr(player) <= 5.25D * 5.25D && isBlockingWithShield(player)) {
-                closeShieldTicks.merge(player.getUUID(), 1, Integer::sum);
+        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 14.0D, 8)) {
+            if (isHoldingOrBlockingWithShield(player)) {
+                closeShieldTicks.merge(player.getUUID(), boss.distanceToSqr(player) <= 6.5D * 6.5D ? 5 : 2, Integer::sum);
             } else {
                 closeShieldTicks.computeIfPresent(player.getUUID(), (uuid, ticks) -> ticks > 1 ? ticks - 2 : null);
             }
         }
     }
 
+    private ServerPlayer findShieldPressureTarget(ServerLevel level, double radius) {
+        ServerPlayer best = null;
+        int bestTicks = 0;
+        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, radius, 8)) {
+            int ticks = closeShieldTicks.getOrDefault(player.getUUID(), 0);
+            if (ticks > bestTicks && isHoldingOrBlockingWithShield(player)) {
+                best = player;
+                bestTicks = ticks;
+            }
+        }
+        return best;
+    }
+
     private UUID findShieldPunishTarget(ServerLevel level) {
         UUID best = null;
         int bestTicks = 0;
-        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 6.0D, 8)) {
+        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 12.0D, 8)) {
             int ticks = closeShieldTicks.getOrDefault(player.getUUID(), 0);
-            if (ticks >= 35 && ticks > bestTicks && isBlockingWithShield(player)) {
+            if (ticks >= 8 && ticks > bestTicks && isHoldingOrBlockingWithShield(player)) {
                 best = player.getUUID();
                 bestTicks = ticks;
             }
@@ -440,11 +522,12 @@ public final class OverworldGuardianAttackController {
         }
         if (shield.is(Items.SHIELD)) {
             target.stopUsingItem();
-            target.getCooldowns().addCooldown(shield, boss.getBossPhase().id() == 3 ? 140 : 110);
-            shield.hurtAndBreak(boss.getBossPhase().id() == 3 ? 100 : 75, level, target, item -> {
+            target.getCooldowns().addCooldown(shield, boss.getBossPhase().id() == 3 ? 180 : 140);
+            shield.hurtAndBreak(boss.getBossPhase().id() == 3 ? 120 : 90, level, target, item -> {
             });
         }
         target.hurtServer(level, boss.damageSources().mobAttack(boss), boss.getBossPhase().id() == 3 ? 24.0F : 18.0F);
+        boss.recordSuccessfulHit();
         Vec3 away = target.position().subtract(boss.position()).horizontal();
         if (away.lengthSqr() < 0.0001D) {
             away = new Vec3(0.0D, 0.0D, 1.0D);
@@ -452,8 +535,35 @@ public final class OverworldGuardianAttackController {
         target.setDeltaMovement(away.normalize().scale(0.75D).add(0.0D, 1.1D, 0.0D));
     }
 
-    private boolean isBlockingWithShield(ServerPlayer player) {
-        return player.isBlocking() && player.getItemBlockingWith().is(Items.SHIELD);
+    private boolean isHoldingOrBlockingWithShield(ServerPlayer player) {
+        return player.getItemBlockingWith().is(Items.SHIELD)
+                || player.getMainHandItem().is(Items.SHIELD)
+                || player.getOffhandItem().is(Items.SHIELD);
+    }
+
+    private void smashImpact(ServerLevel level, Vec3 center) {
+        level.sendParticles(ParticleTypes.GUST_EMITTER_LARGE, center.x, center.y + 0.15D, center.z,
+                1, 0.05D, 0.05D, 0.05D, 0.0D);
+        level.sendParticles(STONE_PARTICLE, center.x, center.y + 0.05D, center.z,
+                52, 2.2D, 0.25D, 2.2D, 0.12D);
+        level.sendParticles(ParticleTypes.EXPLOSION, center.x, center.y + 0.3D, center.z,
+                2, 0.4D, 0.1D, 0.4D, 0.0D);
+        boolean hit = false;
+        for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, boss.getBoundingBox().inflate(4.0D, 2.0D, 4.0D))) {
+            if (living == boss || !living.isAlive() || horizontalDistance(living.position(), center) > 3.8D) {
+                continue;
+            }
+            if (living.hurtServer(level, boss.damageSources().mobAttack(boss), boss.getBossPhase().id() == 3 ? 30.0F : 26.0F)) {
+                hit = true;
+            }
+            Vec3 away = living.position().subtract(center).horizontal();
+            if (away.lengthSqr() > 0.0001D) {
+                living.setDeltaMovement(away.normalize().scale(1.15D).add(0.0D, 0.75D, 0.0D));
+            }
+        }
+        if (hit) {
+            boss.recordSuccessfulHit();
+        }
     }
 
     private void spawnRockfallCluster(ServerLevel level, BlockPos targetPos) {
@@ -510,6 +620,7 @@ public final class OverworldGuardianAttackController {
                 continue;
             }
             player.hurtServer(level, boss.damageSources().mobAttack(boss), boss.getBossPhase().id() == 3 ? 12.0F : 8.0F);
+            boss.recordSuccessfulHit();
             Vec3 away = player.position().subtract(boss.position()).horizontal();
             if (away.lengthSqr() > 0.0001D) {
                 player.setDeltaMovement(away.normalize().scale(0.9D).add(0.0D, 0.45D, 0.0D));
@@ -539,6 +650,7 @@ public final class OverworldGuardianAttackController {
                 continue;
             }
             player.hurtServer(level, boss.damageSources().mobAttack(boss), 14.0F);
+            boss.recordSuccessfulHit();
             Vec3 away = player.position().subtract(start).horizontal();
             if (away.lengthSqr() > 0.0001D) {
                 player.setDeltaMovement(away.normalize().scale(0.7D).add(0.0D, 0.35D, 0.0D));

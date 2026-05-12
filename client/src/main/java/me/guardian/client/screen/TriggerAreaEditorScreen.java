@@ -21,6 +21,7 @@ public final class TriggerAreaEditorScreen extends Screen {
     private final List<String> commandValues;
     private final List<EditBox> commandFields = new ArrayList<>();
     private final List<CommandSuggestions> commandSuggestions = new ArrayList<>();
+    private int activeCommandIndex = -1;
     private String triggerType;
     private boolean runOnce;
     private String triggerMode;
@@ -54,6 +55,7 @@ public final class TriggerAreaEditorScreen extends Screen {
     protected void init() {
         commandFields.clear();
         commandSuggestions.clear();
+        activeCommandIndex = -1;
 
         int panelWidth = Math.min(640, width - 40);
         int left = (width - panelWidth) / 2;
@@ -139,7 +141,10 @@ public final class TriggerAreaEditorScreen extends Screen {
                 Component.translatable("screen.guardian_mod.trigger_area.console_command"));
         commandField.setMaxLength(32767);
         commandField.setValue(commandValues.get(index));
-        commandField.setResponder(value -> updateCommandSuggestions(commandField));
+        commandField.setResponder(value -> {
+            setActiveCommandField(commandField);
+            updateCommandSuggestions(commandField);
+        });
         commandFields.add(commandField);
         addRenderableWidget(commandField);
 
@@ -196,6 +201,7 @@ public final class TriggerAreaEditorScreen extends Screen {
         }
         boolean handled = super.keyPressed(event);
         if (handled) {
+            updateActiveCommandFieldFromFocus();
             updateActiveCommandSuggestions();
         }
         return handled;
@@ -208,6 +214,7 @@ public final class TriggerAreaEditorScreen extends Screen {
             return true;
         }
         boolean handled = super.mouseClicked(event, doubleClick);
+        updateActiveCommandFieldFromMouse(event.x(), event.y());
         if (handled) {
             updateActiveCommandSuggestions();
         }
@@ -288,11 +295,8 @@ public final class TriggerAreaEditorScreen extends Screen {
     }
 
     private CommandSuggestions activeCommandSuggestions() {
-        Object focused = getFocused();
-        for (int i = 0; i < commandFields.size(); i++) {
-            if (focused == commandFields.get(i)) {
-                return i < commandSuggestions.size() ? commandSuggestions.get(i) : null;
-            }
+        if (activeCommandIndex >= 0 && activeCommandIndex < commandSuggestions.size()) {
+            return commandSuggestions.get(activeCommandIndex);
         }
         return null;
     }
@@ -307,9 +311,57 @@ public final class TriggerAreaEditorScreen extends Screen {
     private void updateCommandSuggestions(EditBox field) {
         for (int i = 0; i < commandFields.size(); i++) {
             if (commandFields.get(i) == field && i < commandSuggestions.size()) {
+                activeCommandIndex = i;
+                commandSuggestions.get(i).setAllowSuggestions(true);
                 commandSuggestions.get(i).updateCommandInfo();
                 return;
             }
+        }
+    }
+
+    private void updateActiveCommandFieldFromMouse(double mouseX, double mouseY) {
+        for (int i = 0; i < commandFields.size(); i++) {
+            EditBox field = commandFields.get(i);
+            if (mouseX >= field.getX() && mouseX <= field.getX() + field.getWidth()
+                    && mouseY >= field.getY() && mouseY <= field.getY() + field.getHeight()) {
+                setActiveCommandIndex(i);
+                return;
+            }
+        }
+        updateActiveCommandFieldFromFocus();
+    }
+
+    private void updateActiveCommandFieldFromFocus() {
+        Object focused = getFocused();
+        for (int i = 0; i < commandFields.size(); i++) {
+            if (focused == commandFields.get(i)) {
+                setActiveCommandIndex(i);
+                return;
+            }
+        }
+        activeCommandIndex = -1;
+    }
+
+    private void setActiveCommandField(EditBox field) {
+        for (int i = 0; i < commandFields.size(); i++) {
+            if (commandFields.get(i) == field) {
+                setActiveCommandIndex(i);
+                return;
+            }
+        }
+    }
+
+    private void setActiveCommandIndex(int index) {
+        activeCommandIndex = index;
+        for (int i = 0; i < commandFields.size(); i++) {
+            commandFields.get(i).setFocused(i == index);
+            if (i != index && i < commandSuggestions.size()) {
+                commandSuggestions.get(i).hide();
+            }
+        }
+        if (index >= 0 && index < commandFields.size()) {
+            setFocused(commandFields.get(index));
+            commandSuggestions.get(index).setAllowSuggestions(true);
         }
     }
 }
