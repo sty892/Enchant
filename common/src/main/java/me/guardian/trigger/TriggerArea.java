@@ -67,6 +67,14 @@ public final class TriggerArea {
                 && box.minZ >= min.getZ() && box.maxZ <= max.getZ() + 1.0D;
     }
 
+    public boolean intersects(Entity entity) {
+        AABB box = entity.getBoundingBox();
+        return entity.level().dimension().identifier().toString().equals(dimension)
+                && box.maxX > min.getX() && box.minX < max.getX() + 1.0D
+                && box.maxY > min.getY() && box.minY < max.getY() + 1.0D
+                && box.maxZ > min.getZ() && box.minZ < max.getZ() + 1.0D;
+    }
+
     public boolean contains(ResourceKey<Level> level, BlockPos pos) {
         return level.identifier().toString().equals(dimension)
                 && pos.getX() >= min.getX() && pos.getX() <= max.getX()

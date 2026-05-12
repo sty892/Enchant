@@ -129,12 +129,13 @@ public final class TriggerAreaManager {
     private static void tickPlayer(ServerPlayer player) {
         Set<UUID> inside = INSIDE_AREAS.computeIfAbsent(player.getUUID(), uuid -> new HashSet<>());
         for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
-            boolean contains = area.contains(player);
+            boolean fullyInside = area.contains(player);
+            boolean fullyOutside = !area.intersects(player);
             boolean wasInside = inside.contains(area.id);
-            if (contains && !wasInside) {
+            if (fullyInside && !wasInside) {
                 inside.add(area.id);
                 trigger(area, player);
-            } else if (!contains && wasInside) {
+            } else if (fullyOutside && wasInside) {
                 inside.remove(area.id);
             }
         }

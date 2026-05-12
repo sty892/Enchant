@@ -29,7 +29,7 @@ public class DimensionTriggerBlock extends Block {
 
     @Override
     protected RenderShape getRenderShape(BlockState state) {
-        return RenderShape.INVISIBLE;
+        return RenderShape.MODEL;
     }
 
     @Override
