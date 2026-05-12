@@ -29,6 +29,7 @@
   "block.guardian_mod.dimension_trigger": "Триггер измерения",
   "block.guardian_mod.dimension_return_trigger": "Триггер возврата из измерения",
   "entity.guardian_mod.boss_overworld": "Хранитель Верхнего мира",
+  "entity.guardian_mod.boss_overworld.phase": "Хранитель Верхнего мира - фаза %s",
   "entity.guardian_mod.boss_nether": "Адский хранитель",
   "entity.guardian_mod.boss_generic": "Хранитель",
   "dimension.guardian_mod.guardian_dimension": "Измерение Хранителя",

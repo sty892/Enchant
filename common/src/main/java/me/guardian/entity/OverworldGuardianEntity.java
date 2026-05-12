@@ -4,6 +4,9 @@ import me.guardian.GuardianMod;
 import me.guardian.event.GuardianBossEventHooks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -12,18 +15,15 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.hurtingprojectile.SmallFireball;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.storage.ValueInput;
@@ -45,28 +45,32 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final String BOSS_CONFIG_KEY = "overworld";
     private static final String SPAWN_CONTROLLER_NAME = "Spawn";
     private static final String SPAWN_TRIGGER_NAME = "spawn";
+    private static final String PHASE_SHIFT_TRIGGER = "phase_shift";
     private static final double LEASH_RADIUS = 15.0D;
     private static final double LEASH_RADIUS_SQR = LEASH_RADIUS * LEASH_RADIUS;
     private static final double BOSS_BAR_RADIUS_SQR = 30.0D * 30.0D;
-    private static final int FIREBALL_COOLDOWN_TICKS = 100;
     private static final int SPAWN_ANIMATION_TICKS = 80;
     private static final RawAnimation SPAWN_ANIMATION = RawAnimation.begin().thenPlay("spawn");
+    private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
+    private static final EntityDataAccessor<Integer> DATA_PHASE = SynchedEntityData.defineId(
+            OverworldGuardianEntity.class,
+            EntityDataSerializers.INT
+    );
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> damageContributors = new HashMap<>();
+    private final OverworldGuardianThreatTable threatTable = new OverworldGuardianThreatTable();
+    private final OverworldGuardianAttackController attackController = new OverworldGuardianAttackController(this);
     private final ServerBossEvent bossEvent = new ServerBossEvent(
-            Component.translatable("entity.guardian_mod.boss_overworld"),
+            phaseName(1),
             BossEvent.BossBarColor.GREEN,
             BossEvent.BossBarOverlay.PROGRESS
     );
+    private OverworldGuardianPhase appliedPhase = OverworldGuardianPhase.ONE;
     private boolean spawnEventTriggered = false;
-    private boolean phase75Triggered = false;
-    private boolean phase50Triggered = false;
-    private boolean phase25Triggered = false;
     private boolean deathEventTriggered = false;
     private boolean spawnAnimationTriggered = false;
     private BlockPos spawnCenter = null;
-    private int fireballCooldown = FIREBALL_COOLDOWN_TICKS;
 
     public OverworldGuardianEntity(EntityType<? extends Monster> entityType, Level level) {
         super(entityType, level);
@@ -85,15 +89,29 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         return damageContributors;
     }
 
+    public OverworldGuardianThreatTable getThreatTable() {
+        return threatTable;
+    }
+
+    public OverworldGuardianPhase getBossPhase() {
+        return OverworldGuardianPhase.byId(this.entityData.get(DATA_PHASE));
+    }
+
+    public void triggerAttackAnimation(String triggerName) {
+        GuardianBossAi.triggerAttackAnimation(this, triggerName);
+    }
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_PHASE, OverworldGuardianPhase.ONE.id());
+    }
+
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(1, new FloatGoal(this));
         this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 16.0F));
         this.goalSelector.addGoal(3, new RandomStrollGoal(this, 0.8));
-        this.goalSelector.addGoal(4, new GuardianBossAttackGoal(this, 1.0D));
-
-        this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
-        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
     }
 
     @Override
@@ -106,6 +124,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         boolean damaged = super.hurtServer(level, source, amount);
         if (damaged && source.getEntity() instanceof ServerPlayer player) {
             damageContributors.merge(player.getUUID(), amount, Float::sum);
+            threatTable.recordDamage(player, amount, this.tickCount);
         }
         return damaged;
     }
@@ -117,9 +136,11 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         triggerSpawnEvent(level);
         triggerSpawnAnimation();
         tickLeash();
+        threatTable.tick(this, level);
+        tickTarget(level);
+        tickPhase();
+        attackController.tick(level);
         tickBossBar(level);
-        tickPhases();
-        tickFireball(level);
     }
 
     @Override
@@ -146,6 +167,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     @Override
     protected void addAdditionalSaveData(ValueOutput output) {
         super.addAdditionalSaveData(output);
+        output.putInt("BossPhase", getBossPhase().id());
         if (spawnCenter != null) {
             output.putInt("SpawnCenterX", spawnCenter.getX());
             output.putInt("SpawnCenterY", spawnCenter.getY());
@@ -156,6 +178,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     @Override
     protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
+        setBossPhase(OverworldGuardianPhase.byId(input.getIntOr("BossPhase", 1)));
         if (input.getInt("SpawnCenterX").isPresent()
                 && input.getInt("SpawnCenterY").isPresent()
                 && input.getInt("SpawnCenterZ").isPresent()) {
@@ -207,8 +230,46 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         this.setPos(clampedX, this.getY(), clampedZ);
     }
 
+    private void tickTarget(ServerLevel level) {
+        LivingEntity nextTarget = threatTable.chooseTarget(this, level);
+        if (nextTarget != this.getTarget()) {
+            this.setTarget(nextTarget);
+        }
+    }
+
+    private void tickPhase() {
+        OverworldGuardianPhase nextPhase = OverworldGuardianPhase.fromHealth(this.getHealth() / this.getMaxHealth());
+        OverworldGuardianPhase currentPhase = getBossPhase();
+        if (nextPhase != currentPhase) {
+            setBossPhase(nextPhase);
+            if (nextPhase.id() > currentPhase.id()) {
+                triggerAttackAnimation(PHASE_SHIFT_TRIGGER);
+                GuardianMod.LOGGER.info("Overworld Guardian advanced to phase {}", nextPhase.id());
+            }
+        }
+        if (nextPhase != appliedPhase) {
+            appliedPhase = nextPhase;
+            setBaseAttribute(Attributes.MOVEMENT_SPEED, nextPhase.movementSpeed());
+            setBaseAttribute(Attributes.ATTACK_DAMAGE, nextPhase.attackDamage());
+            bossEvent.setColor(nextPhase.bossBarColor());
+            bossEvent.setName(phaseName(nextPhase.id()));
+        }
+    }
+
+    private void setBossPhase(OverworldGuardianPhase phase) {
+        this.entityData.set(DATA_PHASE, phase.id());
+    }
+
+    private void setBaseAttribute(net.minecraft.core.Holder<Attribute> attribute, double value) {
+        var instance = this.getAttribute(attribute);
+        if (instance != null) {
+            instance.setBaseValue(value);
+        }
+    }
+
     private void tickBossBar(ServerLevel level) {
         bossEvent.setProgress(Math.max(0.0F, this.getHealth() / this.getMaxHealth()));
+        bossEvent.setName(phaseName(getBossPhase().id()));
         for (ServerPlayer player : level.players()) {
             boolean near = player.distanceToSqr(this) <= BOSS_BAR_RADIUS_SQR;
             boolean visible = bossEvent.getPlayers().contains(player);
@@ -224,74 +285,24 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         bossEvent.removeAllPlayers();
     }
 
-    private void tickPhases() {
-        float healthRatio = this.getHealth() / this.getMaxHealth();
-        if (!phase75Triggered && healthRatio <= 0.75F) {
-            phase75Triggered = true;
-            setBaseAttribute(Attributes.MOVEMENT_SPEED, 0.30);
-            GuardianMod.LOGGER.info("Overworld Guardian 75% phase hook triggered; generic summon is deferred until Module 10");
-        }
-        if (!phase50Triggered && healthRatio <= 0.50F) {
-            phase50Triggered = true;
-            leapAtTarget();
-            GuardianMod.LOGGER.info("Overworld Guardian 50% phase hook triggered");
-        }
-        if (!phase25Triggered && healthRatio <= 0.25F) {
-            phase25Triggered = true;
-            setBaseAttribute(Attributes.MOVEMENT_SPEED, 0.50);
-            setBaseAttribute(Attributes.ATTACK_DAMAGE, 22.5);
-            GuardianMod.LOGGER.info("Overworld Guardian 25% berserk phase hook triggered");
-        }
-    }
-
-    private void setBaseAttribute(net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, double value) {
-        var instance = this.getAttribute(attribute);
-        if (instance != null) {
-            instance.setBaseValue(value);
-        }
-    }
-
-    private void leapAtTarget() {
-        LivingEntity target = this.getTarget();
-        if (target == null) {
-            return;
-        }
-
-        Vec3 direction = target.position().subtract(this.position()).horizontal();
-        if (direction.lengthSqr() > 0.0001D) {
-            this.setDeltaMovement(direction.normalize().scale(1.2D).add(0.0D, 0.45D, 0.0D));
-        }
-    }
-
-    private void tickFireball(ServerLevel level) {
-        if (fireballCooldown > 0) {
-            fireballCooldown--;
-            return;
-        }
-
-        LivingEntity target = this.getTarget();
-        if (target == null || !target.isAlive()) {
-            fireballCooldown = 20;
-            return;
-        }
-
-        Vec3 origin = this.position().add(0.0D, this.getEyeHeight() * 0.75D, 0.0D);
-        Vec3 targetPos = target.position().add(0.0D, target.getEyeHeight() * 0.5D, 0.0D);
-        Vec3 direction = targetPos.subtract(origin).normalize();
-        SmallFireball fireball = new SmallFireball(level, this, direction);
-        fireball.setPos(origin.x, origin.y, origin.z);
-        level.addFreshEntity(fireball);
-        fireballCooldown = FIREBALL_COOLDOWN_TICKS;
+    private static Component phaseName(int phase) {
+        return Component.translatable("entity.guardian_mod.boss_overworld.phase", phase);
     }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<>("Idle", state -> state.setAndContinue(IDLE_ANIMATION)));
         controllers.add(new AnimationController<>(SPAWN_CONTROLLER_NAME, state -> state.renderState().getAnimatableAge() <= SPAWN_ANIMATION_TICKS
                 ? state.setAndContinue(SPAWN_ANIMATION)
                 : PlayState.STOP)
                 .triggerableAnim(SPAWN_TRIGGER_NAME, SPAWN_ANIMATION));
         controllers.add(new AnimationController<OverworldGuardianEntity>(GuardianBossAi.ATTACK_CONTROLLER, 0, state -> PlayState.STOP)
-                .triggerableAnim(GuardianBossAi.ATTACK_TRIGGER, RawAnimation.begin().thenPlay(GuardianBossAi.ATTACK_TRIGGER)));
+                .triggerableAnim("attack", RawAnimation.begin().thenPlay("attack"))
+                .triggerableAnim("melee", RawAnimation.begin().thenPlay("melee"))
+                .triggerableAnim("rockfall", RawAnimation.begin().thenPlay("rockfall"))
+                .triggerableAnim("shockwave", RawAnimation.begin().thenPlay("shockwave"))
+                .triggerableAnim("fissure", RawAnimation.begin().thenPlay("fissure"))
+                .triggerableAnim(PHASE_SHIFT_TRIGGER, RawAnimation.begin().thenPlay(PHASE_SHIFT_TRIGGER)));
     }
 
     @Override
