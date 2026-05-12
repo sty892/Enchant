@@ -32,7 +32,7 @@ import java.util.UUID;
 
 public final class DiamondRestrictionHandler {
     private static final Gson GSON = new Gson();
-    private static final Component RESTRICTED_MESSAGE = Component.literal("Нельзя получить алмазы пока не убит Хранитель Верхнего Мира");
+    private static final Component RESTRICTED_MESSAGE = Component.translatable("message.guardian_mod.diamond_restricted");
     private static final Identifier[] DIAMOND_ADVANCEMENTS = {
             Identifier.withDefaultNamespace("story/mine_diamond"),
             Identifier.withDefaultNamespace("story/shiny_gear")

@@ -55,7 +55,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> damageContributors = new HashMap<>();
     private final ServerBossEvent bossEvent = new ServerBossEvent(
-            Component.literal("Overworld Guardian"),
+            Component.translatable("entity.guardian_mod.boss_overworld"),
             BossEvent.BossBarColor.GREEN,
             BossEvent.BossBarOverlay.PROGRESS
     );

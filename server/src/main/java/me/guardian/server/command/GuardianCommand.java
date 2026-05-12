@@ -183,13 +183,13 @@ public final class GuardianCommand {
     private static int spawnBoss(CommandSourceStack source, String bossId) throws CommandSyntaxException {
         Identifier id = parseGuardianBossId(bossId);
         if (id == null || !GuardianMod.MOD_ID.equals(id.getNamespace()) || !id.getPath().startsWith("boss_")) {
-            source.sendFailure(Component.literal("Unknown guardian boss id: " + bossId));
+            source.sendFailure(Component.translatable("command.guardian_mod.unknown_boss", bossId));
             return 0;
         }
 
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
         if (type == null) {
-            source.sendFailure(Component.literal("Unknown guardian boss id: " + bossId));
+            source.sendFailure(Component.translatable("command.guardian_mod.unknown_boss", bossId));
             return 0;
         }
 
@@ -197,13 +197,13 @@ public final class GuardianCommand {
         ServerLevel level = source.getLevel();
         Entity entity = type.create(level, EntitySpawnReason.COMMAND);
         if (entity == null) {
-            source.sendFailure(Component.literal("Failed to create boss: " + bossId));
+            source.sendFailure(Component.translatable("command.guardian_mod.boss_create_failed", bossId));
             return 0;
         }
 
         entity.setPos(player.getX(), player.getY(), player.getZ());
         level.addFreshEntity(entity);
-        source.sendSuccess(() -> Component.literal("Spawned " + bossId), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.boss_spawned", bossId), true);
         return 1;
     }
 
@@ -237,7 +237,7 @@ public final class GuardianCommand {
             }
         }
         int result = killed;
-        source.sendSuccess(() -> Component.literal("Killed guardian bosses: " + result), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.bosses_killed", result), true);
         return killed;
     }
 
@@ -249,8 +249,8 @@ public final class GuardianCommand {
 
     private static int printState(CommandSourceStack source) {
         GuardianWorldState state = GuardianWorldState.get(source.getLevel());
-        source.sendSuccess(() -> Component.literal("GuardianWorldState overworldBossDefeated=" + state.overworldBossDefeated
-                + ", netherBossDefeated=" + state.netherBossDefeated), false);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.state",
+                state.overworldBossDefeated, state.netherBossDefeated), false);
         return 1;
     }
 
@@ -259,7 +259,7 @@ public final class GuardianCommand {
         state.overworldBossDefeated = false;
         state.netherBossDefeated = false;
         state.setDirty();
-        source.sendSuccess(() -> Component.literal("GuardianWorldState reset"), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.state_reset"), true);
         return 1;
     }
 
@@ -268,7 +268,7 @@ public final class GuardianCommand {
         state.overworldBossDefeated = stage >= 1;
         state.netherBossDefeated = stage >= 2;
         state.setDirty();
-        source.sendSuccess(() -> Component.literal("Guardian stage forced to " + stage), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.stage_forced", stage), true);
         return 1;
     }
 
@@ -276,7 +276,7 @@ public final class GuardianCommand {
         ConfigManager.initialize();
         BossEventManager.reload();
         source.getServer().reloadResources(source.getServer().getPackRepository().getSelectedIds());
-        source.sendSuccess(() -> Component.literal("Guardian configs reloaded"), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.configs_reloaded"), true);
         return 1;
     }
 
@@ -292,13 +292,13 @@ public final class GuardianCommand {
             }
         }
         int result = changed;
-        source.sendSuccess(() -> Component.literal("Reset keyholes in radius " + radius + ": " + result), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.keyholes_reset", radius, result), true);
         return changed;
     }
 
     private static int resetFoundKeys(CommandSourceStack source) {
         int count = KeyFoundEventHandler.resetFoundKeys(source.getServer());
-        source.sendSuccess(() -> Component.literal("Reset found key state entries: " + count), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.found_keys_reset", count), true);
         return count;
     }
 
@@ -307,15 +307,15 @@ public final class GuardianCommand {
         try {
             id = UUID.fromString(idRaw);
         } catch (IllegalArgumentException e) {
-            source.sendFailure(Component.literal("Invalid trigger id: " + idRaw));
+            source.sendFailure(Component.translatable("command.guardian_mod.trigger_invalid_id", idRaw));
             return 0;
         }
         boolean removed = TriggerAreaManager.deleteArea(source.getServer(), id);
         if (!removed) {
-            source.sendFailure(Component.literal("No trigger found with id: " + id));
+            source.sendFailure(Component.translatable("command.guardian_mod.trigger_not_found", id));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Deleted trigger: " + id), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.trigger_deleted", id), true);
         return 1;
     }
 
@@ -335,12 +335,12 @@ public final class GuardianCommand {
             }
         }
         if (nearest == null) {
-            source.sendFailure(Component.literal("No trigger found in this dimension"));
+            source.sendFailure(Component.translatable("command.guardian_mod.trigger_not_found_dimension"));
             return 0;
         }
         UUID id = nearest.id;
         TriggerAreaManager.deleteArea(source.getServer(), id);
-        source.sendSuccess(() -> Component.literal("Deleted nearest trigger: " + id), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.trigger_deleted_nearest", id), true);
         return 1;
     }
 
@@ -369,7 +369,10 @@ public final class GuardianCommand {
         }
         for (int slot = 1; slot <= 8; slot++) {
             int current = slot;
-            source.sendSuccess(() -> Component.literal("keyhole_" + current + ": " + (found[current] && filled[current] ? "filled" : "empty")), false);
+            source.sendSuccess(() -> Component.translatable("command.guardian_mod.keyhole_state", current,
+                    Component.translatable(found[current] && filled[current]
+                            ? "command.guardian_mod.keyhole_state.filled"
+                            : "command.guardian_mod.keyhole_state.empty")), false);
         }
         return 1;
     }
@@ -378,37 +381,37 @@ public final class GuardianCommand {
         JsonObject config = readKeysConfig();
         JsonObject event = findKeyInsertEvent(config, slot);
         if (event == null) {
-            source.sendFailure(Component.literal("No on_insert event for key " + slot));
+            source.sendFailure(Component.translatable("command.guardian_mod.no_key_insert_event", slot));
             return 0;
         }
         ServerPlayer player = source.getPlayerOrException();
         GuardianEventExecutor.execute(source.getLevel(), event, player.blockPosition(), player);
-        source.sendSuccess(() -> Component.literal("Executed on_insert for key " + slot), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.key_insert_event_executed", slot), true);
         return 1;
     }
 
     private static int runJsonEvent(CommandSourceStack source, String eventFile) {
         JsonObject event = readEventFile(eventFile);
         if (event == null) {
-            source.sendFailure(Component.literal("Failed to read guardian event file: " + eventFile));
+            source.sendFailure(Component.translatable("command.guardian_mod.event_file_failed", eventFile));
             return 0;
         }
 
         BlockPos center = BlockPos.containing(source.getPosition());
         int scheduled = GuardianJsonEventActions.run(source.getServer(), source.getLevel(), center, event);
-        source.sendSuccess(() -> Component.literal("Guardian event scheduled actions: " + scheduled), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.event_actions_scheduled", scheduled), true);
         return scheduled > 0 ? 1 : 0;
     }
 
     private static int testAllKeysEvent(CommandSourceStack source) throws CommandSyntaxException {
         JsonObject config = readKeysConfig();
         if (!config.has("on_all_inserted") || !config.get("on_all_inserted").isJsonObject()) {
-            source.sendFailure(Component.literal("No on_all_inserted event configured"));
+            source.sendFailure(Component.translatable("command.guardian_mod.no_all_inserted_event"));
             return 0;
         }
         ServerPlayer player = source.getPlayerOrException();
         GuardianEventExecutor.execute(source.getLevel(), config.getAsJsonObject("on_all_inserted"), player.blockPosition(), player);
-        source.sendSuccess(() -> Component.literal("Executed on_all_inserted"), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.all_inserted_event_executed"), true);
         return 1;
     }
 
@@ -420,32 +423,32 @@ public final class GuardianCommand {
     private static int resetAltarStats(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         AltarRitualManager.resetPlayerUpgrades(player);
-        source.sendSuccess(() -> Component.literal("Guardian altar upgrades reset"), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.altar_upgrades_reset"), true);
         return 1;
     }
 
     private static int placeStructure(CommandSourceStack source, String structureId, BlockPos requestedPos) {
         Identifier id = StructureSpawner.parseStructureId(structureId);
         if (id == null) {
-            source.sendFailure(Component.literal("Invalid guardian structure id: " + structureId));
+            source.sendFailure(Component.translatable("command.guardian_mod.structure_invalid_id", structureId));
             return 0;
         }
 
         BlockPos pos = requestedPos == null ? BlockPos.containing(source.getPosition()) : requestedPos;
         boolean placed = StructureSpawner.place(source.getLevel(), pos, id.toString());
         if (!placed) {
-            source.sendFailure(Component.literal("Failed to place structure " + id + "; check server log for " + StructureSpawner.resourcePath(id)));
+            source.sendFailure(Component.translatable("command.guardian_mod.structure_place_failed", id, StructureSpawner.resourcePath(id)));
             return 0;
         }
 
-        source.sendSuccess(() -> Component.literal("Placed guardian structure " + id + " at " + pos.toShortString()), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.structure_placed", id, pos.toShortString()), true);
         return 1;
     }
 
     private static int addWhitelist(CommandSourceStack source, String playerNameOrUuid) {
         UUID uuid = resolveUuid(source.getServer(), playerNameOrUuid);
         if (uuid == null) {
-            source.sendFailure(Component.literal("Player must be online or specified by UUID: " + playerNameOrUuid));
+            source.sendFailure(Component.translatable("command.guardian_mod.player_or_uuid_required", playerNameOrUuid));
             return 0;
         }
 
@@ -453,14 +456,14 @@ public final class GuardianCommand {
         Set<UUID> whitelist = readWhitelist(config);
         whitelist.add(uuid);
         writeWhitelist(config, whitelist);
-        source.sendSuccess(() -> Component.literal("Added diamond whitelist UUID: " + uuid), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.diamond_whitelist_added", uuid), true);
         return 1;
     }
 
     private static int addKeyWhitelist(CommandSourceStack source, String playerNameOrUuid) {
         UUID uuid = resolveUuid(source.getServer(), playerNameOrUuid);
         if (uuid == null) {
-            source.sendFailure(Component.literal("Player must be online or specified by UUID: " + playerNameOrUuid));
+            source.sendFailure(Component.translatable("command.guardian_mod.player_or_uuid_required", playerNameOrUuid));
             return 0;
         }
 
@@ -468,14 +471,14 @@ public final class GuardianCommand {
         Set<UUID> whitelist = readUuidList(config, "key_whitelist");
         whitelist.add(uuid);
         writeUuidList(config, "key_whitelist", whitelist);
-        source.sendSuccess(() -> Component.literal("Added key whitelist UUID: " + uuid), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.key_whitelist_added", uuid), true);
         return 1;
     }
 
     private static int removeWhitelist(CommandSourceStack source, String playerNameOrUuid) {
         UUID uuid = resolveUuid(source.getServer(), playerNameOrUuid);
         if (uuid == null) {
-            source.sendFailure(Component.literal("Player must be online or specified by UUID: " + playerNameOrUuid));
+            source.sendFailure(Component.translatable("command.guardian_mod.player_or_uuid_required", playerNameOrUuid));
             return 0;
         }
 
@@ -483,14 +486,16 @@ public final class GuardianCommand {
         Set<UUID> whitelist = readWhitelist(config);
         boolean removed = whitelist.remove(uuid);
         writeWhitelist(config, whitelist);
-        source.sendSuccess(() -> Component.literal((removed ? "Removed" : "UUID was not present") + " diamond whitelist UUID: " + uuid), true);
+        source.sendSuccess(() -> Component.translatable(removed
+                ? "command.guardian_mod.diamond_whitelist_removed"
+                : "command.guardian_mod.diamond_whitelist_missing", uuid), true);
         return removed ? 1 : 0;
     }
 
     private static int removeKeyWhitelist(CommandSourceStack source, String playerNameOrUuid) {
         UUID uuid = resolveUuid(source.getServer(), playerNameOrUuid);
         if (uuid == null) {
-            source.sendFailure(Component.literal("Player must be online or specified by UUID: " + playerNameOrUuid));
+            source.sendFailure(Component.translatable("command.guardian_mod.player_or_uuid_required", playerNameOrUuid));
             return 0;
         }
 
@@ -498,19 +503,21 @@ public final class GuardianCommand {
         Set<UUID> whitelist = readUuidList(config, "key_whitelist");
         boolean removed = whitelist.remove(uuid);
         writeUuidList(config, "key_whitelist", whitelist);
-        source.sendSuccess(() -> Component.literal((removed ? "Removed" : "UUID was not present") + " key whitelist UUID: " + uuid), true);
+        source.sendSuccess(() -> Component.translatable(removed
+                ? "command.guardian_mod.key_whitelist_removed"
+                : "command.guardian_mod.key_whitelist_missing", uuid), true);
         return removed ? 1 : 0;
     }
 
     private static int listWhitelist(CommandSourceStack source) {
         Set<UUID> whitelist = readWhitelist(readGuardianConfig());
-        source.sendSuccess(() -> Component.literal("Diamond whitelist UUIDs: " + whitelist), false);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.diamond_whitelist_list", whitelist), false);
         return whitelist.size();
     }
 
     private static int listKeyWhitelist(CommandSourceStack source) {
         Set<UUID> whitelist = readUuidList(readGuardianConfig(), "key_whitelist");
-        source.sendSuccess(() -> Component.literal("Key whitelist UUIDs: " + whitelist), false);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.key_whitelist_list", whitelist), false);
         return whitelist.size();
     }
 

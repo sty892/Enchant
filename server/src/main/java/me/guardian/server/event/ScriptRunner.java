@@ -97,13 +97,13 @@ public final class ScriptRunner {
     public static int runScript(CommandSourceStack source, String scriptId, Map<String, String> variables) {
         JsonObject script = loadScript(scriptId);
         if (script == null) {
-            source.sendFailure(Component.literal("Guardian script not found or invalid: " + scriptId));
+            source.sendFailure(Component.translatable("command.guardian_mod.script_not_found", scriptId));
             return 0;
         }
 
         int executed = runCommands(sourceForCommands(source), readCommands(script), variables);
         int result = executed;
-        source.sendSuccess(() -> Component.literal("Executed guardian script " + scriptId + " commands=" + result), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.script_executed", scriptId, result), true);
         return executed;
     }
 

@@ -50,14 +50,14 @@ public final class AltarRitualManager {
         AltarConfig config = readConfig();
         BlockPos corePos = findNearestCore(level, altarPos, config.radius());
         if (corePos == null) {
-            player.displayClientMessage(Component.literal("Рядом нет ядра алтаря"), true);
+            player.displayClientMessage(Component.translatable("message.guardian_mod.altar.no_core"), true);
             return InteractionResult.SUCCESS;
         }
 
         int current = GuardianPlayerUpgrades.get(player).get(type);
         int max = config.maxFor(type, GuardianWorldState.get(level).netherBossDefeated);
         if (current >= max) {
-            player.displayClientMessage(Component.literal("Достигнут максимум для текущей стадии"), true);
+            player.displayClientMessage(Component.translatable("message.guardian_mod.altar.stage_max"), true);
             return InteractionResult.SUCCESS;
         }
 
@@ -67,13 +67,13 @@ public final class AltarRitualManager {
         }
 
         if (!altar.getFragment().isEmpty() && !player.getUUID().equals(altar.getOwnerUuid())) {
-            player.displayClientMessage(Component.literal("Этот алтарь уже занят другим игроком"), true);
+            player.displayClientMessage(Component.translatable("message.guardian_mod.altar.occupied"), true);
             return InteractionResult.SUCCESS;
         }
 
         if (altar.getFragment().isEmpty()) {
             if (!AltarBlock.isGuardianFragment(heldStack)) {
-                player.displayClientMessage(Component.literal("Возьмите фрагмент в руку, чтобы выбрать стихию"), true);
+                player.displayClientMessage(Component.translatable("message.guardian_mod.altar.hold_fragment"), true);
                 return InteractionResult.SUCCESS;
             }
             altar.setFragment(heldStack.copyWithCount(1));
@@ -87,15 +87,15 @@ public final class AltarRitualManager {
         altar.setRitualTicks(0);
         level.sendBlockUpdated(altarPos, level.getBlockState(altarPos), level.getBlockState(altarPos), 3);
         SELECTED_ASPECTS.put(player.getUUID(), new SelectedAspect(level.dimension().identifier().toString(), corePos.immutable(), altarPos.immutable(), type));
-        player.displayClientMessage(Component.literal("Выбрана стихия: " + type.displayName()), true);
-        player.sendSystemMessage(Component.literal("Встаньте на altar_core и не сходите до завершения ритуала."));
+        player.displayClientMessage(Component.translatable("message.guardian_mod.altar.aspect_selected", Component.translatable(type.translationKey())), true);
+        player.sendSystemMessage(Component.translatable("message.guardian_mod.altar.stand_on_core"));
         return InteractionResult.SUCCESS;
     }
 
     public static InteractionResult tryActivateRitual(ServerLevel level, BlockPos corePos, ServerPlayer player, ItemStack heldStack) {
         SelectedAspect selected = SELECTED_ASPECTS.get(player.getUUID());
         if (selected == null || !selected.levelId.equals(level.dimension().identifier().toString()) || !selected.corePos.equals(corePos)) {
-            player.displayClientMessage(Component.literal("Сначала выберите стихию через altar_speed/protection/damage/recovery"), true);
+            player.displayClientMessage(Component.translatable("message.guardian_mod.altar.select_aspect_first"), true);
             return InteractionResult.SUCCESS;
         }
         startRitualIfPossible(level, player, selected);
@@ -129,7 +129,7 @@ public final class AltarRitualManager {
             if (!isStandingOnCore(level, player, ritual.corePos)
                     || player.distanceToSqr(Vec3.atCenterOf(ritual.altarPos)) > config.radiusSqr()) {
                 clearRitual(level, ritual);
-                player.displayClientMessage(Component.literal("Ритуал прерван"), true);
+                player.displayClientMessage(Component.translatable("message.guardian_mod.altar.interrupted"), true);
                 iterator.remove();
                 continue;
             }
@@ -155,7 +155,7 @@ public final class AltarRitualManager {
 
         AltarBlockEntity altar = altar(level, selected.altarPos);
         if (altar == null || altar.getFragment().isEmpty()) {
-            player.displayClientMessage(Component.literal("Возьмите фрагмент в руку, чтобы выбрать стихию"), true);
+            player.displayClientMessage(Component.translatable("message.guardian_mod.altar.hold_fragment"), true);
             SELECTED_ASPECTS.remove(player.getUUID());
             return;
         }
@@ -164,7 +164,7 @@ public final class AltarRitualManager {
         int current = GuardianPlayerUpgrades.get(player).get(selected.type);
         int max = config.maxFor(selected.type, GuardianWorldState.get(level).netherBossDefeated);
         if (current >= max) {
-            player.displayClientMessage(Component.literal("Достигнут максимум для текущей стадии"), true);
+            player.displayClientMessage(Component.translatable("message.guardian_mod.altar.stage_max"), true);
             return;
         }
 
@@ -172,7 +172,7 @@ public final class AltarRitualManager {
         altar.setRitualTicks(0);
         level.sendBlockUpdated(selected.altarPos, level.getBlockState(selected.altarPos), level.getBlockState(selected.altarPos), 3);
         ACTIVE_RITUALS.put(player.getUUID(), new ActiveRitual(selected.levelId, selected.corePos, selected.altarPos, selected.type, 0));
-        player.displayClientMessage(Component.literal("Ритуал начат"), true);
+        player.displayClientMessage(Component.translatable("message.guardian_mod.altar.started"), true);
     }
 
     private static void finishRitual(ServerLevel level, ServerPlayer player, ActiveRitual ritual, AltarConfig config) {
@@ -187,7 +187,7 @@ public final class AltarRitualManager {
         if (current >= max) {
             altar.setActive(false);
             altar.setRitualTicks(0);
-            player.displayClientMessage(Component.literal("Достигнут максимум для текущей стадии"), true);
+            player.displayClientMessage(Component.translatable("message.guardian_mod.altar.stage_max"), true);
             return;
         }
 
@@ -220,7 +220,7 @@ public final class AltarRitualManager {
     private static void sendStats(ServerPlayer player, AltarUpgradeType improved, AltarConfig config) {
         boolean stageTwo = player.level() instanceof ServerLevel level && GuardianWorldState.get(level).netherBossDefeated;
         GuardianPlayerUpgrades upgrades = GuardianPlayerUpgrades.get(player);
-        player.sendSystemMessage(Component.literal("Статистика алтаря:"));
+        player.sendSystemMessage(Component.translatable("message.guardian_mod.altar.stats_title"));
         sendStatLine(player, AltarUpgradeType.SPEED, upgrades.speed(), config.maxFor(AltarUpgradeType.SPEED, stageTwo), improved);
         sendStatLine(player, AltarUpgradeType.PROTECTION, upgrades.protection(), config.maxFor(AltarUpgradeType.PROTECTION, stageTwo), improved);
         sendStatLine(player, AltarUpgradeType.DAMAGE, upgrades.damage(), config.maxFor(AltarUpgradeType.DAMAGE, stageTwo), improved);
@@ -229,7 +229,9 @@ public final class AltarRitualManager {
 
     private static void sendStatLine(ServerPlayer player, AltarUpgradeType type, int current, int max, AltarUpgradeType improved) {
         boolean changed = type == improved;
-        Component line = Component.literal(type.displayName() + ": " + current + "/" + max + (changed ? " (+1)" : ""))
+        Component line = Component.empty()
+                .append(Component.translatable(type.translationKey()))
+                .append(": " + current + "/" + max + (changed ? " (+1)" : ""))
                 .withStyle(changed ? ChatFormatting.GREEN : ChatFormatting.GRAY);
         player.sendSystemMessage(line);
     }

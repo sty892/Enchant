@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShapeRenderer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -89,7 +90,9 @@ public final class TriggerAreaClient {
 
         if (usePressed && client.player.isHolding(ModItems.TRIGGER_REVEALER)) {
             revealEnabled = !revealEnabled;
-            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Trigger visibility " + (revealEnabled ? "enabled" : "disabled")), true);
+            client.player.displayClientMessage(Component.translatable(revealEnabled
+                    ? "message.guardian_mod.trigger_visibility.enabled"
+                    : "message.guardian_mod.trigger_visibility.disabled"), true);
         }
     }
 

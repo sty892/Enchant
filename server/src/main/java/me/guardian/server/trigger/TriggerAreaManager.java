@@ -79,19 +79,19 @@ public final class TriggerAreaManager {
 
         if (!second) {
             FIRST_POINTS.put(serverPlayer.getUUID(), pos.immutable());
-            serverPlayer.displayClientMessage(Component.literal("Trigger area first point set"), true);
+            serverPlayer.displayClientMessage(Component.translatable("message.guardian_mod.trigger.first_point_set"), true);
             return;
         }
 
         BlockPos first = FIRST_POINTS.remove(serverPlayer.getUUID());
         if (first == null) {
-            serverPlayer.displayClientMessage(Component.literal("Set the first trigger point with left click first"), true);
+            serverPlayer.displayClientMessage(Component.translatable("message.guardian_mod.trigger.set_first_first"), true);
             return;
         }
 
         TriggerArea area = new TriggerArea(UUID.randomUUID(), serverPlayer.level().dimension().identifier().toString(), first, pos);
         TriggerAreaState.get(serverPlayer.level()).put(area);
-        serverPlayer.displayClientMessage(Component.literal("Trigger area created"), true);
+        serverPlayer.displayClientMessage(Component.translatable("message.guardian_mod.trigger.created"), true);
         syncAll(serverPlayer.level().getServer());
     }
 
