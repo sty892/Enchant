@@ -3,12 +3,12 @@
   "minecraft:geometry": [
     {
       "description": {
-        "identifier": "geometry.guardian_mod.boss_overworld",
+        "identifier": "geometry.guardian_mod.boss_overworld_phase2",
         "texture_width": 256,
         "texture_height": 256,
-        "visible_bounds_width": 4,
-        "visible_bounds_height": 5.5,
-        "visible_bounds_offset": [0, 2.25, 0]
+        "visible_bounds_width": 4.5,
+        "visible_bounds_height": 5.8,
+        "visible_bounds_offset": [0, 2.35, 0]
       },
       "bones": [
         {"name": "body", "pivot": [0, 25, 0]},
@@ -80,6 +80,30 @@
           "cubes": [
             {"origin": [-6, 45.7, 3], "size": [12, 14, 0], "uv": [190, 9]},
             {"origin": [-7, 45.7, 2], "size": [12, 14, 0], "pivot": [-1, 45.7, 3], "rotation": [0, -90, 0], "uv": [190, 9]}
+          ]
+        },
+        {
+          "name": "phase2_shoulder_left",
+          "parent": "tors",
+          "pivot": [-12, 45, 2],
+          "cubes": [
+            {"origin": [-17, 43, -2], "size": [5, 8, 5], "uv": [98, 54]}
+          ]
+        },
+        {
+          "name": "phase2_shoulder_right",
+          "parent": "tors",
+          "pivot": [12, 45, 2],
+          "cubes": [
+            {"origin": [12, 43, -2], "size": [5, 8, 5], "uv": [98, 54]}
+          ]
+        },
+        {
+          "name": "phase2_back_stone",
+          "parent": "tors",
+          "pivot": [0, 44, 11],
+          "cubes": [
+            {"origin": [-7, 42, 10], "size": [14, 7, 4], "uv": [0, 100]}
           ]
         },
         {

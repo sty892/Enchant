@@ -31,8 +31,12 @@ public final class GuardianBossAi {
     }
 
     public static void triggerAttackAnimation(Mob mob) {
+        triggerAttackAnimation(mob, ATTACK_TRIGGER);
+    }
+
+    public static void triggerAttackAnimation(Mob mob, String triggerName) {
         if (mob instanceof GeoEntity geoEntity) {
-            geoEntity.triggerAnim(ATTACK_CONTROLLER, ATTACK_TRIGGER);
+            geoEntity.triggerAnim(ATTACK_CONTROLLER, triggerName);
         }
     }
 

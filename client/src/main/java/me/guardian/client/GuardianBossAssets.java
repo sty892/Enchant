@@ -15,6 +15,8 @@ public final class GuardianBossAssets {
     private static final Set<String> ANIMATION_ASSETS = new HashSet<>();
     private static final String[] BOSS_ASSET_NAMES = {
             "boss_overworld",
+            "boss_overworld_phase2",
+            "boss_overworld_phase3",
             "boss_nether",
             "boss_generic"
     };

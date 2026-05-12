@@ -4,8 +4,6 @@ import me.guardian.client.screen.TriggerAreaEditorScreen;
 import me.guardian.item.ModItems;
 import me.guardian.network.TriggerAreaPayloads;
 import me.guardian.trigger.TriggerArea;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -23,6 +21,8 @@ import java.util.Optional;
 
 public final class TriggerAreaClient {
     private static final List<TriggerArea> AREAS = new ArrayList<>();
+    private static final int MAX_GRID_OUTLINE_BLOCKS = 512;
+    private static final double OUTLINE_INFLATE = 0.012D;
     private static boolean revealEnabled;
     private static boolean useWasDown;
     private static boolean attackWasDown;
@@ -136,43 +136,34 @@ public final class TriggerAreaClient {
                 continue;
             }
             AABB box = new AABB(area.min.getX(), area.min.getY(), area.min.getZ(),
-                    area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D).inflate(0.03D);
-            renderFill(context, box, viewer);
-            ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.secondaryBlockOutline()),
-                    Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, 0xFFFFFFFF, 4.0F);
+                    area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D).inflate(OUTLINE_INFLATE);
+            renderBlockGrid(context, area, viewer);
+            renderOutline(context, box, viewer, 0xFFFFFFFF, 3.0F);
         }
     }
 
-    private static void renderFill(WorldRenderContext context, AABB box, Vec3 viewer) {
-        double minX = box.minX - viewer.x;
-        double minY = box.minY - viewer.y;
-        double minZ = box.minZ - viewer.z;
-        double maxX = box.maxX - viewer.x;
-        double maxY = box.maxY - viewer.y;
-        double maxZ = box.maxZ - viewer.z;
-        VertexConsumer buffer = context.consumers().getBuffer(RenderTypes.debugQuads());
-        PoseStack.Pose pose = context.matrices().last();
-        int color = 0x2855DFFF;
-        quad(buffer, pose, minX, minY, minZ, maxX, minY, minZ, maxX, maxY, minZ, minX, maxY, minZ, color);
-        quad(buffer, pose, maxX, minY, maxZ, minX, minY, maxZ, minX, maxY, maxZ, maxX, maxY, maxZ, color);
-        quad(buffer, pose, minX, minY, maxZ, minX, minY, minZ, minX, maxY, minZ, minX, maxY, maxZ, color);
-        quad(buffer, pose, maxX, minY, minZ, maxX, minY, maxZ, maxX, maxY, maxZ, maxX, maxY, minZ, color);
-        quad(buffer, pose, minX, minY, maxZ, maxX, minY, maxZ, maxX, minY, minZ, minX, minY, minZ, color);
-        quad(buffer, pose, minX, maxY, minZ, maxX, maxY, minZ, maxX, maxY, maxZ, minX, maxY, maxZ, color);
+    private static void renderBlockGrid(WorldRenderContext context, TriggerArea area, Vec3 viewer) {
+        int sizeX = area.max.getX() - area.min.getX() + 1;
+        int sizeY = area.max.getY() - area.min.getY() + 1;
+        int sizeZ = area.max.getZ() - area.min.getZ() + 1;
+        long blockCount = (long) sizeX * sizeY * sizeZ;
+        if (blockCount > MAX_GRID_OUTLINE_BLOCKS) {
+            return;
+        }
+
+        for (int x = area.min.getX(); x <= area.max.getX(); x++) {
+            for (int y = area.min.getY(); y <= area.max.getY(); y++) {
+                for (int z = area.min.getZ(); z <= area.max.getZ(); z++) {
+                    AABB blockBox = new AABB(x, y, z, x + 1.0D, y + 1.0D, z + 1.0D).inflate(OUTLINE_INFLATE);
+                    renderOutline(context, blockBox, viewer, 0xBFFFFFFF, 1.0F);
+                }
+            }
+        }
     }
 
-    private static void quad(VertexConsumer buffer, PoseStack.Pose pose,
-                             double x1, double y1, double z1, double x2, double y2, double z2,
-                             double x3, double y3, double z3, double x4, double y4, double z4,
-                             int color) {
-        vertex(buffer, pose, x1, y1, z1, color);
-        vertex(buffer, pose, x2, y2, z2, color);
-        vertex(buffer, pose, x3, y3, z3, color);
-        vertex(buffer, pose, x4, y4, z4, color);
-    }
-
-    private static void vertex(VertexConsumer buffer, PoseStack.Pose pose, double x, double y, double z, int color) {
-        buffer.addVertex(pose, (float) x, (float) y, (float) z).setColor(color);
+    private static void renderOutline(WorldRenderContext context, AABB box, Vec3 viewer, int color, float lineWidth) {
+        ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.secondaryBlockOutline()),
+                Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, color, lineWidth);
     }
 
     private static Vec3 center(TriggerArea area) {

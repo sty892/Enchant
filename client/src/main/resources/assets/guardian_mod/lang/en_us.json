@@ -29,6 +29,7 @@
   "block.guardian_mod.dimension_trigger": "Dimension Trigger",
   "block.guardian_mod.dimension_return_trigger": "Return Dimension Trigger",
   "entity.guardian_mod.boss_overworld": "Overworld Guardian",
+  "entity.guardian_mod.boss_overworld.phase": "Overworld Guardian - Phase %s",
   "entity.guardian_mod.boss_nether": "Nether Guardian",
   "entity.guardian_mod.boss_generic": "Guardian Boss",
   "dimension.guardian_mod.guardian_dimension": "Guardian Dimension",
