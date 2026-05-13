@@ -7,7 +7,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.BossEvent;
@@ -48,6 +47,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final String SPAWN_CONTROLLER_NAME = "Spawn";
     private static final String SPAWN_TRIGGER_NAME = "spawn";
     private static final String PHASE_SHIFT_TRIGGER = "phase_shift";
+    private static final String BOSS_BAR_ID_KEY = "BossBarId";
     private static final double PREFERRED_HOME_RADIUS = 16.0D;
     private static final double SOFT_RETURN_RADIUS = 19.0D;
     private static final double SOFT_RETURN_RADIUS_SQR = SOFT_RETURN_RADIUS * SOFT_RETURN_RADIUS;
@@ -64,11 +64,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private final Map<UUID, Float> damageContributors = new HashMap<>();
     private final OverworldGuardianThreatTable threatTable = new OverworldGuardianThreatTable();
     private final OverworldGuardianAttackController attackController = new OverworldGuardianAttackController(this);
-    private final ServerBossEvent bossEvent = new ServerBossEvent(
-            bossName(),
-            BossEvent.BossBarColor.GREEN,
-            BossEvent.BossBarOverlay.NOTCHED_6
-    );
+    private GuardianServerBossEvent bossEvent = createBossEvent(UUID.randomUUID());
     private OverworldGuardianPhase appliedPhase = OverworldGuardianPhase.ONE;
     private boolean spawnEventTriggered = false;
     private boolean deathEventTriggered = false;
@@ -187,6 +183,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     protected void addAdditionalSaveData(ValueOutput output) {
         super.addAdditionalSaveData(output);
         output.putInt("BossPhase", getBossPhase().id());
+        output.putString(BOSS_BAR_ID_KEY, bossEvent.getId().toString());
+        output.putBoolean("SpawnEventTriggered", spawnEventTriggered);
         if (spawnCenter != null) {
             output.putInt("SpawnCenterX", spawnCenter.getX());
             output.putInt("SpawnCenterY", spawnCenter.getY());
@@ -198,6 +196,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
         setBossPhase(OverworldGuardianPhase.byId(input.getIntOr("BossPhase", 1)));
+        this.bossEvent = createBossEvent(readBossBarId(input));
+        this.spawnEventTriggered = input.getBooleanOr("SpawnEventTriggered", false);
         if (input.getInt("SpawnCenterX").isPresent()
                 && input.getInt("SpawnCenterY").isPresent()
                 && input.getInt("SpawnCenterZ").isPresent()) {
@@ -245,6 +245,16 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         }
         double radius = PREFERRED_HOME_RADIUS + extraRadius;
         return entity.position().distanceToSqr(homeCenter()) <= radius * radius;
+    }
+
+    public void syncBossBarAfterRespawn(ServerPlayer oldPlayer, ServerPlayer newPlayer) {
+        boolean trackedOldPlayer = bossEvent.getPlayers().contains(oldPlayer);
+        if (trackedOldPlayer) {
+            bossEvent.removePlayer(oldPlayer);
+        }
+        if (newPlayer.level() == this.level() && isBossBarEligible(newPlayer)) {
+            bossEvent.addPlayer(newPlayer);
+        }
     }
 
     public LivingEntity peekCounterTarget(ServerLevel level) {
@@ -353,12 +363,13 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         bossEvent.setName(bossName());
         Set<ServerPlayer> eligiblePlayers = new HashSet<>();
         for (ServerPlayer player : level.players()) {
-            if (player.distanceToSqr(this) <= BOSS_BAR_RADIUS_SQR) {
+            if (isBossBarEligible(player)) {
                 eligiblePlayers.add(player);
             }
         }
         for (ServerPlayer player : Set.copyOf(bossEvent.getPlayers())) {
-            if (!eligiblePlayers.contains(player)) {
+            ServerPlayer currentPlayer = level.getServer().getPlayerList().getPlayer(player.getUUID());
+            if (currentPlayer != player || !eligiblePlayers.contains(player)) {
                 bossEvent.removePlayer(player);
             }
         }
@@ -371,6 +382,34 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     private void removeBossBarPlayers() {
         bossEvent.removeAllPlayers();
+    }
+
+    private boolean isBossBarEligible(ServerPlayer player) {
+        return player.isAlive()
+                && !player.isRemoved()
+                && player.level() == this.level()
+                && player.distanceToSqr(this) <= BOSS_BAR_RADIUS_SQR;
+    }
+
+    private static GuardianServerBossEvent createBossEvent(UUID id) {
+        return new GuardianServerBossEvent(
+                id,
+                bossName(),
+                BossEvent.BossBarColor.GREEN,
+                BossEvent.BossBarOverlay.NOTCHED_6
+        );
+    }
+
+    private static UUID readBossBarId(ValueInput input) {
+        return input.getString(BOSS_BAR_ID_KEY)
+                .flatMap(value -> {
+                    try {
+                        return java.util.Optional.of(UUID.fromString(value));
+                    } catch (IllegalArgumentException ignored) {
+                        return java.util.Optional.empty();
+                    }
+                })
+                .orElseGet(UUID::randomUUID);
     }
 
     private static Component bossName() {

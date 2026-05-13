@@ -2,6 +2,7 @@ package me.guardian.server;
 
 import me.guardian.GuardianMod;
 import me.guardian.config.ConfigManager;
+import me.guardian.entity.OverworldGuardianEntity;
 import me.guardian.event.GuardianBossEventHooks;
 import me.guardian.event.GuardianAltarRitualHooks;
 import me.guardian.event.GuardianEventExecutor;
@@ -19,9 +20,11 @@ import me.guardian.server.event.ScriptRunner;
 import me.guardian.server.restriction.DiamondRestrictionHandler;
 import me.guardian.server.trigger.TriggerAreaManager;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.server.level.ServerLevel;
 
 public final class GuardianModServer implements ModInitializer {
@@ -47,6 +50,15 @@ public final class GuardianModServer implements ModInitializer {
             }
         });
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> GuardianPlayerUpgrades.reapplyAll(handler.player));
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            for (ServerLevel level : newPlayer.level().getServer().getAllLevels()) {
+                for (Entity entity : level.getAllEntities()) {
+                    if (entity instanceof OverworldGuardianEntity guardian) {
+                        guardian.syncBossBarAfterRespawn(oldPlayer, newPlayer);
+                    }
+                }
+            }
+        });
 
         ServerPlayNetworking.registerGlobalReceiver(HandshakeC2SPayload.TYPE, (payload, context) -> {
             context.responseSender().sendPacket(new HandshakeOkS2CPayload());
