@@ -517,7 +517,7 @@ public final class OverworldGuardianAttackController {
 
     private void punishShield(ServerLevel level, ServerPlayer target) {
         ItemStack shield = target.getItemBlockingWith();
-        if (!shield.is(Items.SHIELD)) {
+        if (shield == null || !shield.is(Items.SHIELD)) {
             shield = target.getMainHandItem().is(Items.SHIELD) ? target.getMainHandItem() : target.getOffhandItem();
         }
         if (shield.is(Items.SHIELD)) {
@@ -536,7 +536,8 @@ public final class OverworldGuardianAttackController {
     }
 
     private boolean isHoldingOrBlockingWithShield(ServerPlayer player) {
-        return player.getItemBlockingWith().is(Items.SHIELD)
+        ItemStack blockingItem = player.getItemBlockingWith();
+        return blockingItem != null && blockingItem.is(Items.SHIELD)
                 || player.getMainHandItem().is(Items.SHIELD)
                 || player.getOffhandItem().is(Items.SHIELD);
     }
