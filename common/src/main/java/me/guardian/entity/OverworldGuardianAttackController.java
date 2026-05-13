@@ -33,6 +33,9 @@ public final class OverworldGuardianAttackController {
             Blocks.STONE.defaultBlockState()
     );
     private static final DustParticleOptions WHITE_DUST = new DustParticleOptions(0xF4FFFF, 1.2F);
+    private static final double COUNTER_LEAP_LAUNCH_Y_VELOCITY = 1.35D;
+    private static final double SHOCKWAVE_HEIGHT_OFFSET = 0.9D;
+    private static final double SHOCKWAVE_VERTICAL_HALF_THICKNESS = 0.35D;
 
     private final OverworldGuardianEntity boss;
     private final Attack[] attacks;
@@ -584,7 +587,7 @@ public final class OverworldGuardianAttackController {
         Vec3 horizontal = toTarget.normalize().scale(speed);
         double yVelocity;
         if (tick == 13) {
-            yVelocity = 0.95D;
+            yVelocity = COUNTER_LEAP_LAUNCH_Y_VELOCITY;
         } else if (horizontalDistance <= 2.5D) {
             yVelocity = Math.min(boss.getDeltaMovement().y, -0.7D);
         } else {
@@ -663,7 +666,7 @@ public final class OverworldGuardianAttackController {
             double angle = (Math.PI * 2.0D) * i / points;
             level.sendParticles(WHITE_DUST,
                     center.x + Math.cos(angle) * radius,
-                    boss.getY() + 0.15D,
+                    shockwaveY(),
                     center.z + Math.sin(angle) * radius,
                     1, 0.02D, 0.01D, 0.02D, 0.0D);
         }
@@ -676,9 +679,10 @@ public final class OverworldGuardianAttackController {
         telegraphCircle(level, radius, Math.max(16, (int) (radius * 8.0D)));
         double inner = radius - 0.75D;
         double outer = radius + 0.75D;
+        double waveY = shockwaveY();
         for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 18.0D, 8)) {
             double horizontalDistance = horizontalDistance(player.position(), boss.position());
-            if (horizontalDistance < inner || horizontalDistance > outer || !player.onGround()) {
+            if (horizontalDistance < inner || horizontalDistance > outer || !intersectsShockwaveHeight(player, waveY)) {
                 continue;
             }
             player.hurtServer(level, boss.damageSources().mobAttack(boss), boss.getBossPhase().id() == 3 ? 12.0F : 8.0F);
@@ -688,6 +692,15 @@ public final class OverworldGuardianAttackController {
                 player.setDeltaMovement(away.normalize().scale(0.9D).add(0.0D, 0.45D, 0.0D));
             }
         }
+    }
+
+    private double shockwaveY() {
+        return boss.getY() + SHOCKWAVE_HEIGHT_OFFSET;
+    }
+
+    private boolean intersectsShockwaveHeight(ServerPlayer player, double waveY) {
+        return player.getBoundingBox().minY <= waveY + SHOCKWAVE_VERTICAL_HALF_THICKNESS
+                && player.getBoundingBox().maxY >= waveY - SHOCKWAVE_VERTICAL_HALF_THICKNESS;
     }
 
     private void renderFissureLine(ServerLevel level, Vec3 target, boolean heavy) {
