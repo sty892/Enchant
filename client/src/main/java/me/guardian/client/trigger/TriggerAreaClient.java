@@ -13,7 +13,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShapeRenderer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 
@@ -108,6 +111,9 @@ public final class TriggerAreaClient {
                 if (!area.dimension.equals(dimension) || !contains(area, point)) {
                     continue;
                 }
+                if (!hasClearLineOfSight(client, eye, point)) {
+                    continue;
+                }
                 if (distance < bestDistance) {
                     best = area;
                     bestDistance = distance;
@@ -115,6 +121,18 @@ public final class TriggerAreaClient {
             }
         }
         return Optional.ofNullable(best);
+    }
+
+    private static boolean hasClearLineOfSight(Minecraft client, Vec3 eye, Vec3 point) {
+        BlockHitResult hit = client.level.clip(new ClipContext(
+                eye,
+                point,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                client.player
+        ));
+        return hit.getType() == HitResult.Type.MISS
+                || hit.getLocation().distanceToSqr(eye) + 1.0E-4D >= point.distanceToSqr(eye);
     }
 
     private static boolean contains(TriggerArea area, Vec3 point) {
