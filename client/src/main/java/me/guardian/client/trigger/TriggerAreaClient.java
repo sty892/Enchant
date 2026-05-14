@@ -137,9 +137,10 @@ public final class TriggerAreaClient {
             }
             AABB box = new AABB(area.min.getX(), area.min.getY(), area.min.getZ(),
                     area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D).inflate(0.03D);
-            boolean alreadyTriggered = area.runOnce && area.runCount > 0;
-            int fillColor = area.isPrivate() ? 0x35FF3030 : alreadyTriggered ? 0x35206020 : 0x2830D060;
-            int outlineColor = area.isPrivate() ? 0xFFFF4040 : alreadyTriggered ? 0xFF0A5A20 : 0xFF40FF60;
+            boolean oneShotReady = area.runOnce && area.runCount <= 0;
+            boolean oneShotTriggered = area.runOnce && area.runCount > 0;
+            int fillColor = area.isPrivate() ? 0x35FF3030 : oneShotTriggered ? 0x35206020 : oneShotReady ? 0x2830D060 : 0x2855DFFF;
+            int outlineColor = area.isPrivate() ? 0xFFFF4040 : oneShotTriggered ? 0xFF0A5A20 : oneShotReady ? 0xFF40FF60 : 0xFFFFFFFF;
             renderFill(context, box, viewer, fillColor);
             ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.secondaryBlockOutline()),
                     Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, outlineColor, 4.0F);

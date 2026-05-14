@@ -76,7 +76,9 @@ public final class TriggerAreaEditorScreen extends Screen {
         int bottom = Math.min(height - 30, y + 18);
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> save()).bounds(left, bottom, 148, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), button -> onClose()).bounds(left + 158, bottom, 148, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.trigger.reset"), button -> reset()).bounds(left + 316, bottom, 148, 20).build());
+        if (area.runOnce) {
+            addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.trigger.reset"), button -> reset()).bounds(left + 316, bottom, 148, 20).build());
+        }
         addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.delete"), button -> delete()).bounds(left + panelWidth - 148, bottom, 148, 20).build());
         updateLabels();
     }
