@@ -16,7 +16,9 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class SummonedBlockCleaner {
-    private static final int CLEANUP_TICKS = 5 * 60 * 20;
+    private static final int BREAK_DELAY_TICKS = 10 * 20;
+    private static final int NORMAL_BREAK_TICKS = 60 * 20;
+    private static final int STACKED_BREAK_TICKS = 30 * 20;
     private static final Map<UUID, PendingBlock> PENDING_FALLING_BLOCKS = new HashMap<>();
     private static final Map<BlockKey, PlacedBlock> PLACED_BLOCKS = new HashMap<>();
     private static boolean initialized;
@@ -82,32 +84,53 @@ public final class SummonedBlockCleaner {
             BlockKey key = entry.getKey();
             PlacedBlock placed = entry.getValue();
             ServerLevel level = findLevel(server, key.levelId);
-            if (level == null || !level.getBlockState(key.pos).is(placed.state.getBlock())) {
+            if (level == null || !matchesTrackedBlock(level.getBlockState(key.pos), placed.state)) {
                 clearBreakProgress(level, placed, key.pos);
                 iterator.remove();
                 continue;
             }
 
             int age = server.getTickCount() - placed.placedTick;
-            if (age >= CLEANUP_TICKS) {
+            if (age < BREAK_DELAY_TICKS) {
+                continue;
+            }
+
+            int breakTicks = breakTicksFor(key, server.getTickCount());
+            int breakAge = age - BREAK_DELAY_TICKS;
+            if (breakAge >= breakTicks) {
                 clearBreakProgress(level, placed, key.pos);
                 level.setBlock(key.pos, Blocks.AIR.defaultBlockState(), 3);
                 iterator.remove();
                 continue;
             }
 
-            int progress = Math.min(9, Math.max(0, age * 10 / CLEANUP_TICKS));
+            int progress = Math.min(9, Math.max(0, breakAge * 10 / breakTicks));
             level.destroyBlockProgress(placed.breakAnimationId, key.pos, progress);
         }
     }
 
     private static BlockPos findPlacedBlock(ServerLevel level, PendingBlock pending) {
         for (BlockPos candidate : new BlockPos[]{pending.lastPos, pending.lastPos.below(), pending.lastPos.above()}) {
-            if (level.getBlockState(candidate).is(pending.state.getBlock())) {
+            if (matchesTrackedBlock(level.getBlockState(candidate), pending.state)) {
                 return candidate;
             }
         }
         return null;
+    }
+
+    private static int breakTicksFor(BlockKey key, int currentTick) {
+        PlacedBlock below = PLACED_BLOCKS.get(new BlockKey(key.levelId, key.pos.below()));
+        if (below != null && currentTick - below.placedTick >= BREAK_DELAY_TICKS) {
+            return STACKED_BREAK_TICKS;
+        }
+        return NORMAL_BREAK_TICKS;
+    }
+
+    private static boolean matchesTrackedBlock(BlockState current, BlockState tracked) {
+        if (current.is(tracked.getBlock())) {
+            return true;
+        }
+        return tracked.is(Blocks.DIRT) && current.is(Blocks.GRASS_BLOCK);
     }
 
     private static void clearBreakProgress(ServerLevel level, PlacedBlock placed, BlockPos pos) {
