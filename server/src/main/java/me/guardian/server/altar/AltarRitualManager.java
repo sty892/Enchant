@@ -94,9 +94,9 @@ public final class AltarRitualManager {
     }
 
     public static InteractionResult tryActivateRitual(ServerLevel level, BlockPos corePos, ServerPlayer player, ItemStack heldStack) {
+        sendStats(player);
         SelectedAspect selected = SELECTED_ASPECTS.get(player.getUUID());
         if (selected == null || !selected.levelId.equals(level.dimension().identifier().toString()) || !selected.corePos.equals(corePos)) {
-            player.displayClientMessage(Component.translatable("message.guardian_mod.altar.select_aspect_first"), true);
             return InteractionResult.SUCCESS;
         }
         startRitualIfPossible(level, player, selected);
