@@ -31,8 +31,10 @@ import java.util.UUID;
 
 public final class AltarRitualManager {
     private static final Gson GSON = new Gson();
+    private static final int STATS_COOLDOWN_TICKS = 3 * 20;
     private static final Map<UUID, SelectedAspect> SELECTED_ASPECTS = new HashMap<>();
     private static final Map<UUID, ActiveRitual> ACTIVE_RITUALS = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_STATS_TICKS = new HashMap<>();
     private static AltarConfig cachedConfig;
 
     private AltarRitualManager() {
@@ -94,7 +96,7 @@ public final class AltarRitualManager {
     }
 
     public static InteractionResult tryActivateRitual(ServerLevel level, BlockPos corePos, ServerPlayer player, ItemStack heldStack) {
-        sendStats(player);
+        sendStatsIfReady(level, player);
         SelectedAspect selected = SELECTED_ASPECTS.get(player.getUUID());
         if (selected == null || !selected.levelId.equals(level.dimension().identifier().toString()) || !selected.corePos.equals(corePos)) {
             return InteractionResult.SUCCESS;
@@ -216,6 +218,16 @@ public final class AltarRitualManager {
 
     public static void sendStats(ServerPlayer player) {
         sendStats(player, null, readConfig());
+    }
+
+    private static void sendStatsIfReady(ServerLevel level, ServerPlayer player) {
+        int now = level.getServer().getTickCount();
+        Integer lastTick = LAST_STATS_TICKS.get(player.getUUID());
+        if (lastTick != null && now - lastTick < STATS_COOLDOWN_TICKS) {
+            return;
+        }
+        LAST_STATS_TICKS.put(player.getUUID(), now);
+        sendStats(player);
     }
 
     private static void sendStats(ServerPlayer player, AltarUpgradeType improved, AltarConfig config) {
