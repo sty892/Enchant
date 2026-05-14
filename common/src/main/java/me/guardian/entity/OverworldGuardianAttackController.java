@@ -34,7 +34,7 @@ public final class OverworldGuardianAttackController {
     );
     private static final DustParticleOptions WHITE_DUST = new DustParticleOptions(0xF4FFFF, 1.2F);
     private static final double COUNTER_LEAP_LAUNCH_Y_VELOCITY = 1.35D;
-    private static final double SHOCKWAVE_HEIGHT_OFFSET = 0.9D;
+    private static final double SHOCKWAVE_HEIGHT_OFFSET = 0.15D;
     private static final double SHOCKWAVE_VERTICAL_HALF_THICKNESS = 0.35D;
 
     private final OverworldGuardianEntity boss;
@@ -695,7 +695,7 @@ public final class OverworldGuardianAttackController {
     }
 
     private double shockwaveY() {
-        return boss.getY() + SHOCKWAVE_HEIGHT_OFFSET;
+        return boss.getBlockY() + SHOCKWAVE_HEIGHT_OFFSET;
     }
 
     private boolean intersectsShockwaveHeight(ServerPlayer player, double waveY) {

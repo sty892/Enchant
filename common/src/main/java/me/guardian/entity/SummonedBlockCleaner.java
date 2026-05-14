@@ -33,7 +33,7 @@ public final class SummonedBlockCleaner {
     }
 
     public static void track(FallingBlockEntity fallingBlock, ServerLevel level) {
-        fallingBlock.disableDrop();
+        fallingBlock.dropItem = false;
         PENDING_FALLING_BLOCKS.put(fallingBlock.getUUID(), new PendingBlock(
                 level.dimension().identifier().toString(),
                 fallingBlock.blockPosition().immutable(),
