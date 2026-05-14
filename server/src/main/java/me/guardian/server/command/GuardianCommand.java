@@ -24,6 +24,7 @@ import me.guardian.server.boss.BossEventManager;
 import me.guardian.server.event.GuardianJsonEventActions;
 import me.guardian.server.event.KeyFoundEventHandler;
 import me.guardian.server.event.ScriptRunner;
+import me.guardian.server.restriction.DiamondRestrictionHandler;
 import me.guardian.server.state.GuardianWorldState;
 import me.guardian.server.structure.StructureSpawner;
 import me.guardian.server.trigger.TriggerAreaManager;
@@ -250,24 +251,22 @@ public final class GuardianCommand {
     private static int printState(CommandSourceStack source) {
         GuardianWorldState state = GuardianWorldState.get(source.getLevel());
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.state",
-                state.overworldBossDefeated, state.netherBossDefeated), false);
+                state.isOverworldBossDefeated(), state.isNetherBossDefeated()), false);
         return 1;
     }
 
     private static int resetState(CommandSourceStack source) {
         GuardianWorldState state = GuardianWorldState.get(source.getLevel());
-        state.overworldBossDefeated = false;
-        state.netherBossDefeated = false;
-        state.setDirty();
+        state.setOverworldBossDefeated(false);
+        state.setNetherBossDefeated(false);
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.state_reset"), true);
         return 1;
     }
 
     private static int setStage(CommandSourceStack source, int stage) {
         GuardianWorldState state = GuardianWorldState.get(source.getLevel());
-        state.overworldBossDefeated = stage >= 1;
-        state.netherBossDefeated = stage >= 2;
-        state.setDirty();
+        state.setOverworldBossDefeated(stage >= 1);
+        state.setNetherBossDefeated(stage >= 2);
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.stage_forced", stage), true);
         return 1;
     }
@@ -275,6 +274,8 @@ public final class GuardianCommand {
     private static int reload(CommandSourceStack source) {
         ConfigManager.initialize();
         BossEventManager.reload();
+        AltarRitualManager.invalidateConfigCache();
+        DiamondRestrictionHandler.reloadConfig();
         source.getServer().reloadResources(source.getServer().getPackRepository().getSelectedIds());
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.configs_reloaded"), true);
         return 1;
@@ -456,6 +457,7 @@ public final class GuardianCommand {
         Set<UUID> whitelist = readWhitelist(config);
         whitelist.add(uuid);
         writeWhitelist(config, whitelist);
+        DiamondRestrictionHandler.reloadConfig();
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.diamond_whitelist_added", uuid.toString()), true);
         return 1;
     }
@@ -486,6 +488,7 @@ public final class GuardianCommand {
         Set<UUID> whitelist = readWhitelist(config);
         boolean removed = whitelist.remove(uuid);
         writeWhitelist(config, whitelist);
+        DiamondRestrictionHandler.reloadConfig();
         source.sendSuccess(() -> Component.translatable(removed
                 ? "command.guardian_mod.diamond_whitelist_removed"
                 : "command.guardian_mod.diamond_whitelist_missing", uuid.toString()), true);

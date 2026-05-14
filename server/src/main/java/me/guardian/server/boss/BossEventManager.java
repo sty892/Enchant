@@ -29,7 +29,7 @@ public class BossEventManager {
         loadBossConfig("overworld", "boss_overworld.json");
         loadBossConfig("nether", "boss_nether.json");
         loadBossConfig("generic", "boss_generic.json");
-        GuardianMod.LOGGER.info("BossEventManager initialized with " + BOSS_CONFIGS.size() + " boss configurations.");
+        GuardianMod.LOGGER.info("BossEventManager initialized with {} boss configurations.", BOSS_CONFIGS.size());
     }
 
     private static void loadBossConfig(String key, String fileName) {
@@ -37,9 +37,9 @@ public class BossEventManager {
             String json = ConfigLoader.read(fileName);
             BOSS_CONFIGS.put(key, GSON.fromJson(json, JsonObject.class));
         } catch (IOException e) {
-            GuardianMod.LOGGER.warn("Failed to load boss config (might be missing): " + fileName);
+            GuardianMod.LOGGER.warn("Failed to load boss config (might be missing): {}", fileName);
         } catch (Exception e) {
-            GuardianMod.LOGGER.error("Failed to parse boss config: " + fileName, e);
+            GuardianMod.LOGGER.error("Failed to parse boss config: {}", fileName, e);
         }
     }
 

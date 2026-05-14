@@ -75,8 +75,7 @@ public final class KeyFoundEventHandler {
             int currentCount = countItem(player, itemId);
             int previousCount = previousCounts.getOrDefault(itemId, currentCount);
             GuardianWorldState state = GuardianWorldState.get(player.level());
-            if (currentCount > previousCount && state.foundKeys.add(itemId.toString())) {
-                state.setDirty();
+            if (currentCount > previousCount && state.addFoundKey(itemId.toString())) {
                 runFoundEvent(player, keyConfig);
             }
             previousCounts.put(itemId, currentCount);
@@ -85,9 +84,7 @@ public final class KeyFoundEventHandler {
 
     public static int resetFoundKeys(MinecraftServer server) {
         GuardianWorldState state = GuardianWorldState.get(server.overworld());
-        int count = state.foundKeys.size();
-        state.foundKeys.clear();
-        state.setDirty();
+        int count = state.clearFoundKeys();
         KNOWN_COUNTS.clear();
         return count;
     }

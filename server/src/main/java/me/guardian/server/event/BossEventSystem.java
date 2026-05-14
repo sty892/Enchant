@@ -29,10 +29,11 @@ public class BossEventSystem {
 
         Map<String, String> variables = variables(source);
         ScriptRunner.runInlineCommands(level, center, source, eventData, variables);
-        if (eventData.has("script") && eventData.get("script").isJsonPrimitive()) {
-            ScriptRunner.runScript(level, center, source, eventData.get("script").getAsString(), variables);
-        }
-        if (eventData.has("script_id") && eventData.get("script_id").isJsonPrimitive()) {
+        if (eventData.has("script")) {
+            if (eventData.get("script").isJsonPrimitive()) {
+                ScriptRunner.runScript(level, center, source, eventData.get("script").getAsString(), variables);
+            }
+        } else if (eventData.has("script_id") && eventData.get("script_id").isJsonPrimitive()) {
             ScriptRunner.runScript(level, center, source, eventData.get("script_id").getAsString(), variables);
         }
 
@@ -59,16 +60,14 @@ public class BossEventSystem {
         if (eventData.has("set_flag")) {
             String flag = eventData.get("set_flag").getAsString();
             GuardianWorldState state = GuardianWorldState.get(level);
-            if (flag.equals("overworldBossDefeated")) state.overworldBossDefeated = true;
-            else if (flag.equals("netherBossDefeated")) state.netherBossDefeated = true;
-            state.setDirty();
+            if (flag.equals("overworldBossDefeated")) state.setOverworldBossDefeated(true);
+            else if (flag.equals("netherBossDefeated")) state.setNetherBossDefeated(true);
         }
 
         // allow_diamonds
         if (eventData.has("allow_diamonds") && eventData.get("allow_diamonds").getAsBoolean()) {
             GuardianWorldState state = GuardianWorldState.get(level);
-            state.overworldBossDefeated = true;
-            state.setDirty();
+            state.setOverworldBossDefeated(true);
         }
 
         // broadcast_title
@@ -182,7 +181,6 @@ public class BossEventSystem {
 
     private static void broadcastTitle(ServerLevel level, String title) {
         Component component = Component.literal(title);
-        level.getServer().getPlayerList().broadcastSystemMessage(component, false);
         ClientboundSetTitleTextPacket packet = new ClientboundSetTitleTextPacket(component);
         for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
             player.connection.send(packet);

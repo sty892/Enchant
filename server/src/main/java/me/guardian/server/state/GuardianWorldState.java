@@ -25,9 +25,9 @@ public class GuardianWorldState extends SavedData {
             null
     );
 
-    public boolean overworldBossDefeated = false;
-    public boolean netherBossDefeated = false;
-    public final Set<String> foundKeys = new HashSet<>();
+    private boolean overworldBossDefeated = false;
+    private boolean netherBossDefeated = false;
+    private final Set<String> foundKeys = new HashSet<>();
 
     public static GuardianWorldState get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(TYPE);
@@ -45,5 +45,44 @@ public class GuardianWorldState extends SavedData {
         this.overworldBossDefeated = overworldBossDefeated;
         this.netherBossDefeated = netherBossDefeated;
         this.foundKeys.addAll(foundKeys);
+    }
+
+    public boolean isOverworldBossDefeated() {
+        return overworldBossDefeated;
+    }
+
+    public boolean isNetherBossDefeated() {
+        return netherBossDefeated;
+    }
+
+    public Set<String> getFoundKeys() {
+        return Set.copyOf(foundKeys);
+    }
+
+    public void setOverworldBossDefeated(boolean value) {
+        overworldBossDefeated = value;
+        setDirty();
+    }
+
+    public void setNetherBossDefeated(boolean value) {
+        netherBossDefeated = value;
+        setDirty();
+    }
+
+    public boolean addFoundKey(String key) {
+        boolean added = foundKeys.add(key);
+        if (added) {
+            setDirty();
+        }
+        return added;
+    }
+
+    public int clearFoundKeys() {
+        int count = foundKeys.size();
+        if (count > 0) {
+            foundKeys.clear();
+            setDirty();
+        }
+        return count;
     }
 }

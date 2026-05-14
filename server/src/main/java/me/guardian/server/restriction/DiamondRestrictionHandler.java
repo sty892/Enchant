@@ -37,13 +37,19 @@ public final class DiamondRestrictionHandler {
             Identifier.withDefaultNamespace("story/mine_diamond"),
             Identifier.withDefaultNamespace("story/shiny_gear")
     };
+    private static volatile GuardianConfig cachedConfig;
 
     private DiamondRestrictionHandler() {
     }
 
     public static void initialize() {
+        reloadConfig();
         PlayerBlockBreakEvents.BEFORE.register(DiamondRestrictionHandler::beforeBlockBreak);
         ServerTickEvents.END_SERVER_TICK.register(DiamondRestrictionHandler::onServerTick);
+    }
+
+    public static void reloadConfig() {
+        cachedConfig = GuardianConfig.load();
     }
 
     private static boolean beforeBlockBreak(Level world, Player player, net.minecraft.core.BlockPos pos, BlockState state, net.minecraft.world.level.block.entity.BlockEntity blockEntity) {
@@ -73,11 +79,15 @@ public final class DiamondRestrictionHandler {
     }
 
     private static boolean isRestricted(ServerLevel level, UUID playerUuid) {
-        GuardianConfig config = GuardianConfig.load();
+        GuardianConfig config = cachedConfig;
+        if (config == null) {
+            reloadConfig();
+            config = cachedConfig;
+        }
         if (!config.diamondRestrictionEnabled || config.whitelist.contains(playerUuid)) {
             return false;
         }
-        return !GuardianWorldState.get(level).overworldBossDefeated;
+        return !GuardianWorldState.get(level).isOverworldBossDefeated();
     }
 
     private static void removeDiamondItems(ServerPlayer player) {

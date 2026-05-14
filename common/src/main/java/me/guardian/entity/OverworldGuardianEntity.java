@@ -274,13 +274,12 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         if (getBossPhase().id() < 2 || unansweredHits < 3 || counterTargetId == null) {
             return null;
         }
-        for (Entity entity : level.getAllEntities()) {
-            if (counterTargetId.equals(entity.getUUID()) && entity instanceof LivingEntity living && living.isAlive()) {
-                if (consume) {
-                    unansweredHits = 0;
-                }
-                return living;
+        Entity entity = level.getEntity(counterTargetId);
+        if (entity instanceof LivingEntity living && living.isAlive()) {
+            if (consume) {
+                unansweredHits = 0;
             }
+            return living;
         }
         if (consume) {
             unansweredHits = 0;
@@ -359,8 +358,6 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     private void tickBossBar(ServerLevel level) {
         bossEvent.setProgress(Math.max(0.0F, this.getHealth() / this.getMaxHealth()));
-        bossEvent.setOverlay(BossEvent.BossBarOverlay.NOTCHED_6);
-        bossEvent.setName(bossName());
         Set<ServerPlayer> eligiblePlayers = new HashSet<>();
         for (ServerPlayer player : level.players()) {
             if (isBossBarEligible(player)) {

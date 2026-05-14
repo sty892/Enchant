@@ -563,14 +563,13 @@ public final class OverworldGuardianAttackController {
         if (distantTargetTicks < 20 * 20 || distantTargetId == null) {
             return null;
         }
-        for (Entity entity : level.getAllEntities()) {
-            if (distantTargetId.equals(entity.getUUID()) && entity instanceof LivingEntity living && living.isAlive()) {
-                if (consume) {
-                    distantTargetId = null;
-                    distantTargetTicks = 0;
-                }
-                return living;
+        Entity entity = level.getEntity(distantTargetId);
+        if (entity instanceof LivingEntity living && living.isAlive()) {
+            if (consume) {
+                distantTargetId = null;
+                distantTargetTicks = 0;
             }
+            return living;
         }
         distantTargetId = null;
         distantTargetTicks = 0;

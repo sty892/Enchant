@@ -33,6 +33,7 @@ public final class AltarRitualManager {
     private static final Gson GSON = new Gson();
     private static final Map<UUID, SelectedAspect> SELECTED_ASPECTS = new HashMap<>();
     private static final Map<UUID, ActiveRitual> ACTIVE_RITUALS = new HashMap<>();
+    private static AltarConfig cachedConfig;
 
     private AltarRitualManager() {
     }
@@ -55,7 +56,7 @@ public final class AltarRitualManager {
         }
 
         int current = GuardianPlayerUpgrades.get(player).get(type);
-        int max = config.maxFor(type, GuardianWorldState.get(level).netherBossDefeated);
+        int max = config.maxFor(type, GuardianWorldState.get(level).isNetherBossDefeated());
         if (current >= max) {
             player.displayClientMessage(Component.translatable("message.guardian_mod.altar.stage_max"), true);
             return InteractionResult.SUCCESS;
@@ -162,7 +163,7 @@ public final class AltarRitualManager {
 
         AltarConfig config = readConfig();
         int current = GuardianPlayerUpgrades.get(player).get(selected.type);
-        int max = config.maxFor(selected.type, GuardianWorldState.get(level).netherBossDefeated);
+        int max = config.maxFor(selected.type, GuardianWorldState.get(level).isNetherBossDefeated());
         if (current >= max) {
             player.displayClientMessage(Component.translatable("message.guardian_mod.altar.stage_max"), true);
             return;
@@ -183,7 +184,7 @@ public final class AltarRitualManager {
         }
 
         int current = GuardianPlayerUpgrades.get(player).get(ritual.type);
-        int max = config.maxFor(ritual.type, GuardianWorldState.get(level).netherBossDefeated);
+        int max = config.maxFor(ritual.type, GuardianWorldState.get(level).isNetherBossDefeated());
         if (current >= max) {
             altar.setActive(false);
             altar.setRitualTicks(0);
@@ -218,7 +219,7 @@ public final class AltarRitualManager {
     }
 
     private static void sendStats(ServerPlayer player, AltarUpgradeType improved, AltarConfig config) {
-        boolean stageTwo = player.level() instanceof ServerLevel level && GuardianWorldState.get(level).netherBossDefeated;
+        boolean stageTwo = player.level() instanceof ServerLevel level && GuardianWorldState.get(level).isNetherBossDefeated();
         GuardianPlayerUpgrades upgrades = GuardianPlayerUpgrades.get(player);
         player.sendSystemMessage(Component.translatable("message.guardian_mod.altar.stats_title"));
         sendStatLine(player, AltarUpgradeType.SPEED, upgrades.speed(), config.maxFor(AltarUpgradeType.SPEED, stageTwo), improved);
@@ -298,13 +299,21 @@ public final class AltarRitualManager {
     }
 
     private static AltarConfig readConfig() {
+        if (cachedConfig != null) {
+            return cachedConfig;
+        }
         try {
             JsonObject root = GSON.fromJson(ConfigManager.readRaw("altar_config.json"), JsonObject.class);
-            return AltarConfig.from(root);
+            cachedConfig = AltarConfig.from(root);
         } catch (IOException | RuntimeException e) {
             GuardianMod.LOGGER.warn("Failed to read altar_config.json, using defaults", e);
-            return AltarConfig.defaults();
+            cachedConfig = AltarConfig.defaults();
         }
+        return cachedConfig;
+    }
+
+    public static void invalidateConfigCache() {
+        cachedConfig = null;
     }
 
     private static ServerLevel findLevel(MinecraftServer server, String levelId) {
