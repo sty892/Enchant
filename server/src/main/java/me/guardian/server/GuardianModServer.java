@@ -3,6 +3,7 @@ package me.guardian.server;
 import me.guardian.GuardianMod;
 import me.guardian.config.ConfigManager;
 import me.guardian.entity.OverworldGuardianEntity;
+import me.guardian.entity.SummonedBlockCleaner;
 import me.guardian.event.GuardianBossEventHooks;
 import me.guardian.event.GuardianAltarRitualHooks;
 import me.guardian.event.GuardianEventExecutor;
@@ -37,6 +38,7 @@ public final class GuardianModServer implements ModInitializer {
         KeyFoundEventHandler.initialize();
         DiamondRestrictionHandler.initialize();
         TriggerAreaManager.initialize();
+        SummonedBlockCleaner.initialize();
         AltarRitualManager.initialize();
         GuardianCommand.initialize();
         GuardianAltarRitualHooks.setActivationHook(AltarRitualManager::tryActivateRitual);

@@ -655,6 +655,7 @@ public final class OverworldGuardianAttackController {
         FallingBlockEntity fallingBlock = FallingBlockEntity.fall(level, start, state);
         boolean stone = state.is(Blocks.STONE);
         fallingBlock.setHurtsEntities(stone ? 9.0F : 6.0F + boss.getBossPhase().id(), stone ? 32 : 24);
+        SummonedBlockCleaner.track(fallingBlock, level);
         level.sendParticles(stone ? STONE_PARTICLE : DIRT_PARTICLE, start.getX() + 0.5D, start.getY(), start.getZ() + 0.5D,
                 8, 0.25D, 0.2D, 0.25D, 0.03D);
     }
