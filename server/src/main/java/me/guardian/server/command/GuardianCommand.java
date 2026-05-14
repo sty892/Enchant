@@ -35,6 +35,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -47,6 +48,7 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -89,7 +91,12 @@ public final class GuardianCommand {
                         .then(Commands.literal("spawn")
                                 .then(Commands.argument("boss_id", StringArgumentType.string())
                                         .suggests((context, builder) -> suggest(BOSS_ID_SUGGESTIONS, builder))
-                                        .executes(context -> spawnBoss(context.getSource(), StringArgumentType.getString(context, "boss_id")))))
+                                        .executes(context -> spawnBoss(context.getSource(), StringArgumentType.getString(context, "boss_id"), null))
+                                        .then(Commands.argument("pos", Vec3Argument.vec3())
+                                                .executes(context -> spawnBoss(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "boss_id"),
+                                                        Vec3Argument.getVec3(context, "pos"))))))
                         .then(Commands.literal("kill")
                                 .then(Commands.literal("all")
                                         .executes(context -> killAllBosses(context.getSource())))))
@@ -181,7 +188,7 @@ public final class GuardianCommand {
         return player == null || source.getServer().getPlayerList().isOp(player.nameAndId());
     }
 
-    private static int spawnBoss(CommandSourceStack source, String bossId) throws CommandSyntaxException {
+    private static int spawnBoss(CommandSourceStack source, String bossId, Vec3 requestedPos) throws CommandSyntaxException {
         Identifier id = parseGuardianBossId(bossId);
         if (id == null || !GuardianMod.MOD_ID.equals(id.getNamespace()) || !id.getPath().startsWith("boss_")) {
             source.sendFailure(Component.translatable("command.guardian_mod.unknown_boss", bossId));
@@ -194,7 +201,6 @@ public final class GuardianCommand {
             return 0;
         }
 
-        ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = source.getLevel();
         Entity entity = type.create(level, EntitySpawnReason.COMMAND);
         if (entity == null) {
@@ -202,7 +208,8 @@ public final class GuardianCommand {
             return 0;
         }
 
-        entity.setPos(player.getX(), player.getY(), player.getZ());
+        Vec3 pos = requestedPos == null ? source.getPlayerOrException().position() : requestedPos;
+        entity.setPos(pos.x, pos.y, pos.z);
         level.addFreshEntity(entity);
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.boss_spawned", bossId), true);
         return 1;
