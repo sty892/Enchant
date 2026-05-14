@@ -47,6 +47,7 @@
   "button.guardian_mod.trigger.type.private": "Private",
   "button.guardian_mod.trigger.run_once": "Only once",
   "button.guardian_mod.trigger.run_every_time": "Every time",
+  "button.guardian_mod.trigger.reset": "Reset trigger",
   "button.guardian_mod.trigger.triggered_by": "Triggered by: %s",
   "button.guardian_mod.trigger.mode.everyone": "everyone",
   "button.guardian_mod.trigger.mode.selectors": "selectors",

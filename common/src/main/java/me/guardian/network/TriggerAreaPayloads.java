@@ -132,6 +132,24 @@ public final class TriggerAreaPayloads {
         }
     }
 
+    public record Reset(UUID areaId) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<Reset> TYPE = new CustomPacketPayload.Type<>(id("trigger_reset"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Reset> CODEC = StreamCodec.ofMember(Reset::write, Reset::read);
+
+        private void write(RegistryFriendlyByteBuf buf) {
+            buf.writeUUID(areaId);
+        }
+
+        private static Reset read(RegistryFriendlyByteBuf buf) {
+            return new Reset(buf.readUUID());
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, path);
     }

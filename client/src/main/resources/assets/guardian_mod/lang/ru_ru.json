@@ -47,6 +47,7 @@
   "button.guardian_mod.trigger.type.private": "Приватный",
   "button.guardian_mod.trigger.run_once": "Один раз",
   "button.guardian_mod.trigger.run_every_time": "Каждый раз",
+  "button.guardian_mod.trigger.reset": "Сбросить триггер",
   "button.guardian_mod.trigger.triggered_by": "Активируют: %s",
   "button.guardian_mod.trigger.mode.everyone": "все",
   "button.guardian_mod.trigger.mode.selectors": "селекторы",

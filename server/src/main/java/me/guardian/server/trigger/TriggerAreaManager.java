@@ -76,7 +76,9 @@ public final class TriggerAreaManager {
             try {
                 TriggerAreaState state = TriggerAreaState.get(context.player().level());
                 TriggerArea edited = TriggerArea.deserialize(payload.area());
-                if (state.get(edited.id) != null) {
+                TriggerArea existing = state.get(edited.id);
+                if (existing != null) {
+                    edited.runCount = existing.runCount;
                     state.put(edited);
                     syncAll(context.server());
                 }
@@ -84,6 +86,7 @@ public final class TriggerAreaManager {
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.Delete.TYPE, (payload, context) -> deleteArea(context.server(), payload.areaId()));
+        ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.Reset.TYPE, (payload, context) -> resetArea(context.server(), payload.areaId()));
     }
 
     public static void setPoint(Player player, BlockPos pos, boolean second) {
@@ -223,6 +226,7 @@ public final class TriggerAreaManager {
         }
         area.runCount++;
         TriggerAreaState.get(level).setDirty();
+        syncAll(server);
     }
 
     private static boolean matchesTrigger(TriggerArea area, Entity entity) {
@@ -325,6 +329,22 @@ public final class TriggerAreaManager {
             syncAll(server);
         }
         return removed;
+    }
+
+    public static boolean resetArea(MinecraftServer server, UUID id) {
+        boolean reset = false;
+        for (ServerLevel level : server.getAllLevels()) {
+            TriggerArea area = TriggerAreaState.get(level).get(id);
+            if (area != null) {
+                area.runCount = 0;
+                TriggerAreaState.get(level).setDirty();
+                reset = true;
+            }
+        }
+        if (reset) {
+            syncAll(server);
+        }
+        return reset;
     }
 
     public static void syncAll(MinecraftServer server) {

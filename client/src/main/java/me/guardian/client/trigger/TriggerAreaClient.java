@@ -137,8 +137,9 @@ public final class TriggerAreaClient {
             }
             AABB box = new AABB(area.min.getX(), area.min.getY(), area.min.getZ(),
                     area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D).inflate(0.03D);
-            int fillColor = area.isPrivate() ? 0x35FF3030 : 0x2855DFFF;
-            int outlineColor = area.isPrivate() ? 0xFFFF4040 : 0xFFFFFFFF;
+            boolean alreadyTriggered = area.runOnce && area.runCount > 0;
+            int fillColor = area.isPrivate() ? 0x35FF3030 : alreadyTriggered ? 0x35206020 : 0x2830D060;
+            int outlineColor = area.isPrivate() ? 0xFFFF4040 : alreadyTriggered ? 0xFF0A5A20 : 0xFF40FF60;
             renderFill(context, box, viewer, fillColor);
             ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.secondaryBlockOutline()),
                     Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, outlineColor, 4.0F);
