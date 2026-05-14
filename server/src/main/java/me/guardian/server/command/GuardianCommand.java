@@ -312,10 +312,10 @@ public final class GuardianCommand {
         }
         boolean removed = TriggerAreaManager.deleteArea(source.getServer(), id);
         if (!removed) {
-            source.sendFailure(Component.translatable("command.guardian_mod.trigger_not_found", id));
+            source.sendFailure(Component.translatable("command.guardian_mod.trigger_not_found", id.toString()));
             return 0;
         }
-        source.sendSuccess(() -> Component.translatable("command.guardian_mod.trigger_deleted", id), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.trigger_deleted", id.toString()), true);
         return 1;
     }
 
@@ -340,7 +340,7 @@ public final class GuardianCommand {
         }
         UUID id = nearest.id;
         TriggerAreaManager.deleteArea(source.getServer(), id);
-        source.sendSuccess(() -> Component.translatable("command.guardian_mod.trigger_deleted_nearest", id), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.trigger_deleted_nearest", id.toString()), true);
         return 1;
     }
 
@@ -437,11 +437,11 @@ public final class GuardianCommand {
         BlockPos pos = requestedPos == null ? BlockPos.containing(source.getPosition()) : requestedPos;
         boolean placed = StructureSpawner.place(source.getLevel(), pos, id.toString());
         if (!placed) {
-            source.sendFailure(Component.translatable("command.guardian_mod.structure_place_failed", id, StructureSpawner.resourcePath(id)));
+            source.sendFailure(Component.translatable("command.guardian_mod.structure_place_failed", id.toString(), StructureSpawner.resourcePath(id)));
             return 0;
         }
 
-        source.sendSuccess(() -> Component.translatable("command.guardian_mod.structure_placed", id, pos.toShortString()), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.structure_placed", id.toString(), pos.toShortString()), true);
         return 1;
     }
 
@@ -456,7 +456,7 @@ public final class GuardianCommand {
         Set<UUID> whitelist = readWhitelist(config);
         whitelist.add(uuid);
         writeWhitelist(config, whitelist);
-        source.sendSuccess(() -> Component.translatable("command.guardian_mod.diamond_whitelist_added", uuid), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.diamond_whitelist_added", uuid.toString()), true);
         return 1;
     }
 
@@ -471,7 +471,7 @@ public final class GuardianCommand {
         Set<UUID> whitelist = readUuidList(config, "key_whitelist");
         whitelist.add(uuid);
         writeUuidList(config, "key_whitelist", whitelist);
-        source.sendSuccess(() -> Component.translatable("command.guardian_mod.key_whitelist_added", uuid), true);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.key_whitelist_added", uuid.toString()), true);
         return 1;
     }
 
@@ -488,7 +488,7 @@ public final class GuardianCommand {
         writeWhitelist(config, whitelist);
         source.sendSuccess(() -> Component.translatable(removed
                 ? "command.guardian_mod.diamond_whitelist_removed"
-                : "command.guardian_mod.diamond_whitelist_missing", uuid), true);
+                : "command.guardian_mod.diamond_whitelist_missing", uuid.toString()), true);
         return removed ? 1 : 0;
     }
 
@@ -505,20 +505,28 @@ public final class GuardianCommand {
         writeUuidList(config, "key_whitelist", whitelist);
         source.sendSuccess(() -> Component.translatable(removed
                 ? "command.guardian_mod.key_whitelist_removed"
-                : "command.guardian_mod.key_whitelist_missing", uuid), true);
+                : "command.guardian_mod.key_whitelist_missing", uuid.toString()), true);
         return removed ? 1 : 0;
     }
 
     private static int listWhitelist(CommandSourceStack source) {
         Set<UUID> whitelist = readWhitelist(readGuardianConfig());
-        source.sendSuccess(() -> Component.translatable("command.guardian_mod.diamond_whitelist_list", whitelist), false);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.diamond_whitelist_list", uuidListString(whitelist)), false);
         return whitelist.size();
     }
 
     private static int listKeyWhitelist(CommandSourceStack source) {
         Set<UUID> whitelist = readUuidList(readGuardianConfig(), "key_whitelist");
-        source.sendSuccess(() -> Component.translatable("command.guardian_mod.key_whitelist_list", whitelist), false);
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.key_whitelist_list", uuidListString(whitelist)), false);
         return whitelist.size();
+    }
+
+    private static String uuidListString(Set<UUID> uuids) {
+        return uuids.stream()
+                .map(UUID::toString)
+                .sorted()
+                .toList()
+                .toString();
     }
 
     private static UUID resolveUuid(MinecraftServer server, String playerNameOrUuid) {
