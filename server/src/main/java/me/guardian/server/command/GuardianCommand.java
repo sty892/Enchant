@@ -71,6 +71,20 @@ public final class GuardianCommand {
             "boss_nether",
             "boss_generic"
     };
+    private static final String[] ATTACK_ID_SUGGESTIONS = {
+            "anti_shield",
+            "counter_leap",
+            "fissure",
+            "rockfall",
+            "shockwave",
+            "melee",
+            "molten_fissure",
+            "meteor_rain",
+            "whip_grab",
+            "minion_aegis",
+            "soul_vortex",
+            "death_beams"
+    };
     private static final String[] STRUCTURE_ID_SUGGESTIONS = {
             "altar",
             "boss_overworld_arena",
@@ -99,7 +113,13 @@ public final class GuardianCommand {
                                                         Vec3Argument.getVec3(context, "pos"))))))
                         .then(Commands.literal("kill")
                                 .then(Commands.literal("all")
-                                        .executes(context -> killAllBosses(context.getSource())))))
+                                        .executes(context -> killAllBosses(context.getSource()))))
+                        .then(Commands.literal("attack")
+                                .then(Commands.argument("attack_id", StringArgumentType.word())
+                                        .suggests((context, builder) -> suggest(ATTACK_ID_SUGGESTIONS, builder))
+                                        .executes(context -> forceBossAttack(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "attack_id"))))))
                 .then(Commands.literal("whitelist")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("player", StringArgumentType.word())
@@ -247,6 +267,43 @@ public final class GuardianCommand {
         int result = killed;
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.bosses_killed", result), true);
         return killed;
+    }
+
+    private static int forceBossAttack(CommandSourceStack source, String attackId) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = source.getLevel();
+        LivingEntity boss = nearestActiveBoss(level, player.position());
+        if (boss == null) {
+            source.sendFailure(Component.translatable("command.guardian_mod.boss_attack.no_boss"));
+            return 0;
+        }
+
+        boolean started = boss instanceof OverworldGuardianEntity overworld
+                ? overworld.forceAttack(level, attackId)
+                : boss instanceof NetherGuardianEntity nether && nether.forceAttack(level, attackId);
+        if (!started) {
+            source.sendFailure(Component.translatable("command.guardian_mod.boss_attack.failed", attackId));
+            return 0;
+        }
+
+        source.sendSuccess(() -> Component.translatable("command.guardian_mod.boss_attack.started", attackId), true);
+        return 1;
+    }
+
+    private static LivingEntity nearestActiveBoss(ServerLevel level, Vec3 origin) {
+        LivingEntity nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (Entity entity : level.getAllEntities()) {
+            if (!(entity instanceof LivingEntity living) || !living.isAlive() || !isGuardianBoss(entity)) {
+                continue;
+            }
+            double distance = living.position().distanceToSqr(origin);
+            if (distance < nearestDistance) {
+                nearest = living;
+                nearestDistance = distance;
+            }
+        }
+        return nearest;
     }
 
     private static boolean isGuardianBoss(Entity entity) {

@@ -102,6 +102,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         GuardianBossAi.triggerAttackAnimation(this, triggerName);
     }
 
+    public boolean forceAttack(ServerLevel level, String attackId) {
+        return attackController.forceAttack(level, attackId);
+    }
+
     @Override
     public boolean removeWhenFarAway(double distanceToClosestPlayer) {
         return false;

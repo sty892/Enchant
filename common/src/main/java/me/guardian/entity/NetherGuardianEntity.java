@@ -47,8 +47,8 @@ public class NetherGuardianEntity extends Monster implements GeoEntity {
     private static final String SPAWN_TRIGGER_NAME = "spawn";
     private static final String PHASE_SHIFT_TRIGGER = "phase_shift";
     private static final String BOSS_BAR_ID_KEY = "BossBarId";
-    private static final double PREFERRED_HOME_RADIUS = 18.0D;
-    private static final double SOFT_RETURN_RADIUS = 22.0D;
+    private static final double PREFERRED_HOME_RADIUS = 15.0D;
+    private static final double SOFT_RETURN_RADIUS = 20.0D;
     private static final double SOFT_RETURN_RADIUS_SQR = SOFT_RETURN_RADIUS * SOFT_RETURN_RADIUS;
     private static final double BOSS_BAR_RADIUS_SQR = 36.0D * 36.0D;
     private static final int SPAWN_ANIMATION_TICKS = 80;
@@ -98,6 +98,10 @@ public class NetherGuardianEntity extends Monster implements GeoEntity {
 
     public void triggerAttackAnimation(String triggerName) {
         GuardianBossAi.triggerAttackAnimation(this, triggerName);
+    }
+
+    public boolean forceAttack(ServerLevel level, String attackId) {
+        return attackController.forceAttack(level, attackId);
     }
 
     public boolean isVulnerable() {

@@ -102,6 +102,19 @@ public final class OverworldGuardianAttackController {
         runningAttack = selected.start(level);
     }
 
+    public boolean forceAttack(ServerLevel level, String attackId) {
+        for (Attack attack : attacks) {
+            if (!attack.id().equals(attackId) || boss.getBossPhase().id() < attack.minPhase() || !attack.canUse(boss, level)) {
+                continue;
+            }
+            attack.startCooldown(boss);
+            runningAttack = attack.start(level);
+            globalDelay = 0;
+            return true;
+        }
+        return false;
+    }
+
     private Attack selectAttack(ServerLevel level) {
         for (Attack attack : attacks) {
             if (attack.highPriority() && attack.canStart(boss, level)) {
@@ -166,6 +179,8 @@ public final class OverworldGuardianAttackController {
         abstract RunningAttack start(ServerLevel level);
 
         abstract int cooldownTicks(OverworldGuardianEntity boss);
+
+        abstract String id();
     }
 
     private interface RunningAttack {
@@ -217,6 +232,11 @@ public final class OverworldGuardianAttackController {
         @Override
         int cooldownTicks(OverworldGuardianEntity boss) {
             return boss.getBossPhase().id() == 3 ? 10 : 14;
+        }
+
+        @Override
+        String id() {
+            return "anti_shield";
         }
     }
 
@@ -277,6 +297,11 @@ public final class OverworldGuardianAttackController {
         int cooldownTicks(OverworldGuardianEntity boss) {
             return boss.getBossPhase().id() == 3 ? 65 : 85;
         }
+
+        @Override
+        String id() {
+            return "counter_leap";
+        }
     }
 
     private final class MeleeAttack extends Attack {
@@ -321,6 +346,11 @@ public final class OverworldGuardianAttackController {
                 case TWO -> 24;
                 case THREE -> 18;
             };
+        }
+
+        @Override
+        String id() {
+            return "melee";
         }
     }
 
@@ -370,6 +400,11 @@ public final class OverworldGuardianAttackController {
         private int maxTargets() {
             return boss.getBossPhase().id() == 3 ? 3 : 2;
         }
+
+        @Override
+        String id() {
+            return "rockfall";
+        }
     }
 
     private final class ShockwaveAttack extends Attack {
@@ -410,6 +445,11 @@ public final class OverworldGuardianAttackController {
         @Override
         int cooldownTicks(OverworldGuardianEntity boss) {
             return boss.getBossPhase().id() == 3 ? 70 : 105;
+        }
+
+        @Override
+        String id() {
+            return "shockwave";
         }
     }
 
@@ -457,6 +497,11 @@ public final class OverworldGuardianAttackController {
         @Override
         int cooldownTicks(OverworldGuardianEntity boss) {
             return 110;
+        }
+
+        @Override
+        String id() {
+            return "fissure";
         }
     }
 

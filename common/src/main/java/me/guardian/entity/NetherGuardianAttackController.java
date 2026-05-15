@@ -91,6 +91,19 @@ public final class NetherGuardianAttackController {
         runningAttack = selected.start(level);
     }
 
+    public boolean forceAttack(ServerLevel level, String attackId) {
+        for (Attack attack : attacks) {
+            if (!attack.id().equals(attackId) || boss.getBossPhase().id() < attack.minPhase() || !attack.canUse(boss, level)) {
+                continue;
+            }
+            attack.startCooldown(boss);
+            runningAttack = attack.start(level);
+            globalDelay = 0;
+            return true;
+        }
+        return false;
+    }
+
     public float modifyIncomingDamage(ServerLevel level, float amount) {
         tickAegis(level);
         if (aegisActive) {
@@ -166,6 +179,8 @@ public final class NetherGuardianAttackController {
         abstract RunningAttack start(ServerLevel level);
 
         abstract int cooldownTicks(NetherGuardianEntity boss);
+
+        abstract String id();
     }
 
     private interface RunningAttack {
@@ -225,6 +240,11 @@ public final class NetherGuardianAttackController {
                 case THREE -> 16;
             };
         }
+
+        @Override
+        String id() {
+            return "melee";
+        }
     }
 
     private final class MoltenFissureAttack extends Attack {
@@ -265,6 +285,11 @@ public final class NetherGuardianAttackController {
                 case TWO -> 74;
                 case THREE -> 58;
             };
+        }
+
+        @Override
+        String id() {
+            return "molten_fissure";
         }
     }
 
@@ -314,6 +339,11 @@ public final class NetherGuardianAttackController {
                 case THREE -> 64;
             };
         }
+
+        @Override
+        String id() {
+            return "meteor_rain";
+        }
     }
 
     private final class WhipGrabAttack extends Attack {
@@ -362,6 +392,11 @@ public final class NetherGuardianAttackController {
         int cooldownTicks(NetherGuardianEntity boss) {
             return boss.getBossPhase().id() == 3 ? 52 : 70;
         }
+
+        @Override
+        String id() {
+            return "whip_grab";
+        }
     }
 
     private final class MinionAegisAttack extends Attack {
@@ -406,6 +441,11 @@ public final class NetherGuardianAttackController {
         int cooldownTicks(NetherGuardianEntity boss) {
             return boss.getBossPhase().id() == 3 ? 280 : 360;
         }
+
+        @Override
+        String id() {
+            return "minion_aegis";
+        }
     }
 
     private final class SoulGravityVortexAttack extends Attack {
@@ -449,6 +489,11 @@ public final class NetherGuardianAttackController {
         @Override
         int cooldownTicks(NetherGuardianEntity boss) {
             return 220;
+        }
+
+        @Override
+        String id() {
+            return "soul_vortex";
         }
     }
 
@@ -500,6 +545,11 @@ public final class NetherGuardianAttackController {
         @Override
         int cooldownTicks(NetherGuardianEntity boss) {
             return 175;
+        }
+
+        @Override
+        String id() {
+            return "death_beams";
         }
     }
 
