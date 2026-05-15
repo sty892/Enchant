@@ -1,0 +1,21 @@
+{
+  "textures": {
+    "side": "guardian_mod:block/dimension_return_trigger_side",
+    "top": "guardian_mod:block/dimension_return_trigger_top",
+    "bottom": "guardian_mod:block/dimension_return_trigger_bottom"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 16, 16],
+      "faces": {
+        "down": { "texture": "#bottom", "tintindex": 0 },
+        "up": { "texture": "#top", "tintindex": 0 },
+        "north": { "texture": "#side", "tintindex": 0 },
+        "south": { "texture": "#side", "tintindex": 0 },
+        "west": { "texture": "#side", "tintindex": 0 },
+        "east": { "texture": "#side", "tintindex": 0 }
+      }
+    }
+  ]
+}
