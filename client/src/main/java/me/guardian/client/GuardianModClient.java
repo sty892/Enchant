@@ -94,6 +94,8 @@ public final class GuardianModClient implements ClientModInitializer {
                 context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_nether")));
         EntityRendererRegistry.register(ModEntities.GENERIC_BOSS,
                 context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_generic")));
+        EntityRendererRegistry.register(ModEntities.ALTAR_PLACEMENT,
+                context -> new GeoEntityRenderer<>(context, new GuardianAltarPlacementModel()));
     }
 
     private static void registerTriggerVisibility() {
@@ -132,6 +134,7 @@ public final class GuardianModClient implements ClientModInitializer {
 
     private static void reloadBossAssets(ResourceManager manager) {
         GuardianBossAssets.reload(manager);
+        GuardianAltarAssets.reload(manager);
     }
 
     @SuppressWarnings("unused")

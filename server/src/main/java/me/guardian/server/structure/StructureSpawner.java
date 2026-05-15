@@ -1,6 +1,8 @@
 package me.guardian.server.structure;
 
 import me.guardian.GuardianMod;
+import me.guardian.entity.AltarPlacementEntity;
+import me.guardian.entity.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.Identifier;
@@ -18,6 +20,14 @@ public final class StructureSpawner {
     }
 
     public static boolean place(ServerLevel level, BlockPos center, String structureId) {
+        Identifier requestedId = parseStructureId(structureId);
+        if (requestedId != null && GuardianMod.MOD_ID.equals(requestedId.getNamespace()) && "altar".equals(requestedId.getPath())) {
+            return startAltarPlacement(level, center);
+        }
+        return placeImmediate(level, center, structureId);
+    }
+
+    public static boolean placeImmediate(ServerLevel level, BlockPos center, String structureId) {
         Identifier id = parseStructureId(structureId);
         if (id == null) {
             GuardianMod.LOGGER.warn("Invalid structure id: {}", structureId);
@@ -32,6 +42,16 @@ public final class StructureSpawner {
         }
 
         return placeTemplate(level, center, id, template.get());
+    }
+
+    private static boolean startAltarPlacement(ServerLevel level, BlockPos center) {
+        AltarPlacementEntity entity = ModEntities.ALTAR_PLACEMENT.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        if (entity == null) {
+            return placeImmediate(level, center, "guardian_mod:altar");
+        }
+        entity.setPos(center.getX() + 0.5D, center.getY(), center.getZ() + 0.5D);
+        level.addFreshEntity(entity);
+        return true;
     }
 
     private static boolean placeTemplate(ServerLevel level, BlockPos center, Identifier id, StructureTemplate structure) {

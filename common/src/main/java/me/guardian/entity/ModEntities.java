@@ -23,6 +23,10 @@ public class ModEntities {
             Registries.ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "boss_generic")
     );
+    public static final ResourceKey<EntityType<?>> ALTAR_PLACEMENT_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "altar_placement")
+    );
 
     public static final EntityType<OverworldGuardianEntity> OVERWORLD_GUARDIAN = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
@@ -45,6 +49,13 @@ public class ModEntities {
             EntityType.Builder.of(GenericBossEntity::new, MobCategory.MONSTER)
                     .sized(1.4f, 2.8f)
                     .build(GENERIC_BOSS_KEY)
+    );
+    public static final EntityType<AltarPlacementEntity> ALTAR_PLACEMENT = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            ALTAR_PLACEMENT_KEY,
+            EntityType.Builder.of(AltarPlacementEntity::new, MobCategory.MISC)
+                    .sized(3.0f, 3.0f)
+                    .build(ALTAR_PLACEMENT_KEY)
     );
 
     public static void initialize() {
