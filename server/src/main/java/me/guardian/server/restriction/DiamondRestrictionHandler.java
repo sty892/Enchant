@@ -9,8 +9,6 @@ import me.guardian.config.ConfigManager;
 import me.guardian.server.state.GuardianWorldState;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
-import net.minecraft.advancements.AdvancementHolder;
-import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -24,19 +22,13 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 public final class DiamondRestrictionHandler {
     private static final Gson GSON = new Gson();
     private static final Component RESTRICTED_MESSAGE = Component.translatable("message.guardian_mod.diamond_restricted");
-    private static final Identifier[] DIAMOND_ADVANCEMENTS = {
-            Identifier.withDefaultNamespace("story/mine_diamond"),
-            Identifier.withDefaultNamespace("story/shiny_gear")
-    };
     private static volatile GuardianConfig cachedConfig;
 
     private DiamondRestrictionHandler() {
@@ -73,7 +65,6 @@ public final class DiamondRestrictionHandler {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (isRestricted(overworld, player.getUUID())) {
                 removeDiamondItems(player);
-                revokeDiamondAdvancements(server, player);
             }
         }
     }
@@ -104,28 +95,6 @@ public final class DiamondRestrictionHandler {
             player.getInventory().setChanged();
             player.containerMenu.broadcastChanges();
             notifyRestricted(player);
-        }
-    }
-
-    private static void revokeDiamondAdvancements(MinecraftServer server, ServerPlayer player) {
-        for (Identifier advancementId : DIAMOND_ADVANCEMENTS) {
-            AdvancementHolder holder = server.getAdvancements().get(advancementId);
-            if (holder == null) {
-                continue;
-            }
-
-            AdvancementProgress progress = player.getAdvancements().getOrStartProgress(holder);
-            if (!progress.hasProgress()) {
-                continue;
-            }
-
-            List<String> completedCriteria = new ArrayList<>();
-            for (String criterion : progress.getCompletedCriteria()) {
-                completedCriteria.add(criterion);
-            }
-            for (String criterion : completedCriteria) {
-                player.getAdvancements().revoke(holder, criterion);
-            }
         }
     }
 
