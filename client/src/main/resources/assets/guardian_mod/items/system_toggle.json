@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "guardian_mod:item/system_toggle"
+  }
+}

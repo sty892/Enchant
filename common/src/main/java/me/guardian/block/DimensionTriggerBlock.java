@@ -2,6 +2,7 @@ package me.guardian.block;
 
 import me.guardian.dimension.GuardianDimensions;
 import me.guardian.item.ModItems;
+import me.guardian.system.GuardianSystemsState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -46,6 +47,7 @@ public class DimensionTriggerBlock extends Block {
     protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity, InsideBlockEffectApplier effectApplier, boolean wasInside) {
         if (!(level instanceof ServerLevel serverLevel)
                 || !(entity instanceof ServerPlayer player)
+                || !GuardianSystemsState.get(serverLevel).triggerSystemsEnabled()
                 || player.isOnPortalCooldown()
                 || player.isHolding(ModItems.TRIGGER_REVEALER)) {
             return;
