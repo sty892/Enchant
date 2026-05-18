@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "guardian_mod:item/system_toggle"
+    "layer0": "guardian_mod:item/trigger_guard"
   }
 }

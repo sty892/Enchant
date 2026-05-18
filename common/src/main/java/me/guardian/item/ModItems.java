@@ -32,7 +32,7 @@ public class ModItems {
     public static final Item FRAGMENT_GENERIC = register("fragment_generic", new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
     public static final Item TRIGGER_REVEALER = register("trigger_revealer", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
     public static final Item TRIGGER_AREA_CREATOR = register("trigger_area_creator", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
-    public static final Item SYSTEM_TOGGLE = register("system_toggle", new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
+    public static final Item TRIGGER_GUARD = register("trigger_guard", new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
 
     // Creative Tab
     public static final CreativeModeTab GUARDIAN_TAB = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB,
@@ -54,7 +54,7 @@ public class ModItems {
                         output.accept(FRAGMENT_GENERIC);
                         output.accept(TRIGGER_REVEALER);
                         output.accept(TRIGGER_AREA_CREATOR);
-                        output.accept(SYSTEM_TOGGLE);
+                        output.accept(TRIGGER_GUARD);
                         output.accept(ModBlocks.ALTAR_CORE);
                         output.accept(ModBlocks.ALTAR_SPEED);
                         output.accept(ModBlocks.ALTAR_PROTECTION);
@@ -76,7 +76,7 @@ public class ModItems {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id);
         Item item = switch (name) {
             case "trigger_area_creator" -> new TriggerAreaCreatorItem(properties.setId(key));
-            case "system_toggle" -> new SystemToggleItem(properties.setId(key));
+            case "trigger_guard" -> new TriggerGuardItem(properties.setId(key));
             default -> new Item(properties.setId(key));
         };
         return Registry.register(BuiltInRegistries.ITEM, key, item);

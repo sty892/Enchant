@@ -87,7 +87,17 @@ public final class TriggerAreaClient {
 
         Optional<TriggerArea> lookedAtArea = revealEnabled && usePressed ? findLookedAtArea(client) : Optional.empty();
         if (usePressed && lookedAtArea.isPresent()) {
-            ClientPlayNetworking.send(new TriggerAreaPayloads.OpenEditor(lookedAtArea.get().id));
+            TriggerArea area = lookedAtArea.get();
+            if (client.player.isHolding(ModItems.TRIGGER_GUARD)) {
+                ClientPlayNetworking.send(new TriggerAreaPayloads.ToggleGuard(area.id));
+                client.player.displayClientMessage(Component.translatable(area.guarded
+                        ? "message.guardian_mod.trigger_guard.enabled"
+                        : "message.guardian_mod.trigger_guard.disabled"), true);
+            } else if (area.guarded) {
+                client.player.displayClientMessage(Component.translatable("message.guardian_mod.trigger_guard.blocked"), true);
+            } else {
+                ClientPlayNetworking.send(new TriggerAreaPayloads.OpenEditor(area.id));
+            }
             return;
         }
 
@@ -157,8 +167,8 @@ public final class TriggerAreaClient {
                     area.max.getX() + 1.0D, area.max.getY() + 1.0D, area.max.getZ() + 1.0D).inflate(0.03D);
             boolean oneShotReady = area.runOnce && area.runCount <= 0;
             boolean oneShotTriggered = area.runOnce && area.runCount > 0;
-            int fillColor = area.isPrivate() ? 0x35FF3030 : oneShotTriggered ? 0x35206020 : oneShotReady ? 0x2830D060 : 0x2855DFFF;
-            int outlineColor = area.isPrivate() ? 0xFFFF4040 : oneShotTriggered ? 0xFF0A5A20 : oneShotReady ? 0xFF40FF60 : 0xFFFFFFFF;
+            int fillColor = area.guarded ? 0x55FF0000 : area.isPrivate() ? 0x35FF3030 : oneShotTriggered ? 0x35206020 : oneShotReady ? 0x2830D060 : 0x2855DFFF;
+            int outlineColor = area.guarded ? 0xFFFF0000 : area.isPrivate() ? 0xFFFF4040 : oneShotTriggered ? 0xFF0A5A20 : oneShotReady ? 0xFF40FF60 : 0xFFFFFFFF;
             renderFill(context, box, viewer, fillColor);
             ShapeRenderer.renderShape(context.matrices(), context.consumers().getBuffer(RenderTypes.secondaryBlockOutline()),
                     Shapes.create(box), -viewer.x, -viewer.y, -viewer.z, outlineColor, 4.0F);

@@ -404,7 +404,10 @@ public final class GuardianCommand {
             return 0;
         }
         UUID id = nearest.id;
-        TriggerAreaManager.deleteArea(source.getServer(), id);
+        if (!TriggerAreaManager.deleteArea(source.getServer(), id)) {
+            source.sendFailure(Component.translatable("command.guardian_mod.trigger_not_found", id.toString()));
+            return 0;
+        }
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.trigger_deleted_nearest", id.toString()), true);
         return 1;
     }

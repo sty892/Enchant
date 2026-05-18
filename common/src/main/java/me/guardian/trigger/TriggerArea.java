@@ -35,6 +35,7 @@ public final class TriggerArea {
     public boolean restrictBlockBreaking;
     public boolean restrictAttacking;
     public boolean restrictInteractions;
+    public boolean guarded;
 
     public TriggerArea(UUID id, String dimension, BlockPos first, BlockPos second) {
         this.id = id;
@@ -53,12 +54,13 @@ public final class TriggerArea {
         this.restrictBlockBreaking = true;
         this.restrictAttacking = true;
         this.restrictInteractions = false;
+        this.guarded = false;
     }
 
     private TriggerArea(UUID id, String dimension, BlockPos min, BlockPos max, List<String> commands, boolean runOnce, int runCount,
                         String triggerType, String triggerMode, String triggerSelectors, boolean globalRestrictions, String restrictionMode,
                         String restrictionSelectors, String privateSelectors, boolean restrictBlockBreaking, boolean restrictAttacking,
-                        boolean restrictInteractions) {
+                        boolean restrictInteractions, boolean guarded) {
         this.id = id;
         this.dimension = dimension;
         this.min = min;
@@ -76,6 +78,7 @@ public final class TriggerArea {
         this.restrictBlockBreaking = restrictBlockBreaking;
         this.restrictAttacking = restrictAttacking;
         this.restrictInteractions = restrictInteractions;
+        this.guarded = guarded;
     }
 
     public boolean contains(Entity entity) {
@@ -106,7 +109,7 @@ public final class TriggerArea {
                               boolean newRestrictInteractions) {
         return new TriggerArea(id, dimension, min, max, newCommands, newRunOnce, runCount,
                 newTriggerType, newTriggerMode, newTriggerSelectors, TYPE_PRIVATE.equals(newTriggerType), "only_matching",
-                newPrivateSelectors, newPrivateSelectors, newRestrictBlockBreaking, newRestrictAttacking, newRestrictInteractions);
+                newPrivateSelectors, newPrivateSelectors, newRestrictBlockBreaking, newRestrictAttacking, newRestrictInteractions, guarded);
     }
 
     public boolean isPrivate() {
@@ -134,6 +137,7 @@ public final class TriggerArea {
         object.addProperty("restrict_block_breaking", restrictBlockBreaking);
         object.addProperty("restrict_attacking", restrictAttacking);
         object.addProperty("restrict_interactions", restrictInteractions);
+        object.addProperty("guarded", guarded);
         return GSON.toJson(object);
     }
 
@@ -160,7 +164,8 @@ public final class TriggerArea {
                 stringOr(object, "private_selectors", stringOr(object, "restriction_selectors", "@a")),
                 !object.has("restrict_block_breaking") || object.get("restrict_block_breaking").getAsBoolean(),
                 !object.has("restrict_attacking") || object.get("restrict_attacking").getAsBoolean(),
-                object.has("restrict_interactions") && object.get("restrict_interactions").getAsBoolean()
+                object.has("restrict_interactions") && object.get("restrict_interactions").getAsBoolean(),
+                object.has("guarded") && object.get("guarded").getAsBoolean()
         );
     }
 

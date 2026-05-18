@@ -150,6 +150,24 @@ public final class TriggerAreaPayloads {
         }
     }
 
+    public record ToggleGuard(UUID areaId) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<ToggleGuard> TYPE = new CustomPacketPayload.Type<>(id("trigger_toggle_guard"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, ToggleGuard> CODEC = StreamCodec.ofMember(ToggleGuard::write, ToggleGuard::read);
+
+        private void write(RegistryFriendlyByteBuf buf) {
+            buf.writeUUID(areaId);
+        }
+
+        private static ToggleGuard read(RegistryFriendlyByteBuf buf) {
+            return new ToggleGuard(buf.readUUID());
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     private static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, path);
     }

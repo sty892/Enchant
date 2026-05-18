@@ -22,6 +22,7 @@ public final class GuardianNetworking {
         PayloadTypeRegistry.playC2S().register(TriggerAreaPayloads.SaveEditor.TYPE, TriggerAreaPayloads.SaveEditor.CODEC);
         PayloadTypeRegistry.playC2S().register(TriggerAreaPayloads.Delete.TYPE, TriggerAreaPayloads.Delete.CODEC);
         PayloadTypeRegistry.playC2S().register(TriggerAreaPayloads.Reset.TYPE, TriggerAreaPayloads.Reset.CODEC);
+        PayloadTypeRegistry.playC2S().register(TriggerAreaPayloads.ToggleGuard.TYPE, TriggerAreaPayloads.ToggleGuard.CODEC);
         payloadTypesRegistered = true;
     }
 }

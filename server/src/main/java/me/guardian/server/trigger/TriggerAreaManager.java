@@ -5,7 +5,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import me.guardian.event.GuardianTriggerHooks;
 import me.guardian.item.ModItems;
 import me.guardian.network.TriggerAreaPayloads;
-import me.guardian.system.GuardianSystemsState;
 import me.guardian.trigger.TriggerArea;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
@@ -68,24 +67,19 @@ public final class TriggerAreaManager {
         ServerTickEvents.END_SERVER_TICK.register(TriggerAreaManager::tick);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sync(handler.player));
         ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.OpenEditor.TYPE, (payload, context) -> {
-            if (!GuardianSystemsState.get(context.server()).triggerSystemsEnabled()) {
-                return;
-            }
             TriggerArea area = TriggerAreaState.get(context.player().level()).get(payload.areaId());
-            if (area != null) {
+            if (area != null && !area.guarded) {
                 context.responseSender().sendPacket(new TriggerAreaPayloads.EditorData(area.serialize()));
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.SaveEditor.TYPE, (payload, context) -> {
-            if (!GuardianSystemsState.get(context.server()).triggerSystemsEnabled()) {
-                return;
-            }
             try {
                 TriggerAreaState state = TriggerAreaState.get(context.player().level());
                 TriggerArea edited = TriggerArea.deserialize(payload.area());
                 TriggerArea existing = state.get(edited.id);
-                if (existing != null) {
+                if (existing != null && !existing.guarded) {
                     edited.runCount = existing.runCount;
+                    edited.guarded = existing.guarded;
                     state.put(edited);
                     syncAll(context.server());
                 }
@@ -93,23 +87,25 @@ public final class TriggerAreaManager {
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.Delete.TYPE, (payload, context) -> {
-            if (GuardianSystemsState.get(context.server()).triggerSystemsEnabled()) {
+            if (!isGuarded(context.server(), payload.areaId())) {
                 deleteArea(context.server(), payload.areaId());
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.Reset.TYPE, (payload, context) -> {
-            if (GuardianSystemsState.get(context.server()).triggerSystemsEnabled()) {
+            if (!isGuarded(context.server(), payload.areaId())) {
                 resetArea(context.server(), payload.areaId());
             }
         });
+        ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.ToggleGuard.TYPE,
+                (payload, context) -> {
+                    if (context.player().isHolding(ModItems.TRIGGER_GUARD)) {
+                        toggleGuard(context.server(), payload.areaId());
+                    }
+                });
     }
 
     public static void setPoint(Player player, BlockPos pos, boolean second) {
         if (!(player instanceof ServerPlayer serverPlayer)) {
-            return;
-        }
-        if (!GuardianSystemsState.get(serverPlayer.level()).triggerSystemsEnabled()) {
-            serverPlayer.displayClientMessage(Component.translatable("message.guardian_mod.trigger_systems.disabled"), true);
             return;
         }
 
@@ -135,12 +131,9 @@ public final class TriggerAreaManager {
         if (!(target.level() instanceof ServerLevel level)) {
             return false;
         }
-        if (!GuardianSystemsState.get(level).triggerSystemsEnabled()) {
-            return false;
-        }
         Entity attacker = source.getEntity();
         for (TriggerArea area : TriggerAreaState.get(level).areas) {
-            if (!area.isPrivate() || !area.restrictAttacking || (!area.intersects(target) && (attacker == null || !area.intersects(attacker)))) {
+            if (area.guarded || !area.isPrivate() || !area.restrictAttacking || (!area.intersects(target) && (attacker == null || !area.intersects(attacker)))) {
                 continue;
             }
             if (privateAppliesTo(area, target) || attacker != null && privateAppliesTo(area, attacker)) {
@@ -151,11 +144,8 @@ public final class TriggerAreaManager {
     }
 
     private static boolean blocksBlockBreak(ServerPlayer player, BlockPos pos) {
-        if (!GuardianSystemsState.get(player.level()).triggerSystemsEnabled()) {
-            return false;
-        }
         for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
-            if (area.isPrivate() && area.restrictBlockBreaking && area.contains(player.level().dimension(), pos) && privateAppliesTo(area, player)) {
+            if (!area.guarded && area.isPrivate() && area.restrictBlockBreaking && area.contains(player.level().dimension(), pos) && privateAppliesTo(area, player)) {
                 return true;
             }
         }
@@ -163,11 +153,8 @@ public final class TriggerAreaManager {
     }
 
     private static boolean blocksEntityAttack(ServerPlayer player, Entity target) {
-        if (!GuardianSystemsState.get(player.level()).triggerSystemsEnabled()) {
-            return false;
-        }
         for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
-            if (area.isPrivate() && area.restrictAttacking && (area.intersects(player) || area.intersects(target)) && privateAppliesTo(area, player)) {
+            if (!area.guarded && area.isPrivate() && area.restrictAttacking && (area.intersects(player) || area.intersects(target)) && privateAppliesTo(area, player)) {
                 return true;
             }
         }
@@ -175,11 +162,8 @@ public final class TriggerAreaManager {
     }
 
     private static boolean blocksEntityInteraction(ServerPlayer player, Entity target) {
-        if (!GuardianSystemsState.get(player.level()).triggerSystemsEnabled()) {
-            return false;
-        }
         for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
-            if (area.isPrivate() && area.restrictInteractions && (area.intersects(player) || area.intersects(target)) && privateAppliesTo(area, player)) {
+            if (!area.guarded && area.isPrivate() && area.restrictInteractions && (area.intersects(player) || area.intersects(target)) && privateAppliesTo(area, player)) {
                 return true;
             }
         }
@@ -187,10 +171,6 @@ public final class TriggerAreaManager {
     }
 
     private static void tick(MinecraftServer server) {
-        if (!GuardianSystemsState.get(server).triggerSystemsEnabled()) {
-            INSIDE_AREAS.clear();
-            return;
-        }
         Set<UUID> seenEntities = new HashSet<>();
         for (ServerLevel level : server.getAllLevels()) {
             if (!TriggerAreaState.get(level).areas.isEmpty()) {
@@ -217,6 +197,10 @@ public final class TriggerAreaManager {
     private static void tickEntity(ServerLevel level, Entity entity) {
         Set<UUID> inside = INSIDE_AREAS.computeIfAbsent(entity.getUUID(), uuid -> new HashSet<>());
         for (TriggerArea area : TriggerAreaState.get(level).areas) {
+            if (area.guarded) {
+                inside.remove(area.id);
+                continue;
+            }
             boolean fullyInside = area.contains(entity);
             boolean fullyOutside = !area.intersects(entity);
             boolean wasInside = inside.contains(area.id);
@@ -230,7 +214,7 @@ public final class TriggerAreaManager {
     }
 
     private static void trigger(TriggerArea area, Entity entity) {
-        if (!TriggerArea.TYPE_COMMANDS.equals(area.triggerType) || (area.runOnce && area.runCount > 0) || !matchesTrigger(area, entity)) {
+        if (area.guarded || !TriggerArea.TYPE_COMMANDS.equals(area.triggerType) || (area.runOnce && area.runCount > 0) || !matchesTrigger(area, entity)) {
             return;
         }
 
@@ -355,6 +339,10 @@ public final class TriggerAreaManager {
     public static boolean deleteArea(MinecraftServer server, UUID id) {
         boolean removed = false;
         for (ServerLevel level : server.getAllLevels()) {
+            TriggerArea area = TriggerAreaState.get(level).get(id);
+            if (area != null && area.guarded) {
+                return false;
+            }
             removed |= TriggerAreaState.get(level).remove(id);
         }
         if (removed) {
@@ -371,6 +359,9 @@ public final class TriggerAreaManager {
         for (ServerLevel level : server.getAllLevels()) {
             TriggerArea area = TriggerAreaState.get(level).get(id);
             if (area != null) {
+                if (area.guarded) {
+                    return false;
+                }
                 area.runCount = 0;
                 TriggerAreaState.get(level).setDirty();
                 reset = true;
@@ -380,6 +371,34 @@ public final class TriggerAreaManager {
             syncAll(server);
         }
         return reset;
+    }
+
+    public static boolean toggleGuard(MinecraftServer server, UUID id) {
+        for (ServerLevel level : server.getAllLevels()) {
+            TriggerArea area = TriggerAreaState.get(level).get(id);
+            if (area != null) {
+                area.guarded = !area.guarded;
+                TriggerAreaState.get(level).setDirty();
+                if (area.guarded) {
+                    for (Set<UUID> inside : INSIDE_AREAS.values()) {
+                        inside.remove(id);
+                    }
+                }
+                syncAll(server);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isGuarded(MinecraftServer server, UUID id) {
+        for (ServerLevel level : server.getAllLevels()) {
+            TriggerArea area = TriggerAreaState.get(level).get(id);
+            if (area != null) {
+                return area.guarded;
+            }
+        }
+        return false;
     }
 
     public static void syncAll(MinecraftServer server) {
