@@ -52,7 +52,6 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final double SOFT_RETURN_RADIUS = 19.0D;
     private static final double SOFT_RETURN_RADIUS_SQR = SOFT_RETURN_RADIUS * SOFT_RETURN_RADIUS;
     private static final double BOSS_BAR_RADIUS_SQR = 30.0D * 30.0D;
-    private static final int SPAWN_ANIMATION_TICKS = 80;
     private static final RawAnimation SPAWN_ANIMATION = RawAnimation.begin().thenPlay("spawn");
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
     private static final EntityDataAccessor<Integer> DATA_PHASE = SynchedEntityData.defineId(
@@ -189,6 +188,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         output.putInt("BossPhase", getBossPhase().id());
         output.putString(BOSS_BAR_ID_KEY, bossEvent.getId().toString());
         output.putBoolean("SpawnEventTriggered", spawnEventTriggered);
+        output.putBoolean("SpawnAnimationTriggered", spawnAnimationTriggered);
         if (spawnCenter != null) {
             output.putInt("SpawnCenterX", spawnCenter.getX());
             output.putInt("SpawnCenterY", spawnCenter.getY());
@@ -202,6 +202,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         setBossPhase(OverworldGuardianPhase.byId(input.getIntOr("BossPhase", 1)));
         this.bossEvent = createBossEvent(readBossBarId(input));
         this.spawnEventTriggered = input.getBooleanOr("SpawnEventTriggered", false);
+        this.spawnAnimationTriggered = input.getBooleanOr("SpawnAnimationTriggered", spawnEventTriggered);
         if (input.getInt("SpawnCenterX").isPresent()
                 && input.getInt("SpawnCenterY").isPresent()
                 && input.getInt("SpawnCenterZ").isPresent()) {
@@ -420,9 +421,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>("Idle", state -> state.setAndContinue(IDLE_ANIMATION)));
-        controllers.add(new AnimationController<>(SPAWN_CONTROLLER_NAME, state -> state.renderState().getAnimatableAge() <= SPAWN_ANIMATION_TICKS
-                ? state.setAndContinue(SPAWN_ANIMATION)
-                : PlayState.STOP)
+        controllers.add(new AnimationController<OverworldGuardianEntity>(SPAWN_CONTROLLER_NAME, state -> PlayState.STOP)
                 .triggerableAnim(SPAWN_TRIGGER_NAME, SPAWN_ANIMATION));
         controllers.add(new AnimationController<OverworldGuardianEntity>(GuardianBossAi.ATTACK_CONTROLLER, 0, state -> PlayState.STOP)
                 .triggerableAnim("attack", RawAnimation.begin().thenPlay("attack"))
