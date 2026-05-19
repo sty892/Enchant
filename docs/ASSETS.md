@@ -46,9 +46,9 @@ client/src/main/resources/assets/guardian_mod/textures/entity/boss_fallback.png
 Real boss assets live outside the client jar in the server resource pack:
 
 ```text
-server-resourcepack/assets/guardian_mod/geckolib/models/entity
-server-resourcepack/assets/guardian_mod/geckolib/animations/entity
-server-resourcepack/assets/guardian_mod/textures/entity
+D:/modtrinth/profiles/Build/resourcepacks/guardian-boss-test-resourcepack.backslash-paths.bak/assets/guardian_mod/geckolib/models/entity
+D:/modtrinth/profiles/Build/resourcepacks/guardian-boss-test-resourcepack.backslash-paths.bak/assets/guardian_mod/geckolib/animations/entity
+D:/modtrinth/profiles/Build/resourcepacks/guardian-boss-test-resourcepack.backslash-paths.bak/assets/guardian_mod/textures/entity
 ```
 
 Do not place real `boss_overworld`, `boss_nether`, or `boss_generic` assets under `client/src/main/resources`.
@@ -56,6 +56,15 @@ Do not place real `boss_overworld`, `boss_nether`, or `boss_generic` assets unde
 ## Replacing Textures
 
 To replace an existing item or block texture, replace the `.png` with the same file name.
+
+Keyhole blocks intentionally use one block texture per state:
+
+```text
+textures/block/keyhole_<slot>_empty.png
+textures/block/keyhole_<slot>_filled.png
+```
+
+The older `*_top`, `*_side`, and `*_bottom` keyhole files can remain in the mod as visual references, but block models no longer load them.
 
 To add a new item texture, add:
 
@@ -77,19 +86,20 @@ To add a new block texture, add:
 Replace the server resource pack files:
 
 ```text
-server-resourcepack/assets/guardian_mod/geckolib/models/entity/*.geo.json
-server-resourcepack/assets/guardian_mod/geckolib/animations/entity/*.animation.json
-server-resourcepack/assets/guardian_mod/textures/entity/*.png
+D:/modtrinth/profiles/Build/resourcepacks/guardian-boss-test-resourcepack.backslash-paths.bak/assets/guardian_mod/geckolib/models/entity/*.geo.json
+D:/modtrinth/profiles/Build/resourcepacks/guardian-boss-test-resourcepack.backslash-paths.bak/assets/guardian_mod/geckolib/animations/entity/*.animation.json
+D:/modtrinth/profiles/Build/resourcepacks/guardian-boss-test-resourcepack.backslash-paths.bak/assets/guardian_mod/textures/entity/*.png
 ```
 
-Keep those real boss assets in `server-resourcepack`. The client module should keep only fallback assets so the client jar remains spoiler-safe.
+Keep real boss assets in the external resource pack. The client module should keep only fallback assets so the client jar remains spoiler-safe.
 
 ## Packaging Server Resource Pack
 
-Create a zip from the contents of `server-resourcepack`, not from its parent directory. The zip root should contain `assets/` and `pack.mcmeta`.
+Create a zip from the contents of the external resource pack folder, not from its parent directory. The zip root should contain `assets/` and `pack.mcmeta`.
 
 PowerShell example:
 
 ```powershell
-Compress-Archive -Path server-resourcepack\assets,server-resourcepack\pack.mcmeta -DestinationPath guardian-server-resourcepack.zip -Force
+$pack = 'D:\modtrinth\profiles\Build\resourcepacks\guardian-boss-test-resourcepack.backslash-paths.bak'
+Compress-Archive -Path "$pack\assets","$pack\pack.mcmeta" -DestinationPath guardian-server-resourcepack.zip -Force
 ```

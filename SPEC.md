@@ -25,7 +25,7 @@ If a player joins a server/world WITHOUT the server mod installed, the client mo
 
 ## ARCHITECTURE RULES (non-negotiable)
 
-1. Boss models, textures, animations → ONLY in `server-resourcepack/`. NEVER in client jar.
+1. Boss models, textures, animations → ONLY in the external resource pack. NEVER in client jar.
 2. Client jar contains a fallback "error" GeckoLib model (a cube with text "ERROR: Load resource pack").
 3. All game-tunable values (damage thresholds, coordinates, timings, structure names, max upgrade levels) → in JSON config files in `configs/` directory next to server.jar. ZERO hardcoded tunable values.
 4. Structures (altar, arenas) → `.nbt` files in `data/guardian_mod/structures/`. Swappable by saving a new Structure Block with the same name.
@@ -50,11 +50,11 @@ project-root/
 │   ├── altar_config.json
 │   ├── keys_config.json
 │   └── guardian_config.json
-└── server-resourcepack/  (boss assets — distributed separately from jar)
+└── external resource pack at D:/modtrinth/profiles/Build/resourcepacks/guardian-boss-test-resourcepack.backslash-paths.bak
     └── assets/guardian_mod/
-        ├── models/entity/
+        ├── geckolib/models/entity/
         ├── textures/entity/
-        └── animations/
+        └── geckolib/animations/entity/
 ```
 
 Each module produces its own jar. Client jar excludes `assets/guardian_mod/models/entity/boss*` and `assets/guardian_mod/textures/entity/boss*` and `assets/guardian_mod/animations/`.
@@ -419,14 +419,14 @@ Structures can be re-saved via Structure Block with matching namespace:name → 
 
 ---
 
-## MODULE 13: SERVER RESOURCEPACK + FALLBACK
+## MODULE 13: EXTERNAL RESOURCE PACK + FALLBACK
 
-### server-resourcepack/ layout
+### External resource pack layout
 ```
-server-resourcepack/
+D:/modtrinth/profiles/Build/resourcepacks/guardian-boss-test-resourcepack.backslash-paths.bak/
 ├── pack.mcmeta              (format version for 1.21.11)
 └── assets/guardian_mod/
-    ├── models/entity/
+    ├── geckolib/models/entity/
     │   ├── boss_overworld.geo.json       (GeckoLib geo, placeholder cube)
     │   ├── boss_nether.geo.json
     │   └── boss_generic/
