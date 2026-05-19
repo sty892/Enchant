@@ -8,7 +8,6 @@ import software.bernie.geckolib.renderer.base.GeoRenderState;
 
 public final class GuardianAltarPlacementModel extends GeoModel<AltarPlacementEntity> {
     private static final Identifier ALTAR_MODEL = asset("block/altar");
-    private static final Identifier ALTAR_TEXTURE = asset("textures/block/altar.png");
     private static final Identifier ALTAR_ANIMATION = asset("block/altar");
     private static final Identifier FALLBACK_MODEL = asset("block/altar_fallback");
     private static final Identifier FALLBACK_TEXTURE = asset("textures/block/altar_core.png");
@@ -21,7 +20,8 @@ public final class GuardianAltarPlacementModel extends GeoModel<AltarPlacementEn
 
     @Override
     public Identifier getTextureResource(GeoRenderState renderState) {
-        return GuardianAltarAssets.hasTexture() ? ALTAR_TEXTURE : FALLBACK_TEXTURE;
+        Identifier texture = GuardianAltarAssets.texture();
+        return texture != null ? texture : FALLBACK_TEXTURE;
     }
 
     @Override

@@ -51,7 +51,7 @@ public final class GuardianBossAssets {
                 );
             }
         }
-        ModState.resourcePackLoaded = !MODEL_ASSETS.isEmpty();
+        ModState.resourcePackLoaded = !MODEL_ASSETS.isEmpty() || !TEXTURE_ASSETS.isEmpty() || !ANIMATION_ASSETS.isEmpty();
         GuardianMod.LOGGER.info("Guardian Mod boss model assets detected: {}, texture assets detected: {}, animation assets detected: {}",
                 Collections.unmodifiableSet(MODEL_ASSETS),
                 Collections.unmodifiableSet(TEXTURE_ASSETS),
@@ -74,15 +74,15 @@ public final class GuardianBossAssets {
     }
 
     private static boolean hasModelAsset(ResourceManager manager, String bossAssetName) {
-        return manager.getResource(asset("geckolib/models/entity/" + bossAssetName + ".geo.json")).isPresent();
+        return GuardianResourcePackAssets.hasExternalResource(manager, asset("geckolib/models/entity/" + bossAssetName + ".geo.json"));
     }
 
     private static boolean hasTextureAsset(ResourceManager manager, String bossAssetName) {
-        return manager.getResource(asset("textures/entity/" + bossAssetName + ".png")).isPresent();
+        return GuardianResourcePackAssets.hasExternalResource(manager, asset("textures/entity/" + bossAssetName + ".png"));
     }
 
     private static boolean hasAnimationAsset(ResourceManager manager, String bossAssetName) {
-        return manager.getResource(asset("geckolib/animations/entity/" + bossAssetName + ".animation.json")).isPresent();
+        return GuardianResourcePackAssets.hasExternalResource(manager, asset("geckolib/animations/entity/" + bossAssetName + ".animation.json"));
     }
 
     private static Identifier asset(String path) {
