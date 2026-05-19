@@ -35,9 +35,23 @@ public class CameraMarkerEntity extends Entity implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
+    /**
+     * Client-side flag controlling camera marker visibility.
+     * Set by TriggerAreaClient when reveal mode is toggled.
+     */
+    public static boolean clientRevealEnabled = false;
+
     public CameraMarkerEntity(EntityType<?> entityType, Level level) {
         super(entityType, level);
         noPhysics = true;
+    }
+
+    @Override
+    public boolean isInvisibleTo(Player player) {
+        if (level().isClientSide() && !clientRevealEnabled) {
+            return true;
+        }
+        return super.isInvisibleTo(player);
     }
 
     @Override

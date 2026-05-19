@@ -93,6 +93,14 @@ public final class CutsceneManager {
     }
 
     public static void stopCutscene(ServerPlayer player) {
+        stopCutscene(player, true);
+    }
+
+    public static void stopCutsceneAfterRespawn(ServerPlayer player) {
+        stopCutscene(player, false);
+    }
+
+    private static void stopCutscene(ServerPlayer player, boolean restorePosition) {
         MinecraftServer server = player.level().getServer();
         if (server == null) return;
 
@@ -110,15 +118,19 @@ public final class CutsceneManager {
         if (foundSession != null) {
             worldState.getActiveSessions().remove(foundSession);
             worldState.markChanged();
-            restorePlayer(player, foundSession);
+            restorePlayer(player, foundSession, restorePosition);
         }
     }
 
     private static void restorePlayer(ServerPlayer player, CutsceneSession session) {
+        restorePlayer(player, session, true);
+    }
+
+    private static void restorePlayer(ServerPlayer player, CutsceneSession session, boolean restorePosition) {
         player.setCamera(player);
 
         MinecraftServer server = player.level().getServer();
-        if (server != null) {
+        if (restorePosition && server != null) {
             ServerLevel origLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, Identifier.parse(session.originalDimension)));
             if (origLevel != null) {
                 player.teleportTo(origLevel, session.originalX, session.originalY, session.originalZ, Collections.emptySet(), session.originalYaw, session.originalPitch, true);

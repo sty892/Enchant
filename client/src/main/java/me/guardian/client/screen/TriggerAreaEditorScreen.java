@@ -21,6 +21,7 @@ public final class TriggerAreaEditorScreen extends Screen {
     private final List<String> commandValues;
     private final List<Integer> commandDelays;
     private final List<EditBox> commandFields = new ArrayList<>();
+    private final List<EditBox> delayFields = new ArrayList<>();
     private final List<CommandSuggestions> commandSuggestions = new ArrayList<>();
     private int activeCommandIndex = -1;
     private String triggerType;
@@ -59,6 +60,7 @@ public final class TriggerAreaEditorScreen extends Screen {
     @Override
     protected void init() {
         commandFields.clear();
+        delayFields.clear();
         commandSuggestions.clear();
         activeCommandIndex = -1;
 
@@ -100,12 +102,16 @@ public final class TriggerAreaEditorScreen extends Screen {
         }).bounds(left + 360, y, 220, 20).build());
 
         y += 42;
-        int commandFieldWidth = panelWidth - 74;
+        int removeButtonWidth = 20;
+        int addButtonWidth = 20;
+        int buttonGap = 2;
+        int commandFieldWidth = panelWidth - removeButtonWidth - addButtonWidth - buttonGap * 2;
         for (int i = 0; i < commandValues.size(); i++) {
-            addCommandRow(left, y + i * 24, commandFieldWidth, i);
+            addCommandRow(left, y + i * 24, commandFieldWidth, removeButtonWidth, buttonGap, i);
         }
-        addCommandButton = addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.add_command"), button -> addCommandField())
-                .bounds(left + commandFieldWidth + 6, y, 28, 20)
+        int lastRowY = y + (commandValues.size() - 1) * 24;
+        addCommandButton = addRenderableWidget(Button.builder(Component.literal("+"), button -> addCommandField())
+                .bounds(left + commandFieldWidth + removeButtonWidth + buttonGap * 2, lastRowY, addButtonWidth, 20)
                 .build());
 
         y += commandValues.size() * 24 + 18;
@@ -144,7 +150,7 @@ public final class TriggerAreaEditorScreen extends Screen {
         return y + 42;
     }
 
-    private void addCommandRow(int left, int y, int commandFieldWidth, int index) {
+    private void addCommandRow(int left, int y, int commandFieldWidth, int removeButtonWidth, int buttonGap, int index) {
         int delayFieldWidth = 45;
         int gap = 5;
 
@@ -169,6 +175,7 @@ public final class TriggerAreaEditorScreen extends Screen {
             }
             commandDelays.set(index, delayVal);
         });
+        delayFields.add(delayField);
         addRenderableWidget(delayField);
 
         int commandLeft = left + delayFieldWidth + gap;
@@ -191,9 +198,11 @@ public final class TriggerAreaEditorScreen extends Screen {
         suggestions.updateCommandInfo();
         commandSuggestions.add(suggestions);
 
+        // Remove button right next to the command field
+        int removeX = left + commandFieldWidth + buttonGap;
         if (index > 0) {
-            addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.remove_command"), button -> removeCommandField(index))
-                    .bounds(left + commandFieldWidth + 6, y, 28, 20)
+            addRenderableWidget(Button.builder(Component.literal("\u2212"), button -> removeCommandField(index))
+                    .bounds(removeX, y, removeButtonWidth, 20)
                     .build());
         }
     }
@@ -205,9 +214,11 @@ public final class TriggerAreaEditorScreen extends Screen {
         graphics.drawString(font, heading, width / 2 - font.width(heading) / 2, 10, 0xFFFFFF);
 
         if (TriggerArea.TYPE_COMMANDS.equals(triggerType)) {
-            if (!commandFields.isEmpty()) {
+            if (!delayFields.isEmpty()) {
                 graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.delay"),
-                        commandFields.get(0).getX() - 50, commandFields.get(0).getY() - 11, 0xA0A0A0);
+                        delayFields.get(0).getX(), delayFields.get(0).getY() - 11, 0xA0A0A0);
+            }
+            if (!commandFields.isEmpty()) {
                 graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.console_command"),
                         commandFields.get(0).getX(), commandFields.get(0).getY() - 11, 0xA0A0A0);
             }

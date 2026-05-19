@@ -1,6 +1,7 @@
 package me.guardian.client.trigger;
 
 import me.guardian.client.screen.TriggerAreaEditorScreen;
+import me.guardian.entity.CameraMarkerEntity;
 import me.guardian.item.ModItems;
 import me.guardian.network.TriggerAreaPayloads;
 import me.guardian.trigger.TriggerArea;
@@ -54,7 +55,7 @@ public final class TriggerAreaClient {
 
     public static void clear() {
         AREAS.clear();
-        revealEnabled = false;
+        setRevealEnabled(false);
         useWasDown = false;
         attackWasDown = false;
     }
@@ -102,11 +103,16 @@ public final class TriggerAreaClient {
         }
 
         if (usePressed && client.player.isHolding(ModItems.TRIGGER_REVEALER)) {
-            revealEnabled = !revealEnabled;
+            setRevealEnabled(!revealEnabled);
             client.player.displayClientMessage(Component.translatable(revealEnabled
                     ? "message.guardian_mod.trigger_visibility.enabled"
                     : "message.guardian_mod.trigger_visibility.disabled"), true);
         }
+    }
+
+    private static void setRevealEnabled(boolean enabled) {
+        revealEnabled = enabled;
+        CameraMarkerEntity.clientRevealEnabled = enabled;
     }
 
     private static Optional<TriggerArea> findLookedAtArea(Minecraft client) {

@@ -77,6 +77,7 @@ public final class GuardianModServer implements ModInitializer {
         });
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> GuardianPlayerUpgrades.reapplyAll(handler.player));
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            CutsceneManager.stopCutsceneAfterRespawn(newPlayer);
             for (ServerLevel level : newPlayer.level().getServer().getAllLevels()) {
                 for (Entity entity : level.getAllEntities()) {
                     if (entity instanceof OverworldGuardianEntity guardian) {

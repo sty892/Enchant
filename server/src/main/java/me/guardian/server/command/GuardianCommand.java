@@ -55,6 +55,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -210,6 +211,10 @@ public final class GuardianCommand {
                 .requires(GuardianCommand::canUse)
                 .then(Commands.literal("play")
                         .then(Commands.argument("cutscene_id", StringArgumentType.string())
+                                .suggests((context, builder) -> suggestCutsceneIds(context.getSource(), builder))
+                                .executes(context -> playCutsceneSelf(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "cutscene_id")))
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .executes(context -> playCutscene(
                                                 context.getSource(),
@@ -218,9 +223,25 @@ public final class GuardianCommand {
                                         )))))
                 .then(Commands.literal("register")
                         .then(Commands.argument("cutscene_id", StringArgumentType.string())
+                                .suggests((context, builder) -> suggestCutsceneIds(context.getSource(), builder))
                                 .executes(context -> registerCamera(
                                         context.getSource(),
                                         StringArgumentType.getString(context, "cutscene_id")
+                                ))))
+                .then(Commands.literal("create")
+                        .then(Commands.argument("cutscene_id", StringArgumentType.string())
+                                .executes(context -> createCutscene(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "cutscene_id")
+                                ))))
+                .then(Commands.literal("list")
+                        .executes(context -> listCutscenes(context.getSource())))
+                .then(Commands.literal("stop")
+                        .executes(context -> stopCutsceneSelf(context.getSource()))
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(context -> stopCutscene(
+                                        context.getSource(),
+                                        EntityArgument.getPlayer(context, "player")
                                 )))));
     }
 
@@ -229,10 +250,74 @@ public final class GuardianCommand {
         return player == null || source.getServer().getPlayerList().isOp(player.nameAndId());
     }
 
+    private static int playCutsceneSelf(CommandSourceStack source, String cutsceneId) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        return playCutscene(source, cutsceneId, player);
+    }
+
     private static int playCutscene(CommandSourceStack source, String cutsceneId, ServerPlayer player) {
         CutsceneManager.startCutscene(player, cutsceneId);
         source.sendSuccess(() -> Component.literal("§aStarting cutscene " + cutsceneId + " for player " + player.getScoreboardName()), true);
         return 1;
+    }
+
+    private static int stopCutsceneSelf(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        return stopCutscene(source, player);
+    }
+
+    private static int stopCutscene(CommandSourceStack source, ServerPlayer player) {
+        CutsceneManager.stopCutscene(player);
+        source.sendSuccess(() -> Component.literal("§aStopped cutscene for " + player.getScoreboardName()), true);
+        return 1;
+    }
+
+    private static int createCutscene(CommandSourceStack source, String cutsceneId) {
+        if (!isFileSafeCutsceneId(cutsceneId)) {
+            source.sendFailure(Component.literal("§cInvalid cutscene id: use letters, numbers, _ or -."));
+            return 0;
+        }
+
+        String fileName = "cutscenes/" + cutsceneId + ".json";
+        Path configRoot = ConfigLoader.configRoot().toAbsolutePath().normalize();
+        Path target = configRoot.resolve(fileName).normalize();
+        Path cutsceneDir = configRoot.resolve("cutscenes").normalize();
+        if (!target.startsWith(cutsceneDir)) {
+            source.sendFailure(Component.literal("§cInvalid cutscene id: " + cutsceneId));
+            return 0;
+        }
+        try {
+            Files.createDirectories(target.getParent());
+            if (Files.exists(target)) {
+                source.sendFailure(Component.literal("§cCutscene config already exists: " + cutsceneId));
+                return 0;
+            }
+            JsonObject config = new JsonObject();
+            config.addProperty("cutscene_id", cutsceneId);
+            config.addProperty("description", "");
+            config.add("camera_points", new JsonArray());
+            Files.writeString(target, GSON.toJson(config), StandardCharsets.UTF_8);
+            source.sendSuccess(() -> Component.literal("§aCreated cutscene config: " + cutsceneId), true);
+            return 1;
+        } catch (IOException e) {
+            GuardianMod.LOGGER.error("Failed to create cutscene config: {}", cutsceneId, e);
+            source.sendFailure(Component.literal("§cFailed to create cutscene config: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int listCutscenes(CommandSourceStack source) {
+        Set<String> cutsceneIds = collectCutsceneIds(source.getServer());
+        if (cutsceneIds.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("§7No cutscenes found (no camera markers placed)."), false);
+        } else {
+            source.sendSuccess(() -> Component.literal("§6Cutscenes (" + cutsceneIds.size() + "):"), false);
+            for (String id : cutsceneIds) {
+                long count = countMarkersForCutscene(source.getServer(), id);
+                source.sendSuccess(() -> Component.literal("  §e" + id + " §7(" + count + " cameras)"), false);
+            }
+        }
+        return cutsceneIds.size();
     }
 
     private static int registerCamera(CommandSourceStack source, String cutsceneId) throws CommandSyntaxException {
@@ -264,6 +349,63 @@ public final class GuardianCommand {
         int index = nextIndex;
         source.sendSuccess(() -> Component.literal("§aRegistered camera marker for cutscene " + cutsceneId + " at index " + index), true);
         return 1;
+    }
+
+    private static Set<String> collectCutsceneIds(MinecraftServer server) {
+        Set<String> ids = new java.util.TreeSet<>();
+        Path cutsceneDir = ConfigLoader.configRoot().resolve("cutscenes");
+        if (Files.isDirectory(cutsceneDir)) {
+            try (java.util.stream.Stream<Path> files = Files.list(cutsceneDir)) {
+                files.filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".json"))
+                        .map(path -> path.getFileName().toString())
+                        .map(fileName -> fileName.substring(0, fileName.length() - ".json".length()))
+                        .forEach(ids::add);
+            } catch (IOException e) {
+                GuardianMod.LOGGER.warn("Failed to list cutscene configs", e);
+            }
+        }
+        for (ServerLevel level : server.getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (entity instanceof CameraMarkerEntity marker) {
+                    ids.add(marker.getCutsceneId());
+                }
+            }
+        }
+        return ids;
+    }
+
+    private static boolean isFileSafeCutsceneId(String cutsceneId) {
+        return cutsceneId != null && cutsceneId.matches("[A-Za-z0-9_-]{1,64}");
+    }
+
+    private static long countMarkersForCutscene(MinecraftServer server, String cutsceneId) {
+        long count = 0;
+        for (ServerLevel level : server.getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (entity instanceof CameraMarkerEntity marker && cutsceneId.equals(marker.getCutsceneId())) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static CompletableFuture<Suggestions> suggestCutsceneIds(CommandSourceStack source, SuggestionsBuilder builder) {
+        String remaining = builder.getRemainingLowerCase();
+        // Built-in trigger names
+        String[] builtins = {"on_diamond_pickup", "on_border_approach", "on_nether_portal_enter"};
+        for (String id : builtins) {
+            if (id.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(id);
+            }
+        }
+        // Existing cutscene IDs from camera markers
+        for (String id : collectCutsceneIds(source.getServer())) {
+            if (id.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(id);
+            }
+        }
+        return builder.buildFuture();
     }
 
     private static int spawnBoss(CommandSourceStack source, String bossId, Vec3 requestedPos) throws CommandSyntaxException {
