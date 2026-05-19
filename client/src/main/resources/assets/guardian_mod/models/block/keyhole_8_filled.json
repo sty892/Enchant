@@ -1,8 +1,6 @@
 ﻿{
-    "parent":  "minecraft:block/cube_bottom_top",
-    "textures":  {
-                     "side":  "guardian_mod:block/keyhole_8_filled_side",
-                     "top":  "guardian_mod:block/keyhole_8_filled_top",
-                     "bottom":  "guardian_mod:block/keyhole_8_filled_bottom"
-                 }
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "guardian_mod:block/keyhole_8_filled"
+  }
 }
