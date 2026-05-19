@@ -2,56 +2,6 @@
   "event_id": "guardian_mod:season_start",
   "actions": [
     {
-      "broadcast_message": {
-        "text": "Хранитель Верхнего Мира пробуждается...",
-        "delay_ticks": 0
-      }
-    },
-    {
-      "broadcast_actionbar": {
-        "text": "Держитесь подальше от центра!",
-        "delay_ticks": 0
-      }
-    },
-    {
-      "play_boss_animation": {
-        "boss_id": "guardian_mod:boss_overworld",
-        "animation": "spawn",
-        "pos": {
-          "x": 0,
-          "y": 80,
-          "z": 0
-        },
-        "duration_ticks": 100,
-        "delay_ticks": 0
-      }
-    },
-    {
-      "spawn_boss": {
-        "boss_id": "guardian_mod:boss_overworld",
-        "pos": {
-          "x": 0,
-          "y": 80,
-          "z": 0
-        },
-        "delay_ticks": 100,
-        "play_spawn_animation": true
-      }
-    },
-    {
-      "knockback_players": {
-        "center": {
-          "x": 0,
-          "y": 80,
-          "z": 0
-        },
-        "radius": 64.0,
-        "horizontal_strength": 1.2,
-        "vertical_strength": 0.35,
-        "delay_ticks": 100
-      }
-    },
-    {
       "world_border_expand": {
         "center": {
           "x": 0,

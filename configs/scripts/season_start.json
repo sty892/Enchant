@@ -1,7 +1,5 @@
 {
   "commands": [
-    "say Guardian season start",
-    "summon guardian_mod:boss_overworld ~ ~ ~",
     {
       "delay_ticks": 100,
       "command": "worldborder set 500 10"
