@@ -139,5 +139,11 @@
   "upgrade.guardian_mod.altar.speed": "Скорость",
   "upgrade.guardian_mod.altar.protection": "Защита",
   "upgrade.guardian_mod.altar.damage": "Урон",
-  "upgrade.guardian_mod.altar.recovery": "Восстановление"
+  "upgrade.guardian_mod.altar.recovery": "Восстановление",
+  "item.guardian_mod.camera": "Камера",
+  "screen.guardian_mod.camera_editor": "Настройка камеры",
+  "screen.guardian_mod.camera_editor.title": "Настройка точки камеры",
+  "screen.guardian_mod.camera_editor.cutscene_id": "ID Катсцены",
+  "screen.guardian_mod.camera_editor.index": "Порядковый номер",
+  "screen.guardian_mod.camera_editor.duration": "Длительность (сек.)"
 }

@@ -139,5 +139,11 @@
   "upgrade.guardian_mod.altar.speed": "Speed",
   "upgrade.guardian_mod.altar.protection": "Protection",
   "upgrade.guardian_mod.altar.damage": "Damage",
-  "upgrade.guardian_mod.altar.recovery": "Recovery"
+  "upgrade.guardian_mod.altar.recovery": "Recovery",
+  "item.guardian_mod.camera": "Camera",
+  "screen.guardian_mod.camera_editor": "Camera Configuration",
+  "screen.guardian_mod.camera_editor.title": "Configure Camera Point",
+  "screen.guardian_mod.camera_editor.cutscene_id": "Cutscene ID",
+  "screen.guardian_mod.camera_editor.index": "Sequence Index",
+  "screen.guardian_mod.camera_editor.duration": "Duration (Seconds)"
 }

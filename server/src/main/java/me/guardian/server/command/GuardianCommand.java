@@ -15,12 +15,16 @@ import me.guardian.GuardianMod;
 import me.guardian.block.KeyholeBlock;
 import me.guardian.config.ConfigLoader;
 import me.guardian.config.ConfigManager;
+import me.guardian.entity.CameraMarkerEntity;
 import me.guardian.entity.GenericBossEntity;
+import me.guardian.entity.ModEntities;
 import me.guardian.entity.NetherGuardianEntity;
 import me.guardian.entity.OverworldGuardianEntity;
 import me.guardian.event.GuardianEventExecutor;
 import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.boss.BossEventManager;
+import me.guardian.server.cutscene.CutsceneManager;
+import net.minecraft.commands.arguments.EntityArgument;
 import me.guardian.server.event.GuardianJsonEventActions;
 import me.guardian.server.event.KeyFoundEventHandler;
 import me.guardian.server.event.ScriptRunner;
@@ -201,11 +205,65 @@ public final class GuardianCommand {
                                                         BlockPosArgument.getLoadedBlockPos(context, "pos")))))))
                 .then(Commands.literal("reload")
                         .executes(context -> reload(context.getSource()))));
+
+        dispatcher.register(Commands.literal("camera")
+                .requires(GuardianCommand::canUse)
+                .then(Commands.literal("play")
+                        .then(Commands.argument("cutscene_id", StringArgumentType.string())
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(context -> playCutscene(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "cutscene_id"),
+                                                EntityArgument.getPlayer(context, "player")
+                                        )))))
+                .then(Commands.literal("register")
+                        .then(Commands.argument("cutscene_id", StringArgumentType.string())
+                                .executes(context -> registerCamera(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "cutscene_id")
+                                )))));
     }
 
     private static boolean canUse(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         return player == null || source.getServer().getPlayerList().isOp(player.nameAndId());
+    }
+
+    private static int playCutscene(CommandSourceStack source, String cutsceneId, ServerPlayer player) {
+        CutsceneManager.startCutscene(player, cutsceneId);
+        source.sendSuccess(() -> Component.literal("§aStarting cutscene " + cutsceneId + " for player " + player.getScoreboardName()), true);
+        return 1;
+    }
+
+    private static int registerCamera(CommandSourceStack source, String cutsceneId) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = (ServerLevel) player.level();
+
+        int nextIndex = 1;
+        for (ServerLevel lvl : source.getServer().getAllLevels()) {
+            for (Entity entity : lvl.getAllEntities()) {
+                if (entity instanceof CameraMarkerEntity marker) {
+                    if (cutsceneId.equals(marker.getCutsceneId())) {
+                        if (marker.getIndex() >= nextIndex) {
+                            nextIndex = marker.getIndex() + 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        CameraMarkerEntity marker = new CameraMarkerEntity(ModEntities.CAMERA_MARKER, level);
+        marker.setCutsceneId(cutsceneId);
+        marker.setIndex(nextIndex);
+        marker.setDuration(5.0f);
+        marker.setPos(player.getX(), player.getEyeY(), player.getZ());
+        marker.setYRot(player.getYRot());
+        marker.setXRot(player.getXRot());
+        level.addFreshEntity(marker);
+
+        int index = nextIndex;
+        source.sendSuccess(() -> Component.literal("§aRegistered camera marker for cutscene " + cutsceneId + " at index " + index), true);
+        return 1;
     }
 
     private static int spawnBoss(CommandSourceStack source, String bossId, Vec3 requestedPos) throws CommandSyntaxException {

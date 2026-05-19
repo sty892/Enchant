@@ -33,6 +33,7 @@ public class ModItems {
     public static final Item TRIGGER_REVEALER = register("trigger_revealer", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
     public static final Item TRIGGER_AREA_CREATOR = register("trigger_area_creator", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
     public static final Item TRIGGER_GUARD = register("trigger_guard", new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
+    public static final Item CAMERA = register("camera", new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
 
     // Creative Tab
     public static final CreativeModeTab GUARDIAN_TAB = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB,
@@ -55,6 +56,7 @@ public class ModItems {
                         output.accept(TRIGGER_REVEALER);
                         output.accept(TRIGGER_AREA_CREATOR);
                         output.accept(TRIGGER_GUARD);
+                        output.accept(CAMERA);
                         output.accept(ModBlocks.ALTAR_CORE);
                         output.accept(ModBlocks.ALTAR_SPEED);
                         output.accept(ModBlocks.ALTAR_PROTECTION);
@@ -77,6 +79,7 @@ public class ModItems {
         Item item = switch (name) {
             case "trigger_area_creator" -> new TriggerAreaCreatorItem(properties.setId(key));
             case "trigger_guard" -> new TriggerGuardItem(properties.setId(key));
+            case "camera" -> new CameraItem(properties.setId(key));
             default -> new Item(properties.setId(key));
         };
         return Registry.register(BuiltInRegistries.ITEM, key, item);

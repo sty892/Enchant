@@ -5,7 +5,9 @@ import me.guardian.ModState;
 import me.guardian.block.ModBlocks;
 import me.guardian.client.trigger.TriggerAreaClient;
 import me.guardian.entity.ModEntities;
+import me.guardian.client.screen.CameraMarkerEditorScreen;
 import me.guardian.item.ModItems;
+import me.guardian.network.CameraPayloads;
 import me.guardian.network.GuardianNetworking;
 import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
@@ -85,6 +87,17 @@ public final class GuardianModClient implements ClientModInitializer {
             reloadBossAssets(context.client().getResourceManager());
             GuardianMod.LOGGER.info("Guardian Mod server handshake received, enabling features.");
         });
+
+        ClientPlayNetworking.registerGlobalReceiver(CameraPayloads.OpenEditor.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                context.client().setScreen(new CameraMarkerEditorScreen(
+                        payload.entityId(),
+                        payload.cutsceneId(),
+                        payload.index(),
+                        payload.duration()
+                ));
+            });
+        });
     }
 
     private static void registerEntityRenderers() {
@@ -96,6 +109,8 @@ public final class GuardianModClient implements ClientModInitializer {
                 context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_generic")));
         EntityRendererRegistry.register(ModEntities.ALTAR_PLACEMENT,
                 context -> new GeoEntityRenderer<>(context, new GuardianAltarPlacementModel()));
+        EntityRendererRegistry.register(ModEntities.CAMERA_MARKER,
+                context -> new GeoEntityRenderer<>(context, new CameraMarkerModel()));
     }
 
     private static void registerTriggerVisibility() {
