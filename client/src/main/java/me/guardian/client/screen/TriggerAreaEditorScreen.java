@@ -19,6 +19,7 @@ import java.util.List;
 public final class TriggerAreaEditorScreen extends Screen {
     private final TriggerArea area;
     private final List<String> commandValues;
+    private final List<Integer> commandDelays;
     private final List<EditBox> commandFields = new ArrayList<>();
     private final List<CommandSuggestions> commandSuggestions = new ArrayList<>();
     private int activeCommandIndex = -1;
@@ -41,6 +42,10 @@ public final class TriggerAreaEditorScreen extends Screen {
         super(Component.translatable("screen.guardian_mod.trigger_area"));
         this.area = area;
         this.commandValues = new ArrayList<>(area.commands.isEmpty() ? List.of("") : area.commands);
+        this.commandDelays = new ArrayList<>(area.commandDelays);
+        while (this.commandDelays.size() < this.commandValues.size()) {
+            this.commandDelays.add(0);
+        }
         this.triggerType = area.triggerType;
         this.runOnce = area.runOnce;
         this.triggerMode = area.triggerMode;
@@ -140,7 +145,36 @@ public final class TriggerAreaEditorScreen extends Screen {
     }
 
     private void addCommandRow(int left, int y, int commandFieldWidth, int index) {
-        EditBox commandField = new EditBox(font, left, y, commandFieldWidth, 20,
+        int delayFieldWidth = 45;
+        int gap = 5;
+
+        EditBox delayField = new EditBox(font, left, y, delayFieldWidth, 20,
+                Component.translatable("screen.guardian_mod.trigger_area.delay"));
+        delayField.setMaxLength(5);
+        int currentDelay = 0;
+        if (index < commandDelays.size()) {
+            currentDelay = commandDelays.get(index);
+        }
+        delayField.setValue(String.valueOf(currentDelay));
+        delayField.setFilter(text -> text.matches("\\d*"));
+        delayField.setResponder(value -> {
+            int delayVal = 0;
+            try {
+                if (!value.isEmpty()) {
+                    delayVal = Integer.parseInt(value);
+                }
+            } catch (NumberFormatException ignored) {}
+            while (commandDelays.size() <= index) {
+                commandDelays.add(0);
+            }
+            commandDelays.set(index, delayVal);
+        });
+        addRenderableWidget(delayField);
+
+        int commandLeft = left + delayFieldWidth + gap;
+        int commandWidth = commandFieldWidth - (delayFieldWidth + gap);
+
+        EditBox commandField = new EditBox(font, commandLeft, y, commandWidth, 20,
                 Component.translatable("screen.guardian_mod.trigger_area.console_command"));
         commandField.setMaxLength(32767);
         commandField.setValue(commandValues.get(index));
@@ -152,14 +186,14 @@ public final class TriggerAreaEditorScreen extends Screen {
         addRenderableWidget(commandField);
 
         CommandSuggestions suggestions = new CommandSuggestions(minecraft, this, commandField, font,
-                true, true, 0, 7, false, 0x80000000);
+                true, false, 0, 7, false, 0x80000000);
         suggestions.setAllowSuggestions(true);
         suggestions.updateCommandInfo();
         commandSuggestions.add(suggestions);
 
         if (index > 0) {
             addRenderableWidget(Button.builder(Component.translatable("button.guardian_mod.remove_command"), button -> removeCommandField(index))
-                    .bounds(left + commandFieldWidth + 40, y, 28, 20)
+                    .bounds(left + commandFieldWidth + 6, y, 28, 20)
                     .build());
         }
     }
@@ -172,6 +206,8 @@ public final class TriggerAreaEditorScreen extends Screen {
 
         if (TriggerArea.TYPE_COMMANDS.equals(triggerType)) {
             if (!commandFields.isEmpty()) {
+                graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.delay"),
+                        commandFields.get(0).getX() - 50, commandFields.get(0).getY() - 11, 0xA0A0A0);
                 graphics.drawString(font, Component.translatable("screen.guardian_mod.trigger_area.console_command"),
                         commandFields.get(0).getX(), commandFields.get(0).getY() - 11, 0xA0A0A0);
             }
@@ -235,17 +271,26 @@ public final class TriggerAreaEditorScreen extends Screen {
 
     private void save() {
         saveCommandValues();
-        List<String> commands = commandValues.stream()
-                .map(String::trim)
-                .filter(command -> !command.isEmpty())
-                .toList();
+        List<String> commands = new ArrayList<>();
+        List<Integer> delays = new ArrayList<>();
+        for (int i = 0; i < commandValues.size(); i++) {
+            String val = commandValues.get(i).trim();
+            if (!val.isEmpty()) {
+                commands.add(val);
+                int d = 0;
+                if (i < commandDelays.size()) {
+                    d = commandDelays.get(i);
+                }
+                delays.add(d);
+            }
+        }
         if (triggerSelectorField != null) {
             triggerSelectors = triggerSelectorField.getValue();
         }
         if (privateSelectorField != null) {
             privateSelectors = privateSelectorField.getValue();
         }
-        TriggerArea edited = area.edited(commands, runOnce, triggerType, triggerMode, triggerSelectors,
+        TriggerArea edited = area.edited(commands, delays, runOnce, triggerType, triggerMode, triggerSelectors,
                 privateSelectors, restrictBlockBreaking, restrictAttacking, restrictInteractions);
         ClientPlayNetworking.send(new TriggerAreaPayloads.SaveEditor(edited.serialize()));
         onClose();
@@ -264,6 +309,7 @@ public final class TriggerAreaEditorScreen extends Screen {
     private void addCommandField() {
         saveCommandValues();
         commandValues.add("");
+        commandDelays.add(0);
         rebuildWidgets();
     }
 
@@ -271,6 +317,9 @@ public final class TriggerAreaEditorScreen extends Screen {
         saveCommandValues();
         if (index > 0 && index < commandValues.size()) {
             commandValues.remove(index);
+            if (index < commandDelays.size()) {
+                commandDelays.remove(index);
+            }
             rebuildWidgets();
         }
     }

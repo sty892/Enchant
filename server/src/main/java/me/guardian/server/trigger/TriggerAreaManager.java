@@ -65,6 +65,7 @@ public final class TriggerAreaManager {
             return InteractionResult.PASS;
         });
         ServerTickEvents.END_SERVER_TICK.register(TriggerAreaManager::tick);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(server -> PENDING_COMMANDS.clear());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sync(handler.player));
         ServerPlayNetworking.registerGlobalReceiver(TriggerAreaPayloads.OpenEditor.TYPE, (payload, context) -> {
             TriggerArea area = TriggerAreaState.get(context.player().level()).get(payload.areaId());
@@ -170,7 +171,37 @@ public final class TriggerAreaManager {
         return false;
     }
 
+    public static final class PendingCommand {
+        public final CommandSourceStack source;
+        public final String command;
+        public int ticksRemaining;
+
+        public PendingCommand(CommandSourceStack source, String command, int ticksRemaining) {
+            this.source = source;
+            this.command = command;
+            this.ticksRemaining = ticksRemaining;
+        }
+    }
+
+    private static final java.util.List<PendingCommand> PENDING_COMMANDS = new java.util.ArrayList<>();
+
     private static void tick(MinecraftServer server) {
+        java.util.Iterator<PendingCommand> iterator = PENDING_COMMANDS.iterator();
+        while (iterator.hasNext()) {
+            PendingCommand pending = iterator.next();
+            pending.ticksRemaining--;
+            if (pending.ticksRemaining <= 0) {
+                String trimmed = pending.command.trim();
+                if (!trimmed.isEmpty()) {
+                    if (trimmed.startsWith("/")) {
+                        trimmed = trimmed.substring(1);
+                    }
+                    server.getCommands().performPrefixedCommand(pending.source, trimmed);
+                }
+                iterator.remove();
+            }
+        }
+
         Set<UUID> seenEntities = new HashSet<>();
         for (ServerLevel level : server.getAllLevels()) {
             if (!TriggerAreaState.get(level).areas.isEmpty()) {
@@ -234,20 +265,28 @@ public final class TriggerAreaManager {
                 server,
                 sourceEntity
         );
-        for (String command : area.commands) {
-            String trimmed = command.trim();
-            if (!trimmed.isEmpty()) {
-                if (trimmed.startsWith("/")) {
-                    trimmed = trimmed.substring(1);
+        for (int i = 0; i < area.commands.size(); i++) {
+            String command = area.commands.get(i);
+            int delay = 0;
+            if (i < area.commandDelays.size()) {
+                delay = area.commandDelays.get(i);
+            }
+            if (delay <= 0) {
+                String trimmed = command.trim();
+                if (!trimmed.isEmpty()) {
+                    if (trimmed.startsWith("/")) {
+                        trimmed = trimmed.substring(1);
+                    }
+                    server.getCommands().performPrefixedCommand(source, trimmed);
                 }
-                server.getCommands().performPrefixedCommand(source, trimmed);
+            } else {
+                PENDING_COMMANDS.add(new PendingCommand(source, command, delay));
             }
         }
         area.runCount++;
         TriggerAreaState.get(level).setDirty();
         syncAll(server);
     }
-
     private static boolean matchesTrigger(TriggerArea area, Entity entity) {
         return "everyone".equals(area.triggerMode) || matchesSelectorList(area.triggerSelectors, entity);
     }

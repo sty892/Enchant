@@ -23,6 +23,7 @@ public final class TriggerArea {
     public final BlockPos min;
     public final BlockPos max;
     public final List<String> commands;
+    public final List<Integer> commandDelays;
     public final boolean runOnce;
     public int runCount;
     public String triggerType;
@@ -43,6 +44,7 @@ public final class TriggerArea {
         this.min = new BlockPos(Math.min(first.getX(), second.getX()), Math.min(first.getY(), second.getY()), Math.min(first.getZ(), second.getZ()));
         this.max = new BlockPos(Math.max(first.getX(), second.getX()), Math.max(first.getY(), second.getY()), Math.max(first.getZ(), second.getZ()));
         this.commands = new ArrayList<>();
+        this.commandDelays = new ArrayList<>();
         this.runOnce = false;
         this.triggerType = TYPE_COMMANDS;
         this.triggerMode = "everyone";
@@ -57,7 +59,7 @@ public final class TriggerArea {
         this.guarded = false;
     }
 
-    private TriggerArea(UUID id, String dimension, BlockPos min, BlockPos max, List<String> commands, boolean runOnce, int runCount,
+    private TriggerArea(UUID id, String dimension, BlockPos min, BlockPos max, List<String> commands, List<Integer> commandDelays, boolean runOnce, int runCount,
                         String triggerType, String triggerMode, String triggerSelectors, boolean globalRestrictions, String restrictionMode,
                         String restrictionSelectors, String privateSelectors, boolean restrictBlockBreaking, boolean restrictAttacking,
                         boolean restrictInteractions, boolean guarded) {
@@ -66,6 +68,10 @@ public final class TriggerArea {
         this.min = min;
         this.max = max;
         this.commands = new ArrayList<>(commands);
+        this.commandDelays = new ArrayList<>(commandDelays);
+        while (this.commandDelays.size() < this.commands.size()) {
+            this.commandDelays.add(0);
+        }
         this.runOnce = runOnce;
         this.runCount = runCount;
         this.triggerType = normalizeTriggerType(triggerType, globalRestrictions);
@@ -104,10 +110,10 @@ public final class TriggerArea {
                 && pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
     }
 
-    public TriggerArea edited(List<String> newCommands, boolean newRunOnce, String newTriggerType, String newTriggerMode, String newTriggerSelectors,
+    public TriggerArea edited(List<String> newCommands, List<Integer> newDelays, boolean newRunOnce, String newTriggerType, String newTriggerMode, String newTriggerSelectors,
                               String newPrivateSelectors, boolean newRestrictBlockBreaking, boolean newRestrictAttacking,
                               boolean newRestrictInteractions) {
-        return new TriggerArea(id, dimension, min, max, newCommands, newRunOnce, runCount,
+        return new TriggerArea(id, dimension, min, max, newCommands, newDelays, newRunOnce, runCount,
                 newTriggerType, newTriggerMode, newTriggerSelectors, TYPE_PRIVATE.equals(newTriggerType), "only_matching",
                 newPrivateSelectors, newPrivateSelectors, newRestrictBlockBreaking, newRestrictAttacking, newRestrictInteractions, guarded);
     }
@@ -125,6 +131,9 @@ public final class TriggerArea {
         JsonArray commandArray = new JsonArray();
         commands.forEach(commandArray::add);
         object.add("commands", commandArray);
+        JsonArray delayArray = new JsonArray();
+        commandDelays.forEach(delayArray::add);
+        object.add("command_delays", delayArray);
         object.addProperty("run_once", runOnce);
         object.addProperty("run_count", runCount);
         object.addProperty("trigger_type", triggerType);
@@ -147,12 +156,21 @@ public final class TriggerArea {
         if (object.has("commands") && object.get("commands").isJsonArray()) {
             object.getAsJsonArray("commands").forEach(element -> commands.add(element.getAsString()));
         }
+        List<Integer> commandDelays = new ArrayList<>();
+        if (object.has("command_delays") && object.get("command_delays").isJsonArray()) {
+            object.getAsJsonArray("command_delays").forEach(element -> commandDelays.add(element.getAsInt()));
+        } else {
+            for (int i = 0; i < commands.size(); i++) {
+                commandDelays.add(0);
+            }
+        }
         return new TriggerArea(
                 UUID.fromString(object.get("id").getAsString()),
                 object.get("dimension").getAsString(),
                 readPos(object.getAsJsonObject("min")),
                 readPos(object.getAsJsonObject("max")),
                 commands,
+                commandDelays,
                 object.has("run_once") && object.get("run_once").getAsBoolean(),
                 object.has("run_count") ? object.get("run_count").getAsInt() : 0,
                 stringOr(object, "trigger_type", object.has("global_restrictions") && object.get("global_restrictions").getAsBoolean() ? TYPE_PRIVATE : TYPE_COMMANDS),
