@@ -63,9 +63,9 @@ public final class CameraMarkerHeadRenderer extends EntityRenderer<CameraMarkerE
 
     private static ItemStack createHead() {
         ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
-        PropertyMap properties = new PropertyMap(HashMultimap.create());
+        HashMultimap<String, Property> properties = HashMultimap.create();
         properties.put("textures", new Property("textures", HEAD_TEXTURE));
-        GameProfile profile = new GameProfile(UUID.nameUUIDFromBytes(HEAD_TEXTURE.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "Camera", properties);
+        GameProfile profile = new GameProfile(UUID.nameUUIDFromBytes(HEAD_TEXTURE.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "Camera", new PropertyMap(properties));
         stack.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
         return stack;
     }

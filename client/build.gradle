@@ -12,6 +12,3 @@ tasks.named('remapJar') {
     from(layout.buildDirectory.dir("resources/main"))
 }
 
-dependencies {
-    implementation project(":common")
-}

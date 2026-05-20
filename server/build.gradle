@@ -2,6 +2,3 @@ base {
     archivesName = "${project.archives_base_name}-server"
 }
 
-dependencies {
-    implementation project(":common")
-}
