@@ -52,6 +52,14 @@ subprojects {
         exclude '*.mixins.json'
     }
 
+    tasks.named('jar', Jar) {
+        archiveClassifier.set('dev')
+    }
+
+    tasks.named('remapJar') {
+        archiveClassifier.set('')
+    }
+
     tasks.withType(JavaCompile).configureEach {
         it.options.release = 21
     }
