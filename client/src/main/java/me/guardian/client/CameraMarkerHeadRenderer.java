@@ -2,6 +2,8 @@ package me.guardian.client;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
+import com.mojang.authlib.properties.PropertyMap;
+import com.google.common.collect.HashMultimap;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import me.guardian.entity.CameraMarkerEntity;
@@ -61,8 +63,9 @@ public final class CameraMarkerHeadRenderer extends EntityRenderer<CameraMarkerE
 
     private static ItemStack createHead() {
         ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
-        GameProfile profile = new GameProfile(UUID.nameUUIDFromBytes(HEAD_TEXTURE.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "Camera");
-        profile.properties().put("textures", new Property("textures", HEAD_TEXTURE));
+        PropertyMap properties = new PropertyMap(HashMultimap.create());
+        properties.put("textures", new Property("textures", HEAD_TEXTURE));
+        GameProfile profile = new GameProfile(UUID.nameUUIDFromBytes(HEAD_TEXTURE.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "Camera", properties);
         stack.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
         return stack;
     }
