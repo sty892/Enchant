@@ -9,7 +9,6 @@ import me.guardian.client.CameraMarkerHeadRenderer;
 import me.guardian.client.screen.CameraMarkerEditorScreen;
 import me.guardian.item.ModItems;
 import me.guardian.network.CameraPayloads;
-import me.guardian.network.GuardianNetworking;
 import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
 import net.fabricmc.api.ClientModInitializer;
@@ -35,7 +34,6 @@ public final class GuardianModClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        GuardianNetworking.registerPayloadTypes();
         GuardianMod.LOGGER.info("Guardian Mod client foundation initialized");
         registerEntityRenderers();
         registerTriggerVisibility();

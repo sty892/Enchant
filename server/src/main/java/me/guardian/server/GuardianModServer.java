@@ -10,7 +10,6 @@ import me.guardian.event.GuardianAltarRitualHooks;
 import me.guardian.event.GuardianEventExecutor;
 import me.guardian.network.HandshakeC2SPayload;
 import me.guardian.network.HandshakeOkS2CPayload;
-import me.guardian.network.GuardianNetworking;
 import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.altar.GuardianPlayerUpgrades;
 import me.guardian.server.boss.BossEventManager;
@@ -39,7 +38,6 @@ import net.minecraft.world.InteractionResult;
 public final class GuardianModServer implements ModInitializer {
     @Override
     public void onInitialize() {
-        GuardianNetworking.registerPayloadTypes();
         ConfigManager.initialize();
         BossEventManager.initialize();
         GuardianEventScheduler.initialize();
