@@ -17,6 +17,10 @@ import net.minecraft.world.level.GameType;
 import java.util.*;
 
 public final class CutsceneManager {
+    private static final Set<UUID> HAD_DIAMOND = new HashSet<>();
+    private static final Set<UUID> NEAR_BORDER = new HashSet<>();
+    private static final Set<UUID> IN_NETHER_PORTAL = new HashSet<>();
+
     private CutsceneManager() {
     }
 
@@ -26,6 +30,7 @@ public final class CutsceneManager {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayer player = handler.player;
             if (player != null) {
+                clearTriggerEdges(player.getUUID());
                 stopCutscene(player);
             }
         });
@@ -232,35 +237,39 @@ public final class CutsceneManager {
                 continue;
             }
 
-            // 1. on_diamond_pickup
-            if (!worldState.hasTriggeredEvent(player.getUUID().toString(), "on_diamond_pickup")) {
-                if (hasDiamond(player)) {
-                    worldState.addTriggeredEvent(player.getUUID().toString(), "on_diamond_pickup");
-                    startCutscene(player, "on_diamond_pickup");
-                    continue;
-                }
+            UUID playerId = player.getUUID();
+
+            boolean hasDiamond = hasDiamond(player);
+            if (hasDiamond && HAD_DIAMOND.add(playerId)) {
+                startCutscene(player, "on_diamond_pickup");
+                continue;
+            } else if (!hasDiamond) {
+                HAD_DIAMOND.remove(playerId);
             }
 
-            // 2. on_border_approach
-            if (!worldState.hasTriggeredEvent(player.getUUID().toString(), "on_border_approach")) {
-                double dist = player.level().getWorldBorder().getDistanceToBorder(player);
-                if (dist < 2.0) {
-                    worldState.addTriggeredEvent(player.getUUID().toString(), "on_border_approach");
-                    startCutscene(player, "on_border_approach");
-                    continue;
-                }
+            double dist = player.level().getWorldBorder().getDistanceToBorder(player);
+            boolean nearBorder = dist < 2.0;
+            if (nearBorder && NEAR_BORDER.add(playerId)) {
+                startCutscene(player, "on_border_approach");
+                continue;
+            } else if (!nearBorder) {
+                NEAR_BORDER.remove(playerId);
             }
 
-            // 3. on_nether_portal_enter
-            if (!worldState.hasTriggeredEvent(player.getUUID().toString(), "on_nether_portal_enter")) {
-                if (player.level().getBlockState(player.blockPosition()).is(net.minecraft.world.level.block.Blocks.NETHER_PORTAL)
-                        || player.level().getBlockState(player.blockPosition().above()).is(net.minecraft.world.level.block.Blocks.NETHER_PORTAL)) {
-                    worldState.addTriggeredEvent(player.getUUID().toString(), "on_nether_portal_enter");
-                    startCutscene(player, "on_nether_portal_enter");
-                    continue;
-                }
+            boolean inPortal = player.level().getBlockState(player.blockPosition()).is(net.minecraft.world.level.block.Blocks.NETHER_PORTAL)
+                    || player.level().getBlockState(player.blockPosition().above()).is(net.minecraft.world.level.block.Blocks.NETHER_PORTAL);
+            if (inPortal && IN_NETHER_PORTAL.add(playerId)) {
+                startCutscene(player, "on_nether_portal_enter");
+            } else if (!inPortal) {
+                IN_NETHER_PORTAL.remove(playerId);
             }
         }
+    }
+
+    private static void clearTriggerEdges(UUID playerId) {
+        HAD_DIAMOND.remove(playerId);
+        NEAR_BORDER.remove(playerId);
+        IN_NETHER_PORTAL.remove(playerId);
     }
 
     private static boolean hasDiamond(ServerPlayer player) {

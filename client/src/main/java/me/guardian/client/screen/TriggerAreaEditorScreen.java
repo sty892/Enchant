@@ -105,13 +105,12 @@ public final class TriggerAreaEditorScreen extends Screen {
         int removeButtonWidth = 20;
         int addButtonWidth = 20;
         int buttonGap = 2;
-        int commandFieldWidth = panelWidth - removeButtonWidth - addButtonWidth - buttonGap * 2;
+        int commandFieldWidth = panelWidth - addButtonWidth - removeButtonWidth - buttonGap * 2;
         for (int i = 0; i < commandValues.size(); i++) {
             addCommandRow(left, y + i * 24, commandFieldWidth, removeButtonWidth, buttonGap, i);
         }
-        int lastRowY = y + (commandValues.size() - 1) * 24;
         addCommandButton = addRenderableWidget(Button.builder(Component.literal("+"), button -> addCommandField())
-                .bounds(left + commandFieldWidth + removeButtonWidth + buttonGap * 2, lastRowY, addButtonWidth, 20)
+                .bounds(left + commandFieldWidth + removeButtonWidth + buttonGap * 2, y, addButtonWidth, 20)
                 .build());
 
         y += commandValues.size() * 24 + 18;
@@ -156,24 +155,18 @@ public final class TriggerAreaEditorScreen extends Screen {
 
         EditBox delayField = new EditBox(font, left, y, delayFieldWidth, 20,
                 Component.translatable("screen.guardian_mod.trigger_area.delay"));
-        delayField.setMaxLength(5);
+        delayField.setMaxLength(8);
         int currentDelay = 0;
         if (index < commandDelays.size()) {
             currentDelay = commandDelays.get(index);
         }
         delayField.setValue(String.valueOf(currentDelay));
-        delayField.setFilter(text -> text.matches("\\d*"));
+        delayField.setFilter(text -> text.matches("\\d*[sStTmM]?"));
         delayField.setResponder(value -> {
-            int delayVal = 0;
-            try {
-                if (!value.isEmpty()) {
-                    delayVal = Integer.parseInt(value);
-                }
-            } catch (NumberFormatException ignored) {}
             while (commandDelays.size() <= index) {
                 commandDelays.add(0);
             }
-            commandDelays.set(index, delayVal);
+            commandDelays.set(index, parseDelayTicks(value));
         });
         delayFields.add(delayField);
         addRenderableWidget(delayField);
@@ -232,8 +225,10 @@ public final class TriggerAreaEditorScreen extends Screen {
         }
 
         super.render(graphics, mouseX, mouseY, delta);
+        updateActiveCommandFieldFromFocus();
         CommandSuggestions suggestions = activeCommandSuggestions();
         if (suggestions != null) {
+            suggestions.updateCommandInfo();
             suggestions.render(graphics, mouseX, mouseY);
         }
     }
@@ -245,6 +240,7 @@ public final class TriggerAreaEditorScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        updateActiveCommandFieldFromFocus();
         CommandSuggestions suggestions = activeCommandSuggestions();
         if (suggestions != null && suggestions.keyPressed(event)) {
             return true;
@@ -340,8 +336,36 @@ public final class TriggerAreaEditorScreen extends Screen {
             return;
         }
         commandValues.clear();
-        for (EditBox field : commandFields) {
-            commandValues.add(field.getValue());
+        for (int i = 0; i < commandFields.size(); i++) {
+            commandValues.add(commandFields.get(i).getValue());
+            if (i < delayFields.size()) {
+                while (commandDelays.size() <= i) {
+                    commandDelays.add(0);
+                }
+                commandDelays.set(i, parseDelayTicks(delayFields.get(i).getValue()));
+            }
+        }
+    }
+
+    private static int parseDelayTicks(String value) {
+        String trimmed = value.trim().toLowerCase(java.util.Locale.ROOT);
+        if (trimmed.isEmpty()) {
+            return 0;
+        }
+        int multiplier = 1;
+        char last = trimmed.charAt(trimmed.length() - 1);
+        if (last == 's' || last == 't' || last == 'm') {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+            if (last == 's') {
+                multiplier = 20;
+            } else if (last == 'm') {
+                multiplier = 1200;
+            }
+        }
+        try {
+            return Math.max(0, Integer.parseInt(trimmed) * multiplier);
+        } catch (NumberFormatException ignored) {
+            return 0;
         }
     }
 

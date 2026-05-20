@@ -5,6 +5,7 @@ import me.guardian.ModState;
 import me.guardian.block.ModBlocks;
 import me.guardian.client.trigger.TriggerAreaClient;
 import me.guardian.entity.ModEntities;
+import me.guardian.client.CameraMarkerHeadRenderer;
 import me.guardian.client.screen.CameraMarkerEditorScreen;
 import me.guardian.item.ModItems;
 import me.guardian.network.CameraPayloads;
@@ -110,7 +111,7 @@ public final class GuardianModClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.ALTAR_PLACEMENT,
                 context -> new GeoEntityRenderer<>(context, new GuardianAltarPlacementModel()));
         EntityRendererRegistry.register(ModEntities.CAMERA_MARKER,
-                context -> new GeoEntityRenderer<>(context, new CameraMarkerModel()));
+                CameraMarkerHeadRenderer::new);
     }
 
     private static void registerTriggerVisibility() {

@@ -14,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShapeRenderer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -61,15 +62,17 @@ public final class TriggerAreaClient {
     }
 
     public static boolean isRevealEnabled() {
-        return revealEnabled;
+        return revealEnabled && canReveal(Minecraft.getInstance());
     }
 
     public static void tick(Minecraft client) {
         if (client.player == null || client.level == null || client.screen != null) {
             useWasDown = false;
             attackWasDown = false;
+            updateCameraVisibility(client);
             return;
         }
+        updateCameraVisibility(client);
         boolean useDown = client.options.keyUse.isDown();
         boolean attackDown = client.options.keyAttack.isDown();
         if (!useDown && !attackDown) {
@@ -86,7 +89,7 @@ public final class TriggerAreaClient {
             return;
         }
 
-        Optional<TriggerArea> lookedAtArea = revealEnabled && usePressed ? findLookedAtArea(client) : Optional.empty();
+        Optional<TriggerArea> lookedAtArea = isRevealEnabled() && usePressed ? findLookedAtArea(client) : Optional.empty();
         if (usePressed && lookedAtArea.isPresent()) {
             TriggerArea area = lookedAtArea.get();
             if (client.player.isHolding(ModItems.TRIGGER_GUARD)) {
@@ -112,7 +115,17 @@ public final class TriggerAreaClient {
 
     private static void setRevealEnabled(boolean enabled) {
         revealEnabled = enabled;
-        CameraMarkerEntity.clientRevealEnabled = enabled;
+        updateCameraVisibility(Minecraft.getInstance());
+    }
+
+    private static void updateCameraVisibility(Minecraft client) {
+        CameraMarkerEntity.clientRevealEnabled = revealEnabled && canReveal(client);
+    }
+
+    private static boolean canReveal(Minecraft client) {
+        return client.player != null
+                && client.gameMode != null
+                && client.gameMode.getPlayerMode() != GameType.SURVIVAL;
     }
 
     private static Optional<TriggerArea> findLookedAtArea(Minecraft client) {
@@ -121,7 +134,7 @@ public final class TriggerAreaClient {
         String dimension = client.level.dimension().identifier().toString();
         TriggerArea best = null;
         double bestDistance = Double.MAX_VALUE;
-        for (double distance = 0.0D; distance <= 48.0D; distance += 0.25D) {
+        for (double distance = 0.0D; distance <= 5.0D; distance += 0.25D) {
             Vec3 point = eye.add(look.scale(distance));
             for (TriggerArea area : AREAS) {
                 if (!area.dimension.equals(dimension) || !contains(area, point)) {
@@ -159,7 +172,7 @@ public final class TriggerAreaClient {
 
     private static void render(WorldRenderContext context) {
         Minecraft client = Minecraft.getInstance();
-        if (!revealEnabled || client.player == null || client.level == null) {
+        if (!isRevealEnabled() || client.player == null || client.level == null) {
             return;
         }
 

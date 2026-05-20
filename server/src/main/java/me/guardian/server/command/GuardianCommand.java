@@ -234,6 +234,13 @@ public final class GuardianCommand {
                                         context.getSource(),
                                         StringArgumentType.getString(context, "cutscene_id")
                                 ))))
+                .then(Commands.literal("delete")
+                        .then(Commands.argument("cutscene_id", StringArgumentType.string())
+                                .suggests((context, builder) -> suggestCutsceneIds(context.getSource(), builder))
+                                .executes(context -> deleteCutscene(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "cutscene_id")
+                                ))))
                 .then(Commands.literal("list")
                         .executes(context -> listCutscenes(context.getSource())))
                 .then(Commands.literal("stop")
@@ -318,6 +325,45 @@ public final class GuardianCommand {
             }
         }
         return cutsceneIds.size();
+    }
+
+    private static int deleteCutscene(CommandSourceStack source, String cutsceneId) {
+        if (!isFileSafeCutsceneId(cutsceneId)) {
+            source.sendFailure(Component.literal("§cInvalid cutscene id: " + cutsceneId));
+            return 0;
+        }
+
+        Path target = ConfigLoader.configRoot().resolve("cutscenes").resolve(cutsceneId + ".json").toAbsolutePath().normalize();
+        Path cutsceneDir = ConfigLoader.configRoot().resolve("cutscenes").toAbsolutePath().normalize();
+        if (!target.startsWith(cutsceneDir)) {
+            source.sendFailure(Component.literal("§cInvalid cutscene id: " + cutsceneId));
+            return 0;
+        }
+
+        int removedMarkers = 0;
+        for (ServerLevel level : source.getServer().getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (entity instanceof CameraMarkerEntity marker && cutsceneId.equals(marker.getCutsceneId())) {
+                    marker.discard();
+                    removedMarkers++;
+                }
+            }
+        }
+
+        try {
+            boolean removedFile = Files.deleteIfExists(target);
+            if (!removedFile && removedMarkers == 0) {
+                source.sendFailure(Component.literal("§cCutscene not found: " + cutsceneId));
+                return 0;
+            }
+            int count = removedMarkers;
+            source.sendSuccess(() -> Component.literal("§aDeleted cutscene " + cutsceneId + " and " + count + " camera markers."), true);
+            return 1;
+        } catch (IOException e) {
+            GuardianMod.LOGGER.error("Failed to delete cutscene config: {}", cutsceneId, e);
+            source.sendFailure(Component.literal("§cFailed to delete cutscene: " + e.getMessage()));
+            return 0;
+        }
     }
 
     private static int registerCamera(CommandSourceStack source, String cutsceneId) throws CommandSyntaxException {
