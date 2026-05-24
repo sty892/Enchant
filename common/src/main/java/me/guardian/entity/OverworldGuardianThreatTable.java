@@ -52,6 +52,7 @@ public final class OverworldGuardianThreatTable {
         ServerPlayer current = boss.getTarget() instanceof ServerPlayer player ? player : null;
         ScoredPlayer best = scoredPlayers(boss, level, THREAT_SCAN_RANGE)
                 .stream()
+                .filter(scored -> isAggroedPlayer(boss, scored.player(), entries.get(scored.player().getUUID()), boss.tickCount))
                 .max(Comparator.comparingDouble(ScoredPlayer::score))
                 .orElse(null);
         if (best == null) {
@@ -71,9 +72,7 @@ public final class OverworldGuardianThreatTable {
                 .stream()
                 .filter(scored -> {
                     ThreatEntry entry = entries.get(scored.player().getUUID());
-                    return entry != null && (entry.threat >= MIN_AGGRO_THREAT
-                            || gameTick - entry.lastSeenTick <= AGGRO_MEMORY_TICKS
-                            || scored.player() == boss.getTarget());
+                    return isAggroedPlayer(boss, scored.player(), entry, gameTick);
                 })
                 .sorted(Comparator.comparingDouble(ScoredPlayer::score).reversed())
                 .limit(maxTargets)
@@ -108,6 +107,15 @@ public final class OverworldGuardianThreatTable {
             score += 10.0D;
         }
         return score;
+    }
+
+    private boolean isAggroedPlayer(OverworldGuardianEntity boss, ServerPlayer player, ThreatEntry entry, int gameTick) {
+        if (entry == null) {
+            return player == boss.getTarget();
+        }
+        return entry.threat >= MIN_AGGRO_THREAT
+                || player == boss.getTarget()
+                || player.getUUID().equals(lastAttacker) && gameTick - lastAttackTick < AGGRO_MEMORY_TICKS;
     }
 
     private static boolean isValidPlayer(ServerPlayer player) {

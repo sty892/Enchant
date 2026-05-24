@@ -46,6 +46,11 @@ public final class OverworldGuardianAttackController {
             attack.tickCooldown();
         }
         if (runningAttack != null) {
+            if (activeTarget() == null) {
+                runningAttack = null;
+                globalDelay = 20;
+                return;
+            }
             boss.getNavigation().stop();
             if (runningAttack.tick(level)) {
                 runningAttack = null;
@@ -54,15 +59,17 @@ public final class OverworldGuardianAttackController {
             return;
         }
 
-        LivingEntity target = boss.getTarget();
-        if (target != null && target.isAlive()) {
-            boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
-            if (boss.shouldReturnTowardHome()) {
-                Vec3 home = boss.homeCenter();
-                boss.getNavigation().moveTo(home.x, home.y, home.z, 1.05D);
-            } else if (boss.distanceToSqr(target) > CHASE_RANGE_SQR) {
-                boss.getNavigation().moveTo(target, 1.18D);
-            }
+        LivingEntity target = activeTarget();
+        if (target == null) {
+            globalDelay = 10;
+            return;
+        }
+        boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
+        if (boss.shouldReturnTowardHome()) {
+            Vec3 home = boss.homeCenter();
+            boss.getNavigation().moveTo(home.x, home.y, home.z, 1.05D);
+        } else if (boss.distanceToSqr(target) > CHASE_RANGE_SQR) {
+            boss.getNavigation().moveTo(target, 1.18D);
         }
 
         if (globalDelay > 0) {
@@ -134,6 +141,7 @@ public final class OverworldGuardianAttackController {
 
         final boolean canStart(ServerLevel level) {
             return cooldown <= 0
+                    && activeTarget() != null
                     && boss.getBossPhase().id() == phase
                     && boss.getHiddenStageStep() == stageStep
                     && canUse(level);
@@ -179,7 +187,7 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return boss.getTarget() != null && boss.getTarget().isAlive();
+            return activeTarget() != null;
         }
 
         @Override
@@ -222,7 +230,7 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return !nearbyPlayers(level, 12.0D).isEmpty();
+            return activeTarget() != null;
         }
 
         @Override
@@ -266,8 +274,8 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            LivingEntity target = boss.getTarget();
-            return target != null && target.isAlive() && boss.distanceToSqr(target) <= 24.0D * 24.0D;
+            LivingEntity target = activeTarget();
+            return target != null && boss.distanceToSqr(target) <= 24.0D * 24.0D;
         }
 
         @Override
@@ -313,7 +321,7 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return !nearbyPlayers(level, 22.0D).isEmpty();
+            return activeTarget() != null && !aggroedPlayers(level, 22.0D).isEmpty();
         }
 
         @Override
@@ -323,13 +331,13 @@ public final class OverworldGuardianAttackController {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
                     if (tick == 12 || tick == 22 || tick == 32) {
-                        for (ServerPlayer player : nearbyPlayers(level, 22.0D)) {
+                        for (ServerPlayer player : aggroedPlayers(level, 22.0D)) {
                             telegraphPlayerStomp(level, player);
                         }
                     }
                     if (tick == 38) {
                         boolean hit = false;
-                        for (ServerPlayer player : nearbyPlayers(level, 22.0D)) {
+                        for (ServerPlayer player : aggroedPlayers(level, 22.0D)) {
                             if (horizontalDistance(player.position(), boss.position()) > 24.0D) {
                                 continue;
                             }
@@ -460,8 +468,8 @@ public final class OverworldGuardianAttackController {
     }
 
     private Vec3 currentTargetPosition(double fallbackDistance) {
-        LivingEntity target = boss.getTarget();
-        if (target != null && target.isAlive()) {
+        LivingEntity target = activeTarget();
+        if (target != null) {
             return target.position();
         }
         Vec3 look = boss.getLookAngle().horizontal();
@@ -471,15 +479,13 @@ public final class OverworldGuardianAttackController {
         return boss.position().add(look.normalize().scale(fallbackDistance));
     }
 
-    private List<ServerPlayer> nearbyPlayers(ServerLevel level, double radius) {
-        List<ServerPlayer> aggroed = boss.getThreatTable().topAggroedPlayers(boss, level, radius, 8);
-        if (!aggroed.isEmpty()) {
-            return aggroed;
-        }
-        double radiusSqr = radius * radius;
-        return level.players().stream()
-                .filter(player -> player.isAlive() && player.distanceToSqr(boss) <= radiusSqr && boss.isNearHome(player, radius))
-                .toList();
+    private LivingEntity activeTarget() {
+        LivingEntity target = boss.getTarget();
+        return target != null && target.isAlive() ? target : null;
+    }
+
+    private List<ServerPlayer> aggroedPlayers(ServerLevel level, double radius) {
+        return boss.getThreatTable().topAggroedPlayers(boss, level, radius, 8);
     }
 
     private static double horizontalDistance(Vec3 first, Vec3 second) {
