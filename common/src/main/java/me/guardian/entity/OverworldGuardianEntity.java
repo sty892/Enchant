@@ -54,6 +54,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final double BOSS_BAR_RADIUS_SQR = 30.0D * 30.0D;
     private static final RawAnimation SPAWN_ANIMATION = RawAnimation.begin().thenPlay("spawn");
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
+    private static final RawAnimation WALK_ANIMATION = RawAnimation.begin().thenLoop("walk");
+    private static final RawAnimation RUN_ANIMATION = RawAnimation.begin().thenLoop("run");
     private static final EntityDataAccessor<Integer> DATA_PHASE = SynchedEntityData.defineId(
             OverworldGuardianEntity.class,
             EntityDataSerializers.INT
@@ -95,6 +97,38 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     public OverworldGuardianPhase getBossPhase() {
         return OverworldGuardianPhase.byId(this.entityData.get(DATA_PHASE));
+    }
+
+    public int getHiddenStageStep() {
+        float healthRatio = Math.max(0.0F, Math.min(1.0F, this.getHealth() / this.getMaxHealth()));
+        double upperBound;
+        double lowerBound;
+        switch (getBossPhase()) {
+            case ONE -> {
+                upperBound = 1.0D;
+                lowerBound = 0.66D;
+            }
+            case TWO -> {
+                upperBound = 0.66D;
+                lowerBound = 0.33D;
+            }
+            case THREE -> {
+                upperBound = 0.33D;
+                lowerBound = 0.0D;
+            }
+            default -> {
+                upperBound = 1.0D;
+                lowerBound = 0.66D;
+            }
+        }
+        double progress = (upperBound - healthRatio) / (upperBound - lowerBound);
+        if (progress >= 2.0D / 3.0D) {
+            return 3;
+        }
+        if (progress >= 1.0D / 3.0D) {
+            return 2;
+        }
+        return 1;
     }
 
     public void triggerAttackAnimation(String triggerName) {
@@ -420,15 +454,23 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>("Idle", state -> state.setAndContinue(IDLE_ANIMATION)));
+        controllers.add(new AnimationController<>("Movement", state -> {
+            double horizontalSpeedSqr = this.getDeltaMovement().horizontalDistanceSqr();
+            if (horizontalSpeedSqr < 0.0025D) {
+                return state.setAndContinue(IDLE_ANIMATION);
+            }
+            LivingEntity target = this.getTarget();
+            return state.setAndContinue(target != null && target.isAlive() ? RUN_ANIMATION : WALK_ANIMATION);
+        }));
         controllers.add(new AnimationController<OverworldGuardianEntity>(SPAWN_CONTROLLER_NAME, state -> PlayState.STOP)
                 .triggerableAnim(SPAWN_TRIGGER_NAME, SPAWN_ANIMATION));
         controllers.add(new AnimationController<OverworldGuardianEntity>(GuardianBossAi.ATTACK_CONTROLLER, 0, state -> PlayState.STOP)
                 .triggerableAnim("attack", RawAnimation.begin().thenPlay("attack"))
-                .triggerableAnim("melee", RawAnimation.begin().thenPlay("melee"))
-                .triggerableAnim("rockfall", RawAnimation.begin().thenPlay("rockfall"))
-                .triggerableAnim("shockwave", RawAnimation.begin().thenPlay("shockwave"))
-                .triggerableAnim("fissure", RawAnimation.begin().thenPlay("fissure"))
+                .triggerableAnim("attack_right", RawAnimation.begin().thenPlay("attack_right"))
+                .triggerableAnim("attack_left", RawAnimation.begin().thenPlay("attack_left"))
+                .triggerableAnim("attack_both", RawAnimation.begin().thenPlay("attack_both"))
+                .triggerableAnim("attack_hands_slam", RawAnimation.begin().thenPlay("attack_hands_slam"))
+                .triggerableAnim("stamTopTopTop", RawAnimation.begin().thenPlay("StamTopTopTop"))
                 .triggerableAnim(PHASE_SHIFT_TRIGGER, RawAnimation.begin().thenPlay(PHASE_SHIFT_TRIGGER)));
     }
 
