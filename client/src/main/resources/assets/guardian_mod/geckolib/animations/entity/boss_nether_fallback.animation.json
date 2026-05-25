@@ -6,16 +6,6 @@
       "animation_length": 0.04,
       "bones": {}
     },
-    "walk": {
-      "loop": true,
-      "animation_length": 0.04,
-      "bones": {}
-    },
-    "run": {
-      "loop": true,
-      "animation_length": 0.04,
-      "bones": {}
-    },
     "spawn": {
       "loop": false,
       "animation_length": 0.04,
@@ -31,27 +21,37 @@
       "animation_length": 0.04,
       "bones": {}
     },
-    "attack_right": {
+    "melee": {
       "loop": false,
       "animation_length": 0.04,
       "bones": {}
     },
-    "attack_left": {
+    "molten_fissure": {
       "loop": false,
       "animation_length": 0.04,
       "bones": {}
     },
-    "attack_both": {
+    "meteor_rain": {
       "loop": false,
       "animation_length": 0.04,
       "bones": {}
     },
-    "attack_hands_slam": {
+    "whip_grab": {
       "loop": false,
       "animation_length": 0.04,
       "bones": {}
     },
-    "StamTopTopTop": {
+    "minion_aegis": {
+      "loop": false,
+      "animation_length": 0.04,
+      "bones": {}
+    },
+    "soul_vortex": {
+      "loop": false,
+      "animation_length": 0.04,
+      "bones": {}
+    },
+    "death_beams": {
       "loop": false,
       "animation_length": 0.04,
       "bones": {}
