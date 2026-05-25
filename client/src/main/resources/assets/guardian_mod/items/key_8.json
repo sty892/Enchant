@@ -1,9 +1,6 @@
-﻿{
+{
   "model": {
-    "type": "minecraft:special",
-    "base": "guardian_mod:item/key_8",
-    "model": {
-      "type": "geckolib:geckolib"
-    }
+    "type": "minecraft:model",
+    "model": "guardian_mod:item/key_8"
   }
 }
