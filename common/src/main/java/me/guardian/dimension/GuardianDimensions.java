@@ -11,6 +11,10 @@ public final class GuardianDimensions {
             Registries.DIMENSION,
             Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "guardian_dimension")
     );
+    public static final ResourceKey<Level> DEBUG_DIMENSION = ResourceKey.create(
+            Registries.DIMENSION,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "debug_dimension")
+    );
 
     private GuardianDimensions() {
     }

@@ -1,0 +1,22 @@
+{
+  "type": "guardian_mod:debug_dimension_type",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "minecraft:the_void",
+      "features": false,
+      "lakes": false,
+      "layers": [
+        {
+          "block": "minecraft:air",
+          "height": 64
+        },
+        {
+          "block": "minecraft:glass",
+          "height": 1
+        }
+      ],
+      "structure_overrides": []
+    }
+  }
+}

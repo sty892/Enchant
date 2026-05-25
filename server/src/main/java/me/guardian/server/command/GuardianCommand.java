@@ -15,6 +15,7 @@ import me.guardian.GuardianMod;
 import me.guardian.block.KeyholeBlock;
 import me.guardian.config.ConfigLoader;
 import me.guardian.config.ConfigManager;
+import me.guardian.dimension.GuardianDimensions;
 import me.guardian.entity.CameraMarkerEntity;
 import me.guardian.entity.GenericBossEntity;
 import me.guardian.entity.ModEntities;
@@ -59,6 +60,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -138,6 +140,9 @@ public final class GuardianCommand {
                                 .executes(context -> listWhitelist(context.getSource()))))
                 .then(Commands.literal("state")
                         .executes(context -> printState(context.getSource())))
+                .then(Commands.literal("debugworld")
+                        .then(Commands.literal("tp")
+                                .executes(context -> teleportDebugWorld(context.getSource()))))
                 .then(Commands.literal("reset")
                         .executes(context -> resetState(context.getSource())))
                 .then(Commands.literal("stage")
@@ -255,6 +260,18 @@ public final class GuardianCommand {
     private static boolean canUse(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         return player == null || source.getServer().getPlayerList().isOp(player.nameAndId());
+    }
+
+    private static int teleportDebugWorld(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel debugLevel = source.getServer().getLevel(GuardianDimensions.DEBUG_DIMENSION);
+        if (debugLevel == null) {
+            source.sendFailure(Component.literal("Debug world is not loaded."));
+            return 0;
+        }
+        player.teleportTo(debugLevel, 0.5D, 65.0D, 0.5D, Collections.emptySet(), player.getYRot(), player.getXRot(), true);
+        source.sendSuccess(() -> Component.literal("Teleported to guardian debug world."), true);
+        return 1;
     }
 
     private static int playCutsceneSelf(CommandSourceStack source, String cutsceneId) throws CommandSyntaxException {
