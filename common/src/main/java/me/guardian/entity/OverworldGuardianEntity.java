@@ -99,7 +99,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 500.0)
                 .add(Attributes.ATTACK_DAMAGE, 15.0)
-                .add(Attributes.MOVEMENT_SPEED, 0.25)
+                .add(Attributes.MOVEMENT_SPEED, 0.20)
                 .add(Attributes.FOLLOW_RANGE, 64.0)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.8);
     }
@@ -516,7 +516,9 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     }
 
     public boolean isMovingForAnimation() {
-        return this.getDeltaMovement().horizontalDistanceSqr() >= 0.0025D;
+        double dx = this.getX() - this.xo;
+        double dz = this.getZ() - this.zo;
+        return (dx * dx + dz * dz) >= 0.001D;
     }
 
     public boolean isAggroedForAnimation() {

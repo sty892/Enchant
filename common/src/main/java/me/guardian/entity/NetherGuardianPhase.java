@@ -3,9 +3,9 @@ package me.guardian.entity;
 import net.minecraft.world.BossEvent;
 
 public enum NetherGuardianPhase {
-    ONE(1, BossEvent.BossBarColor.RED, 0.30D, 20.0D),
-    TWO(2, BossEvent.BossBarColor.YELLOW, 0.33D, 23.0D),
-    THREE(3, BossEvent.BossBarColor.BLUE, 0.38D, 27.0D);
+    ONE(1, BossEvent.BossBarColor.RED, 0.24D, 20.0D),
+    TWO(2, BossEvent.BossBarColor.YELLOW, 0.27D, 23.0D),
+    THREE(3, BossEvent.BossBarColor.BLUE, 0.32D, 27.0D);
 
     private final int id;
     private final BossEvent.BossBarColor bossBarColor;

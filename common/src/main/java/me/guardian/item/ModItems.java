@@ -17,7 +17,7 @@ import net.minecraft.world.item.CreativeModeTab;
 public class ModItems {
 
     // Keys
-    public static final Item KEY_1 = register("key_1", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+    public static final Item KEY_1 = register("key_1", new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
     public static final Item KEY_2 = register("key_2", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
     public static final Item KEY_3 = register("key_3", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
     public static final Item KEY_4 = register("key_4", new Item.Properties().stacksTo(1).rarity(Rarity.RARE));

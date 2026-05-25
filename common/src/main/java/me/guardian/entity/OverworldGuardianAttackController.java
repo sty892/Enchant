@@ -1,5 +1,6 @@
 package me.guardian.entity;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -201,11 +202,13 @@ public final class OverworldGuardianAttackController {
             return new TimedAttack(34) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
-                    if (tick >= 12 && tick < 20 && tick % 2 == 0) {
-                        telegraphCircle(level, 2.8D + tick * 0.12D, 16);
-                    }
                     if (tick == 22) {
-                        radialImpact(level, 5.5D, 9.0F, 0.55D, 0.25D);
+                        directionalImpact(level, 5.5D, 9.0F, 0.55D, 0.25D);
+                        radialBlockWaveRing(level, boss.position(), 1.5D, 12);
+                    } else if (tick == 24) {
+                        radialBlockWaveRing(level, boss.position(), 3.5D, 24);
+                    } else if (tick == 26) {
+                        radialBlockWaveRing(level, boss.position(), 5.5D, 36);
                     }
                 }
             };
@@ -245,11 +248,13 @@ public final class OverworldGuardianAttackController {
             return new TimedAttack(44) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
-                    if (tick >= 14 && tick < 30 && tick % 3 == 0) {
-                        telegraphCircle(level, 3.5D + tick * 0.13D, 20);
-                    }
                     if (tick == 32) {
-                        radialImpact(level, 7.5D, 12.0F, 1.05D, 0.45D);
+                        directionalImpact(level, 7.5D, 12.0F, 1.05D, 0.45D);
+                        radialBlockWaveRing(level, boss.position(), 2.0D, 16);
+                    } else if (tick == 34) {
+                        radialBlockWaveRing(level, boss.position(), 4.5D, 32);
+                    } else if (tick == 36) {
+                        radialBlockWaveRing(level, boss.position(), 7.0D, 48);
                     }
                 }
             };
@@ -284,7 +289,14 @@ public final class OverworldGuardianAttackController {
 
         @Override
         RunningAttack start(ServerLevel level) {
-            Vec3 target = currentTargetPosition(14.0D);
+            Vec3 start = boss.position();
+            LivingEntity targetEntity = activeTarget();
+            Vec3 dir = targetEntity != null ? targetEntity.position().subtract(start).horizontal() : boss.getLookAngle().horizontal();
+            if (dir.lengthSqr() < 0.0001D) {
+                dir = new Vec3(0.0D, 0.0D, 1.0D);
+            }
+            Vec3 lineEnd = start.add(dir.normalize().scale(14.0D));
+
             boss.swing(InteractionHand.MAIN_HAND);
             boss.swing(InteractionHand.OFF_HAND);
             boss.triggerAttackAnimation("attack_hands_slam");
@@ -292,11 +304,11 @@ public final class OverworldGuardianAttackController {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
                     if (tick >= 15 && tick < 31 && tick % 2 == 1) {
-                        renderSlamLine(level, target, false);
+                        renderSlamLine(level, lineEnd, false);
                     }
                     if (tick == 34) {
-                        renderSlamLine(level, target, true);
-                        damageLine(level, target, 13.0F);
+                        renderSlamLine(level, lineEnd, true);
+                        damageLine(level, lineEnd, 13.0F);
                     }
                 }
             };
@@ -434,12 +446,28 @@ public final class OverworldGuardianAttackController {
             return;
         }
         Vec3 step = direction.normalize();
-        double length = Math.min(18.0D, direction.length());
+        double length = direction.length();
         for (double distance = 1.7D; distance <= length; distance += heavy ? 0.55D : 1.05D) {
             Vec3 point = start.add(step.scale(distance));
-            level.sendParticles(heavy ? STONE_PARTICLE : TELEGRAPH_DUST,
-                    point.x, boss.getY() + (heavy ? 0.2D : 0.1D), point.z,
-                    heavy ? 8 : 1, 0.18D, heavy ? 0.35D : 0.02D, 0.18D, heavy ? 0.08D : 0.0D);
+            if (heavy) {
+                BlockPos pos = BlockPos.containing(point.x, boss.getY() - 0.5D, point.z);
+                var state = level.getBlockState(pos);
+                if (state.isAir()) {
+                    pos = pos.below();
+                    state = level.getBlockState(pos);
+                }
+                if (!state.isAir()) {
+                    var option = new BlockParticleOption(ParticleTypes.BLOCK, state);
+                    level.sendParticles(option, point.x, boss.getY() + 0.1D, point.z,
+                            12, 0.15D, 0.4D, 0.15D, 0.2D);
+                    level.sendParticles(ParticleTypes.POOF, point.x, boss.getY() + 0.1D, point.z,
+                            2, 0.1D, 0.1D, 0.1D, 0.01D);
+                }
+            } else {
+                level.sendParticles(ParticleTypes.CRIT,
+                        point.x, boss.getY() + 0.1D, point.z,
+                        2, 0.1D, 0.1D, 0.1D, 0.01D);
+            }
         }
     }
 
@@ -512,5 +540,55 @@ public final class OverworldGuardianAttackController {
         double x = point.x - nearestX;
         double z = point.z - nearestZ;
         return Math.sqrt(x * x + z * z);
+    }
+
+    private void directionalImpact(ServerLevel level, double radius, float damage, double knockback, double yVelocity) {
+        Vec3 center = boss.position();
+        Vec3 look = boss.getLookAngle().horizontal().normalize();
+
+        Vec3 gustPos = center.add(look.scale(1.5D));
+        level.sendParticles(ParticleTypes.GUST_EMITTER_LARGE, gustPos.x, gustPos.y + 0.25D, gustPos.z,
+                1, 0.05D, 0.05D, 0.05D, 0.0D);
+
+        boolean hit = false;
+        for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, boss.getBoundingBox().inflate(radius, 2.0D, radius))) {
+            if (living == boss || !living.isAlive() || horizontalDistance(living.position(), center) > radius) {
+                continue;
+            }
+            Vec3 toTarget = living.position().subtract(center).horizontal().normalize();
+            double dot = look.dot(toTarget);
+            if (dot < 0.35D) {
+                continue;
+            }
+            
+            if (living.hurtServer(level, boss.damageSources().mobAttack(boss), damage)) {
+                hit = true;
+            }
+            Vec3 away = living.position().subtract(center).horizontal();
+            if (away.lengthSqr() > 0.0001D) {
+                living.setDeltaMovement(away.normalize().scale(knockback).add(0.0D, yVelocity, 0.0D));
+            }
+        }
+        if (hit) {
+            boss.recordSuccessfulHit();
+        }
+    }
+
+    private void radialBlockWaveRing(ServerLevel level, Vec3 center, double radius, int count) {
+        for (int i = 0; i < count; i++) {
+            double angle = (Math.PI * 2.0D) * i / count;
+            double x = center.x + Math.cos(angle) * radius;
+            double z = center.z + Math.sin(angle) * radius;
+            BlockPos pos = BlockPos.containing(x, boss.getY() - 0.5D, z);
+            var state = level.getBlockState(pos);
+            if (state.isAir()) {
+                pos = pos.below();
+                state = level.getBlockState(pos);
+            }
+            if (!state.isAir()) {
+                var option = new BlockParticleOption(ParticleTypes.BLOCK, state);
+                level.sendParticles(option, x, boss.getY() + 0.1D, z, 2, 0.05D, 0.2D, 0.05D, 0.12D);
+            }
+        }
     }
 }

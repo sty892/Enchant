@@ -78,7 +78,7 @@ public class NetherGuardianEntity extends Monster implements GeoEntity {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 750.0)
                 .add(Attributes.ATTACK_DAMAGE, 20.0)
-                .add(Attributes.MOVEMENT_SPEED, 0.30)
+                .add(Attributes.MOVEMENT_SPEED, 0.24)
                 .add(Attributes.FOLLOW_RANGE, 80.0)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0);
     }

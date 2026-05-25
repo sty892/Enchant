@@ -34,7 +34,7 @@ public final class GuardianBossRenderer<T extends Mob & GeoEntity, R extends Ent
     }
 
     private static void rotateHead(BoneSnapshot snapshot, float pitch, float yaw) {
-        snapshot.setRotX(snapshot.getRotX() + pitch * DEG_TO_RAD);
-        snapshot.setRotY(snapshot.getRotY() - yaw * DEG_TO_RAD);
+        snapshot.setRotX(snapshot.getRotX() - pitch * DEG_TO_RAD);
+        snapshot.setRotY(snapshot.getRotY() + yaw * DEG_TO_RAD);
     }
 }

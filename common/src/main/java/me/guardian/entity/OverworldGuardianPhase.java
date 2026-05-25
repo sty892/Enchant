@@ -3,9 +3,9 @@ package me.guardian.entity;
 import net.minecraft.world.BossEvent;
 
 public enum OverworldGuardianPhase {
-    ONE(1, BossEvent.BossBarColor.GREEN, 0.25D, 15.0D),
-    TWO(2, BossEvent.BossBarColor.YELLOW, 0.30D, 18.0D),
-    THREE(3, BossEvent.BossBarColor.RED, 0.36D, 23.0D);
+    ONE(1, BossEvent.BossBarColor.GREEN, 0.20D, 15.0D),
+    TWO(2, BossEvent.BossBarColor.YELLOW, 0.24D, 18.0D),
+    THREE(3, BossEvent.BossBarColor.RED, 0.28D, 23.0D);
 
     private final int id;
     private final BossEvent.BossBarColor bossBarColor;
