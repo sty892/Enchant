@@ -47,6 +47,14 @@ public class CameraMarkerEntity extends Entity implements GeoEntity {
     }
 
     @Override
+    public boolean isInvisible() {
+        if (level().isClientSide() && !clientRevealEnabled) {
+            return true;
+        }
+        return super.isInvisible();
+    }
+
+    @Override
     public boolean isInvisibleTo(Player player) {
         if (level().isClientSide() && !clientRevealEnabled) {
             return true;
@@ -93,7 +101,7 @@ public class CameraMarkerEntity extends Entity implements GeoEntity {
 
     @Override
     public boolean isPickable() {
-        return true;
+        return !level().isClientSide() || clientRevealEnabled;
     }
 
     @Override

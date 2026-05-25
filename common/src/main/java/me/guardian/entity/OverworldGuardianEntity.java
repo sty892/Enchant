@@ -44,8 +44,8 @@ import java.util.UUID;
 
 public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final String BOSS_CONFIG_KEY = "overworld";
-    private static final String SPAWN_CONTROLLER_NAME = "Spawn";
     private static final String SPAWN_TRIGGER_NAME = "spawn";
+    private static final String DEATH_TRIGGER_NAME = "death";
     private static final String PHASE_SHIFT_TRIGGER = "phase_shift";
     private static final String BOSS_BAR_ID_KEY = "BossBarId";
     private static final double PREFERRED_HOME_RADIUS = 16.0D;
@@ -53,12 +53,29 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private static final double SOFT_RETURN_RADIUS_SQR = SOFT_RETURN_RADIUS * SOFT_RETURN_RADIUS;
     private static final double BOSS_BAR_RADIUS_SQR = 30.0D * 30.0D;
     private static final RawAnimation SPAWN_ANIMATION = RawAnimation.begin().thenPlay("spawn");
+    private static final RawAnimation DEATH_ANIMATION = RawAnimation.begin().thenPlay("death");
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK_ANIMATION = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation RUN_ANIMATION = RawAnimation.begin().thenLoop("run");
     private static final EntityDataAccessor<Integer> DATA_PHASE = SynchedEntityData.defineId(
             OverworldGuardianEntity.class,
             EntityDataSerializers.INT
+    );
+    private static final EntityDataAccessor<String> DATA_ACTION_ANIMATION = SynchedEntityData.defineId(
+            OverworldGuardianEntity.class,
+            EntityDataSerializers.STRING
+    );
+    private static final EntityDataAccessor<Boolean> DATA_FULL_BODY_ACTION = SynchedEntityData.defineId(
+            OverworldGuardianEntity.class,
+            EntityDataSerializers.BOOLEAN
+    );
+    private static final EntityDataAccessor<Integer> DATA_ACTION_TICKS = SynchedEntityData.defineId(
+            OverworldGuardianEntity.class,
+            EntityDataSerializers.INT
+    );
+    private static final EntityDataAccessor<Boolean> DATA_AGGROED = SynchedEntityData.defineId(
+            OverworldGuardianEntity.class,
+            EntityDataSerializers.BOOLEAN
     );
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
@@ -132,6 +149,9 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     }
 
     public void triggerAttackAnimation(String triggerName) {
+        if (!level().isClientSide()) {
+            setActionAnimation(triggerName, isFullBodyAction(triggerName), actionDurationTicks(triggerName));
+        }
         GuardianBossAi.triggerAttackAnimation(this, triggerName);
     }
 
@@ -153,6 +173,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_PHASE, OverworldGuardianPhase.ONE.id());
+        builder.define(DATA_ACTION_ANIMATION, "");
+        builder.define(DATA_FULL_BODY_ACTION, false);
+        builder.define(DATA_ACTION_TICKS, 0);
+        builder.define(DATA_AGGROED, false);
     }
 
     @Override
@@ -189,6 +213,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         triggerSpawnAnimation();
         threatTable.tick(this, level);
         tickTarget(level);
+        tickAnimationState();
         tickPhase();
         tickSoftHomeReturn();
         attackController.tick(level);
@@ -202,6 +227,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     @Override
     public void die(DamageSource damageSource) {
+        if (!level().isClientSide()) {
+            setActionAnimation(DEATH_TRIGGER_NAME, true, actionDurationTicks(DEATH_TRIGGER_NAME));
+            this.triggerAnim(GuardianBossAi.ATTACK_CONTROLLER, DEATH_TRIGGER_NAME);
+        }
         if (!deathEventTriggered && this.level() instanceof ServerLevel serverLevel) {
             deathEventTriggered = true;
             GuardianBossEventHooks.triggerOnDeath(BOSS_CONFIG_KEY, serverLevel, this.blockPosition(), this, damageContributors);
@@ -264,7 +293,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             return;
         }
         spawnAnimationTriggered = true;
-        this.triggerAnim(SPAWN_CONTROLLER_NAME, SPAWN_TRIGGER_NAME);
+        setActionAnimation(SPAWN_TRIGGER_NAME, true, actionDurationTicks(SPAWN_TRIGGER_NAME));
+        this.triggerAnim(GuardianBossAi.ATTACK_CONTROLLER, SPAWN_TRIGGER_NAME);
     }
 
     public boolean shouldReturnTowardHome() {
@@ -364,6 +394,18 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         }
     }
 
+    private void tickAnimationState() {
+        LivingEntity target = this.getTarget();
+        this.entityData.set(DATA_AGGROED, target != null && target.isAlive());
+
+        int actionTicks = this.entityData.get(DATA_ACTION_TICKS);
+        if (actionTicks <= 0) {
+            clearActionAnimation();
+            return;
+        }
+        this.entityData.set(DATA_ACTION_TICKS, actionTicks - 1);
+    }
+
     private void tickPhase() {
         OverworldGuardianPhase nextPhase = OverworldGuardianPhase.fromHealth(this.getHealth() / this.getMaxHealth());
         OverworldGuardianPhase currentPhase = getBossPhase();
@@ -454,17 +496,18 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>("Movement", state -> {
-            double horizontalSpeedSqr = this.getDeltaMovement().horizontalDistanceSqr();
-            if (horizontalSpeedSqr < 0.0025D) {
+        controllers.add(new AnimationController<>("Movement", 10, state -> {
+            if (isFullBodyActionActive() || isSpawning() || isDeadOrDyingForAnimation()) {
+                return PlayState.STOP;
+            }
+            if (!isMovingForAnimation()) {
                 return state.setAndContinue(IDLE_ANIMATION);
             }
-            LivingEntity target = this.getTarget();
-            return state.setAndContinue(target != null && target.isAlive() ? RUN_ANIMATION : WALK_ANIMATION);
+            return state.setAndContinue(isAggroedForAnimation() ? RUN_ANIMATION : WALK_ANIMATION);
         }));
-        controllers.add(new AnimationController<OverworldGuardianEntity>(SPAWN_CONTROLLER_NAME, state -> PlayState.STOP)
-                .triggerableAnim(SPAWN_TRIGGER_NAME, SPAWN_ANIMATION));
-        controllers.add(new AnimationController<OverworldGuardianEntity>(GuardianBossAi.ATTACK_CONTROLLER, 0, state -> PlayState.STOP)
+        controllers.add(new AnimationController<OverworldGuardianEntity>(GuardianBossAi.ATTACK_CONTROLLER, 2, state -> PlayState.STOP)
+                .triggerableAnim(SPAWN_TRIGGER_NAME, SPAWN_ANIMATION)
+                .triggerableAnim(DEATH_TRIGGER_NAME, DEATH_ANIMATION)
                 .triggerableAnim("attack", RawAnimation.begin().thenPlay("attack"))
                 .triggerableAnim("attack_right", RawAnimation.begin().thenPlay("attack_right"))
                 .triggerableAnim("attack_left", RawAnimation.begin().thenPlay("attack_left"))
@@ -472,6 +515,77 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
                 .triggerableAnim("attack_hands_slam", RawAnimation.begin().thenPlay("attack_hands_slam"))
                 .triggerableAnim("stamTopTopTop", RawAnimation.begin().thenPlay("StamTopTopTop"))
                 .triggerableAnim(PHASE_SHIFT_TRIGGER, RawAnimation.begin().thenPlay(PHASE_SHIFT_TRIGGER)));
+    }
+
+    public boolean isMovingForAnimation() {
+        return this.getDeltaMovement().horizontalDistanceSqr() >= 0.0025D;
+    }
+
+    public boolean isAggroedForAnimation() {
+        return this.entityData.get(DATA_AGGROED);
+    }
+
+    public boolean isAttacking() {
+        String animation = getCurrentActionAnimation();
+        return !animation.isEmpty() && !isSpawning() && !isDeadOrDyingForAnimation();
+    }
+
+    public boolean isStomping() {
+        String animation = getCurrentActionAnimation();
+        return "attack_hands_slam".equals(animation) || "stamTopTopTop".equals(animation);
+    }
+
+    public boolean isSpawning() {
+        return SPAWN_TRIGGER_NAME.equals(getCurrentActionAnimation()) && this.entityData.get(DATA_ACTION_TICKS) > 0;
+    }
+
+    public boolean isDeadOrDyingForAnimation() {
+        return DEATH_TRIGGER_NAME.equals(getCurrentActionAnimation()) || this.isDeadOrDying();
+    }
+
+    public String getCurrentAttackAnimation() {
+        return isAttacking() ? getCurrentActionAnimation() : "";
+    }
+
+    public String getCurrentActionAnimation() {
+        return this.entityData.get(DATA_ACTION_ANIMATION);
+    }
+
+    private boolean isFullBodyActionActive() {
+        return this.entityData.get(DATA_FULL_BODY_ACTION) && this.entityData.get(DATA_ACTION_TICKS) > 0;
+    }
+
+    private void setActionAnimation(String animation, boolean fullBody, int ticks) {
+        this.entityData.set(DATA_ACTION_ANIMATION, animation);
+        this.entityData.set(DATA_FULL_BODY_ACTION, fullBody);
+        this.entityData.set(DATA_ACTION_TICKS, Math.max(1, ticks));
+    }
+
+    private void clearActionAnimation() {
+        if (getCurrentActionAnimation().isEmpty() && !this.entityData.get(DATA_FULL_BODY_ACTION)) {
+            return;
+        }
+        this.entityData.set(DATA_ACTION_ANIMATION, "");
+        this.entityData.set(DATA_FULL_BODY_ACTION, false);
+        this.entityData.set(DATA_ACTION_TICKS, 0);
+    }
+
+    private static boolean isFullBodyAction(String triggerName) {
+        return switch (triggerName) {
+            case "attack", "attack_right", "attack_left", "attack_both", "attack_hands_slam",
+                 "stamTopTopTop", PHASE_SHIFT_TRIGGER, SPAWN_TRIGGER_NAME, DEATH_TRIGGER_NAME -> true;
+            default -> false;
+        };
+    }
+
+    private static int actionDurationTicks(String triggerName) {
+        return switch (triggerName) {
+            case "attack_hands_slam", "stamTopTopTop" -> 56;
+            case "attack_both", PHASE_SHIFT_TRIGGER -> 44;
+            case SPAWN_TRIGGER_NAME -> 40;
+            case DEATH_TRIGGER_NAME -> 80;
+            default -> 34;
+        };
     }
 
     @Override

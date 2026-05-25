@@ -101,11 +101,11 @@ public final class GuardianModClient implements ClientModInitializer {
 
     private static void registerEntityRenderers() {
         EntityRendererRegistry.register(ModEntities.OVERWORLD_GUARDIAN,
-                context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_overworld")));
+                context -> new GuardianBossRenderer<>(context, new GuardianBossModel<>("boss_overworld")));
         EntityRendererRegistry.register(ModEntities.NETHER_GUARDIAN,
-                context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_nether")));
+                context -> new GuardianBossRenderer<>(context, new GuardianBossModel<>("boss_nether")));
         EntityRendererRegistry.register(ModEntities.GENERIC_BOSS,
-                context -> new GeoEntityRenderer<>(context, new GuardianBossModel<>("boss_generic")));
+                context -> new GuardianBossRenderer<>(context, new GuardianBossModel<>("boss_generic")));
         EntityRendererRegistry.register(ModEntities.ALTAR_PLACEMENT,
                 context -> new GeoEntityRenderer<>(context, new GuardianAltarPlacementModel()));
         EntityRendererRegistry.register(ModEntities.CAMERA_MARKER,
