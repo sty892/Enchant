@@ -64,12 +64,16 @@ public final class OverworldGuardianAttackController {
             globalDelay = 10;
             return;
         }
-        boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
+        boolean chasing = false;
         if (boss.shouldReturnTowardHome()) {
             Vec3 home = boss.homeCenter();
             boss.getNavigation().moveTo(home.x, home.y, home.z, 1.05D);
         } else if (boss.distanceToSqr(target) > CHASE_RANGE_SQR) {
+            chasing = true;
             boss.getNavigation().moveTo(target, 1.18D);
+        }
+        if (!chasing) {
+            boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
         }
 
         if (globalDelay > 0) {

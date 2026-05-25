@@ -152,7 +152,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         if (!level().isClientSide()) {
             setActionAnimation(triggerName, isFullBodyAction(triggerName), actionDurationTicks(triggerName));
         }
-        GuardianBossAi.triggerAttackAnimation(this, triggerName);
+        String visualTriggerName = visualAttackTriggerName(triggerName);
+        if (!visualTriggerName.isEmpty()) {
+            GuardianBossAi.triggerAttackAnimation(this, visualTriggerName);
+        }
     }
 
     public boolean forceAttack(ServerLevel level, String attackId) {
@@ -229,7 +232,6 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     public void die(DamageSource damageSource) {
         if (!level().isClientSide()) {
             setActionAnimation(DEATH_TRIGGER_NAME, true, actionDurationTicks(DEATH_TRIGGER_NAME));
-            this.triggerAnim(GuardianBossAi.ATTACK_CONTROLLER, DEATH_TRIGGER_NAME);
         }
         if (!deathEventTriggered && this.level() instanceof ServerLevel serverLevel) {
             deathEventTriggered = true;
@@ -294,7 +296,6 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         }
         spawnAnimationTriggered = true;
         setActionAnimation(SPAWN_TRIGGER_NAME, true, actionDurationTicks(SPAWN_TRIGGER_NAME));
-        this.triggerAnim(GuardianBossAi.ATTACK_CONTROLLER, SPAWN_TRIGGER_NAME);
     }
 
     public boolean shouldReturnTowardHome() {
@@ -506,15 +507,12 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             return state.setAndContinue(isAggroedForAnimation() ? RUN_ANIMATION : WALK_ANIMATION);
         }));
         controllers.add(new AnimationController<OverworldGuardianEntity>(GuardianBossAi.ATTACK_CONTROLLER, 2, state -> PlayState.STOP)
-                .triggerableAnim(SPAWN_TRIGGER_NAME, SPAWN_ANIMATION)
-                .triggerableAnim(DEATH_TRIGGER_NAME, DEATH_ANIMATION)
                 .triggerableAnim("attack", RawAnimation.begin().thenPlay("attack"))
                 .triggerableAnim("attack_right", RawAnimation.begin().thenPlay("attack_right"))
                 .triggerableAnim("attack_left", RawAnimation.begin().thenPlay("attack_left"))
                 .triggerableAnim("attack_both", RawAnimation.begin().thenPlay("attack_both"))
                 .triggerableAnim("attack_hands_slam", RawAnimation.begin().thenPlay("attack_hands_slam"))
-                .triggerableAnim("stamTopTopTop", RawAnimation.begin().thenPlay("StamTopTopTop"))
-                .triggerableAnim(PHASE_SHIFT_TRIGGER, RawAnimation.begin().thenPlay(PHASE_SHIFT_TRIGGER)));
+                .triggerableAnim("stamTopTopTop", RawAnimation.begin().thenPlay("StamTopTopTop")));
     }
 
     public boolean isMovingForAnimation() {
@@ -585,6 +583,14 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             case SPAWN_TRIGGER_NAME -> 40;
             case DEATH_TRIGGER_NAME -> 80;
             default -> 34;
+        };
+    }
+
+    private static String visualAttackTriggerName(String triggerName) {
+        return switch (triggerName) {
+            case SPAWN_TRIGGER_NAME, DEATH_TRIGGER_NAME -> "";
+            case PHASE_SHIFT_TRIGGER -> "attack_both";
+            default -> triggerName;
         };
     }
 
