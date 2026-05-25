@@ -77,6 +77,7 @@ public class ModItems {
         Identifier id = Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, name);
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id);
         Item item = switch (name) {
+            case "key_1", "key_2", "key_3", "key_4", "key_5", "key_6", "key_7", "key_8" -> new GuardianKeyItem(name, properties.setId(key));
             case "trigger_area_creator" -> new TriggerAreaCreatorItem(properties.setId(key));
             case "trigger_guard" -> new TriggerGuardItem(properties.setId(key));
             case "camera" -> new CameraItem(properties.setId(key));
