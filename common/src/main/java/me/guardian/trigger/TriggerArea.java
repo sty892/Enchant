@@ -34,8 +34,11 @@ public final class TriggerArea {
     public String restrictionSelectors;
     public String privateSelectors;
     public boolean restrictBlockBreaking;
+    public boolean restrictBlockPlacing;
     public boolean restrictAttacking;
     public boolean restrictInteractions;
+    public boolean restrictItemDropping;
+    public boolean restrictItemPickup;
     public boolean guarded;
 
     public TriggerArea(UUID id, String dimension, BlockPos first, BlockPos second) {
@@ -54,15 +57,18 @@ public final class TriggerArea {
         this.restrictionSelectors = "";
         this.privateSelectors = "@a";
         this.restrictBlockBreaking = true;
+        this.restrictBlockPlacing = false;
         this.restrictAttacking = true;
         this.restrictInteractions = false;
+        this.restrictItemDropping = false;
+        this.restrictItemPickup = false;
         this.guarded = false;
     }
 
     private TriggerArea(UUID id, String dimension, BlockPos min, BlockPos max, List<String> commands, List<Integer> commandDelays, boolean runOnce, int runCount,
                         String triggerType, String triggerMode, String triggerSelectors, boolean globalRestrictions, String restrictionMode,
-                        String restrictionSelectors, String privateSelectors, boolean restrictBlockBreaking, boolean restrictAttacking,
-                        boolean restrictInteractions, boolean guarded) {
+                        String restrictionSelectors, String privateSelectors, boolean restrictBlockBreaking, boolean restrictBlockPlacing,
+                        boolean restrictAttacking, boolean restrictInteractions, boolean restrictItemDropping, boolean restrictItemPickup, boolean guarded) {
         this.id = id;
         this.dimension = dimension;
         this.min = min;
@@ -82,8 +88,11 @@ public final class TriggerArea {
         this.restrictionSelectors = restrictionSelectors == null ? "" : restrictionSelectors;
         this.privateSelectors = privateSelectors == null || privateSelectors.isBlank() ? "@a" : privateSelectors;
         this.restrictBlockBreaking = restrictBlockBreaking;
+        this.restrictBlockPlacing = restrictBlockPlacing;
         this.restrictAttacking = restrictAttacking;
         this.restrictInteractions = restrictInteractions;
+        this.restrictItemDropping = restrictItemDropping;
+        this.restrictItemPickup = restrictItemPickup;
         this.guarded = guarded;
     }
 
@@ -111,11 +120,13 @@ public final class TriggerArea {
     }
 
     public TriggerArea edited(List<String> newCommands, List<Integer> newDelays, boolean newRunOnce, String newTriggerType, String newTriggerMode, String newTriggerSelectors,
-                              String newPrivateSelectors, boolean newRestrictBlockBreaking, boolean newRestrictAttacking,
-                              boolean newRestrictInteractions) {
+                              String newPrivateSelectors, boolean newRestrictBlockBreaking, boolean newRestrictBlockPlacing,
+                              boolean newRestrictAttacking, boolean newRestrictInteractions,
+                              boolean newRestrictItemDropping, boolean newRestrictItemPickup) {
         return new TriggerArea(id, dimension, min, max, newCommands, newDelays, newRunOnce, runCount,
                 newTriggerType, newTriggerMode, newTriggerSelectors, TYPE_PRIVATE.equals(newTriggerType), "only_matching",
-                newPrivateSelectors, newPrivateSelectors, newRestrictBlockBreaking, newRestrictAttacking, newRestrictInteractions, guarded);
+                newPrivateSelectors, newPrivateSelectors, newRestrictBlockBreaking, newRestrictBlockPlacing,
+                newRestrictAttacking, newRestrictInteractions, newRestrictItemDropping, newRestrictItemPickup, guarded);
     }
 
     public boolean isPrivate() {
@@ -144,8 +155,11 @@ public final class TriggerArea {
         object.addProperty("restriction_selectors", restrictionSelectors);
         object.addProperty("private_selectors", privateSelectors);
         object.addProperty("restrict_block_breaking", restrictBlockBreaking);
+        object.addProperty("restrict_block_placing", restrictBlockPlacing);
         object.addProperty("restrict_attacking", restrictAttacking);
         object.addProperty("restrict_interactions", restrictInteractions);
+        object.addProperty("restrict_item_dropping", restrictItemDropping);
+        object.addProperty("restrict_item_pickup", restrictItemPickup);
         object.addProperty("guarded", guarded);
         return GSON.toJson(object);
     }
@@ -181,8 +195,11 @@ public final class TriggerArea {
                 stringOr(object, "restriction_selectors", ""),
                 stringOr(object, "private_selectors", stringOr(object, "restriction_selectors", "@a")),
                 !object.has("restrict_block_breaking") || object.get("restrict_block_breaking").getAsBoolean(),
+                object.has("restrict_block_placing") && object.get("restrict_block_placing").getAsBoolean(),
                 !object.has("restrict_attacking") || object.get("restrict_attacking").getAsBoolean(),
                 object.has("restrict_interactions") && object.get("restrict_interactions").getAsBoolean(),
+                object.has("restrict_item_dropping") && object.get("restrict_item_dropping").getAsBoolean(),
+                object.has("restrict_item_pickup") && object.get("restrict_item_pickup").getAsBoolean(),
                 object.has("guarded") && object.get("guarded").getAsBoolean()
         );
     }

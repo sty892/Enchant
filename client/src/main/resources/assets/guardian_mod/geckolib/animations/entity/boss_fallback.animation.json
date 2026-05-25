@@ -3,27 +3,255 @@
   "animations": {
     "animation.guardian_mod.boss_fallback.idle": {
       "loop": true,
-      "bones": {}
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
     },
     "spawn": {
       "loop": false,
-      "bones": {}
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
     },
     "animation.guardian_mod.boss_overworld.idle": {
       "loop": true,
-      "bones": {}
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
     },
     "animation.guardian_mod.boss_overworld.spawn": {
       "loop": false,
-      "bones": {}
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_overworld.walk": {
+      "loop": true,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_overworld.death": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_overworld.attack_left": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_overworld.attack_right": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_overworld.attack_both": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_overworld.attack_slam": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_overworld.stam_top": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "StamTopTopTop": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
     },
     "animation.guardian_mod.boss_nether.idle": {
       "loop": true,
-      "bones": {}
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_nether.spawn": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_nether.walk": {
+      "loop": true,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_nether.death": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_nether.attack": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
     },
     "animation.guardian_mod.boss_generic.idle": {
       "loop": true,
-      "bones": {}
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_generic.spawn": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_generic.walk": {
+      "loop": true,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.guardian_mod.boss_generic.death": {
+      "loop": false,
+      "animation_length": 1.0,
+      "bones": {
+        "bb_main": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "1.0": [0, 0, 0]
+          }
+        }
+      }
     }
   }
 }

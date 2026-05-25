@@ -30,8 +30,11 @@ public final class TriggerAreaEditorScreen extends Screen {
     private String triggerSelectors;
     private String privateSelectors;
     private boolean restrictBlockBreaking;
+    private boolean restrictBlockPlacing;
     private boolean restrictAttacking;
     private boolean restrictInteractions;
+    private boolean restrictItemDropping;
+    private boolean restrictItemPickup;
     private Button typeButton;
     private Button runButton;
     private Button triggerModeButton;
@@ -53,8 +56,11 @@ public final class TriggerAreaEditorScreen extends Screen {
         this.triggerSelectors = area.triggerSelectors;
         this.privateSelectors = area.privateSelectors;
         this.restrictBlockBreaking = area.restrictBlockBreaking;
+        this.restrictBlockPlacing = area.restrictBlockPlacing;
         this.restrictAttacking = area.restrictAttacking;
         this.restrictInteractions = area.restrictInteractions;
+        this.restrictItemDropping = area.restrictItemDropping;
+        this.restrictItemPickup = area.restrictItemPickup;
     }
 
     @Override
@@ -129,15 +135,32 @@ public final class TriggerAreaEditorScreen extends Screen {
                 .selected(restrictBlockBreaking)
                 .onValueChange((checkbox, selected) -> restrictBlockBreaking = selected)
                 .build());
-        addRenderableWidget(Checkbox.builder(Component.translatable("checkbox.guardian_mod.private.attacking"), font)
+        addRenderableWidget(Checkbox.builder(Component.translatable("checkbox.guardian_mod.private.block_placing"), font)
                 .pos(left + 210, y)
+                .selected(restrictBlockPlacing)
+                .onValueChange((checkbox, selected) -> restrictBlockPlacing = selected)
+                .build());
+        addRenderableWidget(Checkbox.builder(Component.translatable("checkbox.guardian_mod.private.attacking"), font)
+                .pos(left + 420, y)
                 .selected(restrictAttacking)
                 .onValueChange((checkbox, selected) -> restrictAttacking = selected)
                 .build());
+
+        y += 30;
         addRenderableWidget(Checkbox.builder(Component.translatable("checkbox.guardian_mod.private.interactions"), font)
-                .pos(left + 420, y)
+                .pos(left, y)
                 .selected(restrictInteractions)
                 .onValueChange((checkbox, selected) -> restrictInteractions = selected)
+                .build());
+        addRenderableWidget(Checkbox.builder(Component.translatable("checkbox.guardian_mod.private.item_dropping"), font)
+                .pos(left + 210, y)
+                .selected(restrictItemDropping)
+                .onValueChange((checkbox, selected) -> restrictItemDropping = selected)
+                .build());
+        addRenderableWidget(Checkbox.builder(Component.translatable("checkbox.guardian_mod.private.item_pickup"), font)
+                .pos(left + 420, y)
+                .selected(restrictItemPickup)
+                .onValueChange((checkbox, selected) -> restrictItemPickup = selected)
                 .build());
 
         y += 48;
@@ -298,7 +321,8 @@ public final class TriggerAreaEditorScreen extends Screen {
             privateSelectors = privateSelectorField.getValue();
         }
         TriggerArea edited = area.edited(commands, delays, runOnce, triggerType, triggerMode, triggerSelectors,
-                privateSelectors, restrictBlockBreaking, restrictAttacking, restrictInteractions);
+                privateSelectors, restrictBlockBreaking, restrictBlockPlacing, restrictAttacking,
+                restrictInteractions, restrictItemDropping, restrictItemPickup);
         ClientPlayNetworking.send(new TriggerAreaPayloads.SaveEditor(edited.serialize()));
         onClose();
     }

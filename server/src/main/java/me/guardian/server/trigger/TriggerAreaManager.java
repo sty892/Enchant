@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -60,6 +61,14 @@ public final class TriggerAreaManager {
         });
         UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
             if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer && blocksEntityInteraction(serverPlayer, entity)) {
+                return InteractionResult.FAIL;
+            }
+            return InteractionResult.PASS;
+        });
+        UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+            if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer
+                    && !player.getItemInHand(hand).is(ModItems.TRIGGER_AREA_CREATOR)
+                    && blocksBlockPlace(serverPlayer, hitResult.getBlockPos().relative(hitResult.getDirection()))) {
                 return InteractionResult.FAIL;
             }
             return InteractionResult.PASS;
@@ -165,6 +174,33 @@ public final class TriggerAreaManager {
     private static boolean blocksEntityInteraction(ServerPlayer player, Entity target) {
         for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
             if (!area.guarded && area.isPrivate() && area.restrictInteractions && (area.intersects(player) || area.intersects(target)) && privateAppliesTo(area, player)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean blocksBlockPlace(ServerPlayer player, BlockPos pos) {
+        for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
+            if (!area.guarded && area.isPrivate() && area.restrictBlockPlacing && area.contains(player.level().dimension(), pos) && privateAppliesTo(area, player)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean blocksItemDrop(ServerPlayer player) {
+        for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
+            if (!area.guarded && area.isPrivate() && area.restrictItemDropping && area.intersects(player) && privateAppliesTo(area, player)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean blocksItemPickup(ServerPlayer player) {
+        for (TriggerArea area : TriggerAreaState.get(player.level()).areas) {
+            if (!area.guarded && area.isPrivate() && area.restrictItemPickup && area.intersects(player) && privateAppliesTo(area, player)) {
                 return true;
             }
         }
