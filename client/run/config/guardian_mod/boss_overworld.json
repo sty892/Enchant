@@ -1,0 +1,5 @@
+{
+  "boss_id": "guardian_mod:boss_overworld",
+  "on_spawn_script": "boss_overworld_spawn",
+  "on_death_script": "boss_overworld_death"
+}

@@ -1,0 +1,5 @@
+{
+  "boss_id": "guardian_mod:boss_nether",
+  "on_spawn_script": "boss_nether_spawn",
+  "on_death_script": "boss_nether_death"
+}

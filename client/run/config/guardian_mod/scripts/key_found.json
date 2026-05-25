@@ -1,0 +1,5 @@
+{
+  "commands": [
+    "say Player [nickname] found a key"
+  ]
+}

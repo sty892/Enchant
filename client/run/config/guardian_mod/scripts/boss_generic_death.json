@@ -1,0 +1,6 @@
+{
+  "commands": [
+    "say Generic Guardian defeated",
+    "give @p guardian_mod:fragment_generic"
+  ]
+}

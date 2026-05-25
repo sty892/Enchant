@@ -1,0 +1,4 @@
+{
+  "boss_id": "guardian_mod:boss_generic",
+  "on_death_script": "boss_generic_death"
+}

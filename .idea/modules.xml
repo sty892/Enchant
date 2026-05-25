@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/client/guardian_mod.client.main.iml" filepath="$PROJECT_DIR$/.idea/modules/client/guardian_mod.client.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/client/guardian_mod.client.test.iml" filepath="$PROJECT_DIR$/.idea/modules/client/guardian_mod.client.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/common/guardian_mod.common.main.iml" filepath="$PROJECT_DIR$/.idea/modules/common/guardian_mod.common.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/common/guardian_mod.common.test.iml" filepath="$PROJECT_DIR$/.idea/modules/common/guardian_mod.common.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/server/guardian_mod.server.main.iml" filepath="$PROJECT_DIR$/.idea/modules/server/guardian_mod.server.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/server/guardian_mod.server.test.iml" filepath="$PROJECT_DIR$/.idea/modules/server/guardian_mod.server.test.iml" />
+    </modules>
+  </component>
+</project>

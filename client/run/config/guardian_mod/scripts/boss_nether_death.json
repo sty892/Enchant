@@ -1,0 +1,7 @@
+{
+  "commands": [
+    "say Nether Guardian defeated",
+    "title @a title {\"text\":\"Nether Guardian defeated\"}",
+    "give @p guardian_mod:fragment_nether"
+  ]
+}

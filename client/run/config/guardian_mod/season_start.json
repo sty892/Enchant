@@ -1,0 +1,17 @@
+{
+  "event_id": "guardian_mod:season_start",
+  "actions": [
+    {
+      "world_border_expand": {
+        "center": {
+          "x": 0,
+          "z": 0
+        },
+        "from": 25,
+        "to": 1000,
+        "duration_seconds": 30,
+        "delay_ticks": 100
+      }
+    }
+  ]
+}
