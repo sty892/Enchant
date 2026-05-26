@@ -110,6 +110,10 @@ public final class GuardianModClient implements ClientModInitializer {
                 context -> new GeoEntityRenderer<>(context, new GuardianAltarPlacementModel()));
         EntityRendererRegistry.register(ModEntities.CAMERA_MARKER,
                 CameraMarkerHeadRenderer::new);
+        EntityRendererRegistry.register(ModEntities.CEILING_FALLING_BLOCK,
+                net.minecraft.client.renderer.entity.FallingBlockRenderer::new);
+        EntityRendererRegistry.register(ModEntities.BOMB_TRAP,
+                context -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(context, 1.0F, true));
     }
 
     private static void registerTriggerVisibility() {

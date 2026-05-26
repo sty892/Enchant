@@ -31,6 +31,14 @@ public class ModEntities {
             Registries.ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "camera_marker")
     );
+    public static final ResourceKey<EntityType<?>> CEILING_FALLING_BLOCK_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "ceiling_falling_block")
+    );
+    public static final ResourceKey<EntityType<?>> BOMB_TRAP_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "bomb_trap")
+    );
 
     public static final EntityType<OverworldGuardianEntity> OVERWORLD_GUARDIAN = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
@@ -67,6 +75,20 @@ public class ModEntities {
             EntityType.Builder.of(CameraMarkerEntity::new, MobCategory.MISC)
                     .sized(0.5f, 0.5f)
                     .build(CAMERA_MARKER_KEY)
+    );
+    public static final EntityType<CeilingFallingBlockEntity> CEILING_FALLING_BLOCK = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            CEILING_FALLING_BLOCK_KEY,
+            EntityType.Builder.<CeilingFallingBlockEntity>of(CeilingFallingBlockEntity::new, MobCategory.MISC)
+                    .sized(0.98F, 0.98F)
+                    .build(CEILING_FALLING_BLOCK_KEY)
+    );
+    public static final EntityType<BombTrapEntity> BOMB_TRAP = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            BOMB_TRAP_KEY,
+            EntityType.Builder.<BombTrapEntity>of(BombTrapEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .build(BOMB_TRAP_KEY)
     );
 
     public static void initialize() {
