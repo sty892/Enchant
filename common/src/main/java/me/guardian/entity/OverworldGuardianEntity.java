@@ -182,11 +182,35 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         builder.define(DATA_AGGROED, false);
     }
 
+    public boolean isAggroed() {
+        return getTarget() != null;
+    }
+
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(1, new FloatGoal(this));
-        this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 16.0F));
-        this.goalSelector.addGoal(3, new RandomStrollGoal(this, 0.8));
+        this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 16.0F) {
+            @Override
+            public boolean canUse() {
+                return !isAggroed() && super.canUse();
+            }
+
+            @Override
+            public boolean canContinueToUse() {
+                return !isAggroed() && super.canContinueToUse();
+            }
+        });
+        this.goalSelector.addGoal(3, new RandomStrollGoal(this, 0.8) {
+            @Override
+            public boolean canUse() {
+                return !isAggroed() && super.canUse();
+            }
+
+            @Override
+            public boolean canContinueToUse() {
+                return !isAggroed() && super.canContinueToUse();
+            }
+        });
     }
 
     @Override

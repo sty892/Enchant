@@ -25,16 +25,24 @@ public final class GuardianBossRenderer<T extends Mob & GeoEntity, R extends Ent
         R renderState = renderPassInfo.renderState();
         float headYaw = Mth.clamp(renderState.getOrDefaultGeckolibData(DataTickets.ENTITY_YAW, 0.0F), -75.0F, 75.0F);
         float headPitch = Mth.clamp(renderState.getOrDefaultGeckolibData(DataTickets.ENTITY_PITCH, 0.0F), -45.0F, 45.0F);
-        rotateHeadBone(snapshots, "Head", headPitch, headYaw);
-        rotateHeadBone(snapshots, "head", headPitch, headYaw);
+        // Apply head rotation to only ONE bone to avoid double-rotation when
+        // "Head" is a parent of "head" (or vice-versa).  Prefer lowercase "head".
+        if (!tryRotateHeadBone(snapshots, "head", headPitch, headYaw)) {
+            tryRotateHeadBone(snapshots, "Head", headPitch, headYaw);
+        }
     }
 
-    private static void rotateHeadBone(BoneSnapshots snapshots, String boneName, float pitch, float yaw) {
-        snapshots.ifPresent(boneName, snapshot -> rotateHead(snapshot, pitch, yaw));
+    private static boolean tryRotateHeadBone(BoneSnapshots snapshots, String boneName, float pitch, float yaw) {
+        boolean[] found = {false};
+        snapshots.ifPresent(boneName, snapshot -> {
+            rotateHead(snapshot, pitch, yaw);
+            found[0] = true;
+        });
+        return found[0];
     }
 
     private static void rotateHead(BoneSnapshot snapshot, float pitch, float yaw) {
         snapshot.setRotX(snapshot.getRotX() - pitch * DEG_TO_RAD);
-        snapshot.setRotY(snapshot.getRotY() + yaw * DEG_TO_RAD);
+        snapshot.setRotY(snapshot.getRotY() - yaw * DEG_TO_RAD);
     }
 }

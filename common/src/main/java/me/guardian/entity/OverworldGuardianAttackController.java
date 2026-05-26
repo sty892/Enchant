@@ -72,6 +72,9 @@ public final class OverworldGuardianAttackController {
         } else if (boss.distanceToSqr(target) > CHASE_RANGE_SQR) {
             chasing = true;
             boss.getNavigation().moveTo(target, 1.18D);
+        } else {
+            // Close enough to target and inside home — stop any leftover pathing
+            boss.getNavigation().stop();
         }
         if (!chasing) {
             boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
