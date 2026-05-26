@@ -15,13 +15,46 @@ import software.bernie.geckolib.renderer.GeoEntityRenderer;
 import software.bernie.geckolib.renderer.base.BoneSnapshots;
 import software.bernie.geckolib.renderer.base.GeoRenderState;
 import software.bernie.geckolib.renderer.base.RenderPassInfo;
+import software.bernie.geckolib.cache.model.GeoBone;
+
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
 
 public final class GuardianBossRenderer<T extends Mob & GeoEntity, R extends EntityRenderState & GeoRenderState>
         extends GeoEntityRenderer<T, R> {
     private static final float DEG_TO_RAD = (float) (Math.PI / 180.0D);
+    private static final ThreadLocal<String> CURRENT_BONE = ThreadLocal.withInitial(() -> "");
 
     public GuardianBossRenderer(EntityRendererProvider.Context context, GuardianBossModel<T> model) {
         super(context, model);
+    }
+
+    private static boolean isLegOrChildOfLeg(GeoBone bone) {
+        GeoBone current = bone;
+        while (current != null) {
+            String name = current.name();
+            if (isLegBoneName(name)) {
+                return true;
+            }
+            current = current.parent();
+        }
+        return false;
+    }
+
+    private static boolean isLegBoneName(String name) {
+        if (name == null) return false;
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains("leg") || 
+               lower.contains("foot") || 
+               lower.contains("feet") || 
+               lower.contains("thigh") || 
+               lower.contains("calf") || 
+               lower.contains("shin") || 
+               lower.contains("paw") || 
+               lower.contains("ankle") || 
+               lower.contains("hoof") || 
+               lower.contains("limb");
     }
 
     @Override
@@ -33,6 +66,18 @@ public final class GuardianBossRenderer<T extends Mob & GeoEntity, R extends Ent
         final int packedOverlay = renderPassInfo.packedOverlay();
         final int renderColor = renderPassInfo.renderColor();
 
+        final Set<String> legBones = new HashSet<>();
+        for (Map.Entry<String, GeoBone> entry : renderPassInfo.model().boneLookup().get().entrySet()) {
+            GeoBone bone = entry.getValue();
+            String name = entry.getKey();
+            if (isLegOrChildOfLeg(bone)) {
+                legBones.add(name);
+            }
+            renderPassInfo.addBonePositionListener(bone, (worldPos, modelPos, localPos) -> {
+                CURRENT_BONE.set(name);
+            });
+        }
+
         renderTasks.submitCustomGeometry(renderPassInfo.poseStack(), renderType, (pose, vertexConsumer) -> {
             final PoseStack poseStack = renderPassInfo.poseStack();
 
@@ -40,7 +85,7 @@ public final class GuardianBossRenderer<T extends Mob & GeoEntity, R extends Ent
             poseStack.last().pose().mul(pose.pose());
             poseStack.last().normal().mul(pose.normal());
 
-            VertexConsumer wrappedConsumer = new ShadingDisablingVertexConsumer(vertexConsumer);
+            VertexConsumer wrappedConsumer = new ShadingDisablingVertexConsumer(vertexConsumer, legBones);
 
             renderPassInfo.renderPosed(() -> renderPassInfo.model().render(renderPassInfo, wrappedConsumer, packedLight, packedOverlay, renderColor));
             poseStack.popPose();
@@ -49,9 +94,15 @@ public final class GuardianBossRenderer<T extends Mob & GeoEntity, R extends Ent
 
     private static class ShadingDisablingVertexConsumer implements VertexConsumer {
         private final VertexConsumer delegate;
+        private final Set<String> legBones;
 
-        public ShadingDisablingVertexConsumer(VertexConsumer delegate) {
+        public ShadingDisablingVertexConsumer(VertexConsumer delegate, Set<String> legBones) {
             this.delegate = delegate;
+            this.legBones = legBones;
+        }
+
+        private boolean shouldKeepShading() {
+            return legBones.contains(CURRENT_BONE.get());
         }
 
         @Override
@@ -92,7 +143,11 @@ public final class GuardianBossRenderer<T extends Mob & GeoEntity, R extends Ent
 
         @Override
         public VertexConsumer setNormal(float x, float y, float z) {
-            delegate.setNormal(0.0F, 1.0F, 0.0F);
+            if (shouldKeepShading()) {
+                delegate.setNormal(x, y, z);
+            } else {
+                delegate.setNormal(0.0F, 1.0F, 0.0F);
+            }
             return this;
         }
 
@@ -104,7 +159,11 @@ public final class GuardianBossRenderer<T extends Mob & GeoEntity, R extends Ent
 
         @Override
         public void addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float normalX, float normalY, float normalZ) {
-            delegate.addVertex(x, y, z, color, u, v, overlay, light, 0.0F, 1.0F, 0.0F);
+            if (shouldKeepShading()) {
+                delegate.addVertex(x, y, z, color, u, v, overlay, light, normalX, normalY, normalZ);
+            } else {
+                delegate.addVertex(x, y, z, color, u, v, overlay, light, 0.0F, 1.0F, 0.0F);
+            }
         }
     }
 
