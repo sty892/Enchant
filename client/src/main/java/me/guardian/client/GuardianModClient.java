@@ -114,6 +114,12 @@ public final class GuardianModClient implements ClientModInitializer {
                 net.minecraft.client.renderer.entity.FallingBlockRenderer::new);
         EntityRendererRegistry.register(ModEntities.BOMB_TRAP,
                 context -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(context, 1.0F, true));
+        EntityRendererRegistry.register(ModEntities.TEMPLE_STATUE,
+                net.minecraft.client.renderer.entity.HuskRenderer::new);
+        EntityRendererRegistry.register(ModEntities.HEALING_SHIELD,
+                InvisibleRenderer::new);
+        EntityRendererRegistry.register(ModEntities.TEMPLE_GATE,
+                InvisibleRenderer::new);
     }
 
     private static void registerTriggerVisibility() {
@@ -158,5 +164,17 @@ public final class GuardianModClient implements ClientModInitializer {
     @SuppressWarnings("unused")
     private static void reloadBossAssets(Minecraft client) {
         reloadBossAssets(client.getResourceManager());
+    }
+
+    private static class InvisibleRenderer<T extends net.minecraft.world.entity.Entity> 
+            extends net.minecraft.client.renderer.entity.EntityRenderer<T, net.minecraft.client.renderer.entity.state.EntityRenderState> {
+        public InvisibleRenderer(net.minecraft.client.renderer.entity.EntityRendererProvider.Context context) {
+            super(context);
+        }
+
+        @Override
+        public net.minecraft.client.renderer.entity.state.EntityRenderState createRenderState() {
+            return new net.minecraft.client.renderer.entity.state.EntityRenderState();
+        }
     }
 }

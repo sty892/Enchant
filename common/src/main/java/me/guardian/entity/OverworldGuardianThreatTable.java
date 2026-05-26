@@ -22,6 +22,12 @@ public final class OverworldGuardianThreatTable {
     private UUID lastAttacker;
     private int lastAttackTick;
 
+    public void clear() {
+        this.entries.clear();
+        this.lastAttacker = null;
+        this.lastAttackTick = 0;
+    }
+
     public void recordDamage(ServerPlayer player, float amount, int gameTick) {
         ThreatEntry entry = entries.computeIfAbsent(player.getUUID(), ignored -> new ThreatEntry());
         entry.threat += 20.0F + amount * 8.0F;

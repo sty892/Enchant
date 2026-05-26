@@ -39,6 +39,18 @@ public class ModEntities {
             Registries.ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "bomb_trap")
     );
+    public static final ResourceKey<EntityType<?>> TEMPLE_STATUE_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "temple_statue")
+    );
+    public static final ResourceKey<EntityType<?>> HEALING_SHIELD_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "healing_shield")
+    );
+    public static final ResourceKey<EntityType<?>> TEMPLE_GATE_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "temple_gate")
+    );
 
     public static final EntityType<OverworldGuardianEntity> OVERWORLD_GUARDIAN = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
@@ -90,11 +102,33 @@ public class ModEntities {
                     .sized(0.5F, 0.5F)
                     .build(BOMB_TRAP_KEY)
     );
+    public static final EntityType<TempleStatueEntity> TEMPLE_STATUE = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            TEMPLE_STATUE_KEY,
+            EntityType.Builder.<TempleStatueEntity>of(TempleStatueEntity::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.95F)
+                    .build(TEMPLE_STATUE_KEY)
+    );
+    public static final EntityType<HealingShieldEntity> HEALING_SHIELD = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            HEALING_SHIELD_KEY,
+            EntityType.Builder.<HealingShieldEntity>of(HealingShieldEntity::new, MobCategory.MISC)
+                    .sized(2.5F, 3.0F)
+                    .build(HEALING_SHIELD_KEY)
+    );
+    public static final EntityType<TempleGateEntity> TEMPLE_GATE = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            TEMPLE_GATE_KEY,
+            EntityType.Builder.<TempleGateEntity>of(TempleGateEntity::new, MobCategory.MISC)
+                    .sized(1.0F, 3.0F)
+                    .build(TEMPLE_GATE_KEY)
+    );
 
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(OVERWORLD_GUARDIAN, OverworldGuardianEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(NETHER_GUARDIAN, NetherGuardianEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GENERIC_BOSS, GenericBossEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(TEMPLE_STATUE, TempleStatueEntity.createAttributes());
         GuardianMod.LOGGER.info("Registering entities for " + GuardianMod.MOD_ID);
     }
 }

@@ -36,8 +36,11 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.animation.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -90,6 +93,18 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private BlockPos spawnCenter = null;
     private int unansweredHits = 0;
     private UUID counterTargetId = null;
+    // Attack 9 — statues
+    private final List<UUID> activeStatues = new ArrayList<>();
+    // Attack 14 — shield
+    private UUID activeShieldUUID = null;
+    // Attack 15 — gates
+    private final List<UUID> gateUUIDs = new ArrayList<>();
+    private boolean gatesClosed = false;
+    private long bossLostTick = -1L;  // tick when all players left arena
+    private static final long GATE_REOPEN_COOLDOWN_TICKS = 20L * 60 * 60; // 1 hour
+    private long gateCooldownUntilTick = -1L;
+    // Saved health for restore on wipe (as health fraction 0-1)
+    private float savedHealthFraction = 1.0F;
 
     public OverworldGuardianEntity(EntityType<? extends Monster> entityType, Level level) {
         super(entityType, level);
@@ -220,6 +235,14 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+        // Attack 14: If shield is active, block all damage
+        if (hasActiveShield(level)) {
+            return false;
+        }
+        // Attack 9: If statues are alive, apply 90% damage resistance
+        if (hasActiveStatues(level)) {
+            amount *= 0.10F;
+        }
         boolean damaged = super.hurtServer(level, source, amount);
         if (damaged && source.getEntity() instanceof LivingEntity attacker && attacker != this) {
             counterTargetId = attacker.getUUID();
@@ -232,11 +255,100 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         return damaged;
     }
 
+    /** Returns true if at least one summoned statue is still alive. */
+    public boolean hasActiveStatues(ServerLevel level) {
+        activeStatues.removeIf(uuid -> {
+            net.minecraft.world.entity.Entity e = level.getEntity(uuid);
+            if (!(e instanceof TempleStatueEntity)) return true;
+            return !((TempleStatueEntity) e).isAlive();
+        });
+        return !activeStatues.isEmpty();
+    }
+
+    /** Called by statue when it dies. */
+    public void onStatueDied(UUID statueUUID) {
+        activeStatues.remove(statueUUID);
+    }
+
+    /** Registers newly spawned statues. */
+    public void addStatue(UUID uuid) {
+        activeStatues.add(uuid);
+    }
+
+    /** Returns true if healing shield is still alive. */
+    public boolean hasActiveShield(ServerLevel level) {
+        if (activeShieldUUID == null) return false;
+        net.minecraft.world.entity.Entity e = level.getEntity(activeShieldUUID);
+        if (!(e instanceof HealingShieldEntity)) {
+            activeShieldUUID = null;
+            return false;
+        }
+        HealingShieldEntity shield = (HealingShieldEntity) e;
+        if (!shield.isAliveShield()) {
+            activeShieldUUID = null;
+            return false;
+        }
+        return true;
+    }
+
+    /** Called when the healing shield is destroyed or expires. */
+    public void onShieldDestroyed() {
+        activeShieldUUID = null;
+    }
+
+    /** Spawns a healing shield and stores its UUID. Returns false if one already exists. */
+    public boolean spawnHealingShield(ServerLevel level) {
+        if (hasActiveShield(level)) return false;
+        HealingShieldEntity shield = new HealingShieldEntity(level, this);
+        level.addFreshEntity(shield);
+        activeShieldUUID = shield.getUUID();
+        return true;
+    }
+
+    /** Closes the temple gates (Attack 15). Spawns gate entities around spawn center. */
+    public void closeGates(ServerLevel level) {
+        if (gatesClosed || spawnCenter == null) return;
+        gatesClosed = true;
+        savedHealthFraction = this.getHealth() / this.getMaxHealth();
+        // Spawn simple invisible gate markers at 4 cardinal sides of spawnCenter, radius 18
+        double[][] offsets = {{18, 0}, {-18, 0}, {0, 18}, {0, -18}};
+        for (double[] off : offsets) {
+            TempleGateEntity gate = new TempleGateEntity(level,
+                    spawnCenter.getX() + off[0], spawnCenter.getY(), spawnCenter.getZ() + off[1]);
+            gate.setArenaCenter(spawnCenter);
+            gate.close();
+            level.addFreshEntity(gate);
+            gateUUIDs.add(gate.getUUID());
+        }
+    }
+
+    /** Opens all gate entities and clears the list. */
+    public void openGates(ServerLevel level) {
+        if (!gatesClosed) return;
+        gatesClosed = false;
+        for (UUID uuid : gateUUIDs) {
+            var e = level.getEntity(uuid);
+            if (e instanceof TempleGateEntity gate) {
+                gate.open();
+                gate.discard();
+            }
+        }
+        gateUUIDs.clear();
+    }
+
+    public boolean isGateCooldownActive() {
+        return gateCooldownUntilTick > 0 && this.tickCount < gateCooldownUntilTick;
+    }
+
+    public void setGateCooldown() {
+        gateCooldownUntilTick = this.tickCount + GATE_REOPEN_COOLDOWN_TICKS;
+    }
+
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
         GuardianBossAi.ensureSpawnHome(this);
-        triggerSpawnEvent(level);
+        checkFightStart(level);
         triggerSpawnAnimation();
         threatTable.tick(this, level);
         tickTarget(level);
@@ -245,6 +357,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         tickSoftHomeReturn();
         attackController.tick(level);
         tickBossBar(level);
+        tickGateWipe(level);
     }
 
     @Override
@@ -259,6 +372,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         }
         if (!deathEventTriggered && this.level() instanceof ServerLevel serverLevel) {
             deathEventTriggered = true;
+            openGates(serverLevel);
             GuardianBossEventHooks.triggerOnDeath(BOSS_CONFIG_KEY, serverLevel, this.blockPosition(), this, damageContributors);
         }
         removeBossBarPlayers();
@@ -283,6 +397,17 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             output.putInt("SpawnCenterY", spawnCenter.getY());
             output.putInt("SpawnCenterZ", spawnCenter.getZ());
         }
+        output.putBoolean("GatesClosed", gatesClosed);
+        output.putInt("GateCooldownUntilTick", (int) gateCooldownUntilTick);
+        output.putFloat("SavedHealthFraction", savedHealthFraction);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < gateUUIDs.size(); i++) {
+            sb.append(gateUUIDs.get(i).toString());
+            if (i < gateUUIDs.size() - 1) {
+                sb.append(",");
+            }
+        }
+        output.putString("GateUUIDs", sb.toString());
     }
 
     @Override
@@ -301,6 +426,65 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
                     input.getIntOr("SpawnCenterZ", 0)
             );
         }
+        this.gatesClosed = input.getBooleanOr("GatesClosed", false);
+        this.gateCooldownUntilTick = input.getIntOr("GateCooldownUntilTick", -1);
+        this.savedHealthFraction = input.getFloatOr("SavedHealthFraction", 1.0F);
+        gateUUIDs.clear();
+        input.getString("GateUUIDs").ifPresent(s -> {
+            if (!s.isEmpty()) {
+                for (String part : s.split(",")) {
+                    try {
+                        gateUUIDs.add(UUID.fromString(part.trim()));
+                    } catch (IllegalArgumentException ignored) {}
+                }
+            }
+        });
+    }
+
+    private void checkFightStart(ServerLevel level) {
+        if (gatesClosed || spawnEventTriggered) {
+            return;
+        }
+        if (isGateCooldownActive()) {
+            return;
+        }
+        BlockPos center = spawnCenter == null ? this.blockPosition() : spawnCenter;
+        double radius = 18.0D;
+        boolean playerNear = false;
+        for (ServerPlayer player : level.players()) {
+            if (player.isAlive() && player.level() == this.level()
+                    && player.distanceToSqr(Vec3.atCenterOf(center)) <= radius * radius) {
+                playerNear = true;
+                break;
+            }
+        }
+        if (playerNear || getTarget() != null) {
+            triggerSpawnEvent(level);
+        }
+    }
+
+    public float getSubStageStartHealthFraction() {
+        float healthRatio = this.getHealth() / this.getMaxHealth();
+        double upperBound = 1.0D;
+        double lowerBound = 0.66D;
+        switch (getBossPhase()) {
+            case TWO -> {
+                upperBound = 0.66D;
+                lowerBound = 0.33D;
+            }
+            case THREE -> {
+                upperBound = 0.33D;
+                lowerBound = 0.0D;
+            }
+        }
+        double progress = (upperBound - healthRatio) / (upperBound - lowerBound);
+        if (progress >= 2.0D / 3.0D) {
+            return (float) (upperBound - (2.0D / 3.0D) * (upperBound - lowerBound));
+        } else if (progress >= 1.0D / 3.0D) {
+            return (float) (upperBound - (1.0D / 3.0D) * (upperBound - lowerBound));
+        } else {
+            return (float) upperBound;
+        }
     }
 
     private void triggerSpawnEvent(ServerLevel level) {
@@ -312,6 +496,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             spawnCenter = this.blockPosition();
         }
         GuardianBossEventHooks.triggerOnSpawn(BOSS_CONFIG_KEY, level, this.blockPosition(), this);
+        closeGates(level);
     }
 
     private void triggerSpawnAnimation() {
@@ -485,6 +670,69 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     private void removeBossBarPlayers() {
         bossEvent.removeAllPlayers();
+    }
+
+    /**
+     * Attack 15 wipe detection: if gates are closed and no players are alive within
+     * the boss arena for 10 seconds, treat the fight as a wipe.
+     * The boss restores health to the saved fraction, gates open, and a 1h cooldown is set.
+     */
+    private void tickGateWipe(ServerLevel level) {
+        if (!gatesClosed || spawnCenter == null) {
+            bossLostTick = -1L;
+            return;
+        }
+        double arenaRadius = 22.0D;
+        boolean anyPlayerInside = false;
+        for (ServerPlayer player : level.players()) {
+            if (player.isAlive()
+                    && player.level() == this.level()
+                    && player.distanceToSqr(Vec3.atCenterOf(spawnCenter)) <= arenaRadius * arenaRadius) {
+                anyPlayerInside = true;
+                break;
+            }
+        }
+        if (anyPlayerInside) {
+            bossLostTick = -1L;
+            if (this.tickCount % 100 == 0) {
+                savedHealthFraction = this.getHealth() / this.getMaxHealth();
+            }
+            return;
+        }
+        // No players in arena
+        if (bossLostTick < 0) {
+            bossLostTick = this.tickCount;
+            return;
+        }
+        // Wait 10 seconds (200 ticks) before declaring wipe
+        if (this.tickCount - bossLostTick < 200) {
+            return;
+        }
+        // WIPE: restore boss health to start of current sub-stage, open gates, set cooldown
+        bossLostTick = -1L;
+        float restoreFraction = getSubStageStartHealthFraction();
+        float restoreHealth = Math.max(1.0F, restoreFraction * this.getMaxHealth());
+        this.setHealth(restoreHealth);
+        openGates(level);
+        setGateCooldown();
+        this.gatesClosed = false;
+        this.spawnEventTriggered = false;
+        this.setTarget(null);
+        this.threatTable.clear();
+        for (UUID uuid : new ArrayList<>(activeStatues)) {
+            Entity e = level.getEntity(uuid);
+            if (e != null) {
+                e.discard();
+            }
+        }
+        activeStatues.clear();
+        if (activeShieldUUID != null) {
+            Entity e = level.getEntity(activeShieldUUID);
+            if (e != null) {
+                e.discard();
+            }
+            activeShieldUUID = null;
+        }
     }
 
     private boolean isBossBarEligible(ServerPlayer player) {

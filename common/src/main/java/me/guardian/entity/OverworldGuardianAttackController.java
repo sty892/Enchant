@@ -39,7 +39,9 @@ public final class OverworldGuardianAttackController {
                 new DoubleHandWaveAttack(),
                 new HandsSlamLineAttack(),
                 new StompPlayersAttack(),
-                new BombTrapsAttack()
+                new BombTrapsAttack(),
+                new StatueRevivalAttack(),
+                new HealingShieldAttack()
         };
     }
 
@@ -173,6 +175,11 @@ public final class OverworldGuardianAttackController {
 
     private interface RunningAttack {
         boolean tick(ServerLevel level);
+
+        /** Creates a RunningAttack that completes on the very first tick (instant effect). */
+        static RunningAttack instant() {
+            return level -> true;
+        }
     }
 
     private final class ArmWaveAttack extends Attack {
@@ -687,6 +694,106 @@ public final class OverworldGuardianAttackController {
         @Override
         String id() {
             return "bomb_traps";
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Attack 9: Statue Revival
+    // -------------------------------------------------------------------------
+    private final class StatueRevivalAttack extends Attack {
+        private static final int COOLDOWN = 600; // 30 seconds
+        private static final int MAX_STATUES = 3;
+
+        StatueRevivalAttack() {
+            super(1, 1);
+        }
+
+        @Override
+        int cooldownTicks() {
+            return COOLDOWN;
+        }
+
+        @Override
+        boolean canUse(ServerLevel level) {
+            // Don't start if statues already active
+            return !boss.hasActiveStatues(level);
+        }
+
+        @Override
+        RunningAttack start(ServerLevel level) {
+            Vec3 center = boss.homeCenter();
+            int count = 0;
+            for (int attempt = 0; attempt < 30 && count < MAX_STATUES; attempt++) {
+                double angle = boss.getRandom().nextDouble() * Math.PI * 2;
+                double dist = 16.0; // edge of temple
+                double sx = center.x + Math.cos(angle) * dist;
+                double sz = center.z + Math.sin(angle) * dist;
+                BlockPos surfacePos = findSurface(level, new BlockPos((int) sx, (int) center.y, (int) sz));
+                TempleStatueEntity statue = ModEntities.TEMPLE_STATUE.create(
+                        level, net.minecraft.world.entity.EntitySpawnReason.MOB_SUMMONED);
+                if (statue != null) {
+                    statue.setBossUUID(boss.getUUID());
+                    statue.setPos(surfacePos.getX() + 0.5, surfacePos.getY(), surfacePos.getZ() + 0.5);
+                    level.addFreshEntity(statue);
+                    boss.addStatue(statue.getUUID());
+                    
+                    // Crumbling sound
+                    level.playSound(null, statue.blockPosition(), net.minecraft.sounds.SoundEvents.STONE_BREAK, 
+                            net.minecraft.sounds.SoundSource.HOSTILE, 1.5F, 0.8F);
+                    // Dust + smoke particles at spawn point
+                    level.sendParticles(ParticleTypes.SMOKE,
+                            statue.getX(), statue.getY() + 1.0D, statue.getZ(),
+                            20, 0.4, 0.5, 0.4, 0.05);
+                    level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState()),
+                            statue.getX(), statue.getY() + 1.0D, statue.getZ(),
+                            40, 0.4, 0.5, 0.4, 0.1);
+                    count++;
+                }
+            }
+            return RunningAttack.instant();
+        }
+
+        @Override
+        String id() {
+            return "statue_revival";
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Attack 14: Healing Shield
+    // -------------------------------------------------------------------------
+    private final class HealingShieldAttack extends Attack {
+        private static final int COOLDOWN = 800; // 40 seconds
+
+        HealingShieldAttack() {
+            super(1, 1);
+        }
+
+        @Override
+        int cooldownTicks() {
+            return COOLDOWN;
+        }
+
+        @Override
+        boolean canUse(ServerLevel level) {
+            // Don't activate if shield already up; only use below 75% HP
+            return !boss.hasActiveShield(level)
+                    && boss.getHealth() / boss.getMaxHealth() < 0.75F;
+        }
+
+        @Override
+        RunningAttack start(ServerLevel level) {
+            boss.spawnHealingShield(level);
+            // Visual cue particles
+            level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
+                    boss.getX(), boss.getY() + 1.5, boss.getZ(),
+                    30, 1.0, 1.0, 1.0, 0.05);
+            return RunningAttack.instant();
+        }
+
+        @Override
+        String id() {
+            return "healing_shield";
         }
     }
 
