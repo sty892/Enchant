@@ -38,7 +38,8 @@ public final class OverworldGuardianAttackController {
                 new ArmWaveAttack("left_hand_wave", "attack_left", InteractionHand.OFF_HAND),
                 new DoubleHandWaveAttack(),
                 new HandsSlamLineAttack(),
-                new StompPlayersAttack()
+                new StompPlayersAttack(),
+                new BombTrapsAttack()
         };
     }
 
@@ -150,8 +151,6 @@ public final class OverworldGuardianAttackController {
         final boolean canStart(ServerLevel level) {
             return cooldown <= 0
                     && activeTarget() != null
-                    && boss.getBossPhase().id() == phase
-                    && boss.getHiddenStageStep() == stageStep
                     && canUse(level);
         }
 
@@ -206,7 +205,44 @@ public final class OverworldGuardianAttackController {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
                     if (tick == 22) {
-                        directionalImpact(level, 5.5D, 9.0F, 0.55D, 0.25D);
+                        Vec3 center = boss.position();
+                        Vec3 look = boss.getLookAngle().horizontal().normalize();
+                        Vec3 right = new Vec3(-look.z, 0, look.x);
+                        Vec3 left = new Vec3(look.z, 0, -look.x);
+                        Vec3 handPos = hand == InteractionHand.MAIN_HAND 
+                            ? center.add(look.scale(1.5D)).add(right.scale(1.0D))
+                            : center.add(look.scale(1.5D)).add(left.scale(1.0D));
+                        
+                        float closeDamage = hand == InteractionHand.MAIN_HAND ? 10.0F : 9.0F;
+                        float waveDamage = 5.0F;
+                        double waveRadius = 5.5D;
+
+                        boolean hit = false;
+                        for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, boss.getBoundingBox().inflate(waveRadius, 2.0D, waveRadius))) {
+                            if (living == boss || !living.isAlive() || horizontalDistance(living.position(), center) > waveRadius) {
+                                continue;
+                            }
+                            
+                            double distToHand = horizontalDistance(living.position(), handPos);
+                            float finalDamage;
+                            if (distToHand <= 1.5D) {
+                                finalDamage = closeDamage;
+                            } else {
+                                finalDamage = waveDamage;
+                            }
+
+                            if (living.hurtServer(level, boss.damageSources().mobAttack(boss), finalDamage)) {
+                                hit = true;
+                            }
+                            Vec3 away = living.position().subtract(center).horizontal();
+                            if (away.lengthSqr() > 0.0001D) {
+                                living.setDeltaMovement(away.normalize().scale(0.55D).add(0.0D, 0.25D, 0.0D));
+                            }
+                        }
+                        if (hit) {
+                            boss.recordSuccessfulHit();
+                        }
+                        
                         radialBlockWaveRing(level, boss.position(), 1.5D, 12);
                     } else if (tick == 24) {
                         radialBlockWaveRing(level, boss.position(), 3.5D, 24);
@@ -254,6 +290,25 @@ public final class OverworldGuardianAttackController {
                     if (tick == 32) {
                         directionalImpact(level, 7.5D, 12.0F, 1.05D, 0.45D);
                         radialBlockWaveRing(level, boss.position(), 2.0D, 16);
+
+                        if (boss.getRandom().nextFloat() < 0.5F) {
+                            LivingEntity target = activeTarget();
+                            if (target != null) {
+                                BlockPos targetBlockPos = target.blockPosition();
+                                BlockPos ceilingPos = findCeiling(level, targetBlockPos);
+                                if (ceilingPos != null) {
+                                    net.minecraft.world.level.block.state.BlockState ceilingState = level.getBlockState(ceilingPos);
+                                    CeilingFallingBlockEntity fallingBlock = new CeilingFallingBlockEntity(
+                                            level,
+                                            ceilingPos.getX() + 0.5D,
+                                            ceilingPos.getY() - 0.5D,
+                                            ceilingPos.getZ() + 0.5D,
+                                            ceilingState
+                                    );
+                                    level.addFreshEntity(fallingBlock);
+                                }
+                            }
+                        }
                     } else if (tick == 34) {
                         radialBlockWaveRing(level, boss.position(), 4.5D, 32);
                     } else if (tick == 36) {
@@ -293,8 +348,7 @@ public final class OverworldGuardianAttackController {
         @Override
         RunningAttack start(ServerLevel level) {
             Vec3 start = boss.position();
-            LivingEntity targetEntity = activeTarget();
-            Vec3 dir = targetEntity != null ? targetEntity.position().subtract(start).horizontal() : boss.getLookAngle().horizontal();
+            Vec3 dir = boss.getLookAngle().horizontal();
             if (dir.lengthSqr() < 0.0001D) {
                 dir = new Vec3(0.0D, 0.0D, 1.0D);
             }
@@ -340,7 +394,7 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return activeTarget() != null && !aggroedPlayers(level, 22.0D).isEmpty();
+            return activeTarget() != null;
         }
 
         @Override
@@ -350,27 +404,17 @@ public final class OverworldGuardianAttackController {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
                     if (tick == 12 || tick == 22 || tick == 32) {
-                        for (ServerPlayer player : aggroedPlayers(level, 22.0D)) {
-                            telegraphPlayerStomp(level, player);
-                        }
+                        telegraphCircle(level, 7.5D, 32);
                     }
                     if (tick == 38) {
-                        boolean hit = false;
-                        for (ServerPlayer player : aggroedPlayers(level, 22.0D)) {
-                            if (horizontalDistance(player.position(), boss.position()) > 24.0D) {
-                                continue;
-                            }
-                            level.sendParticles(ParticleTypes.GUST_EMITTER_LARGE,
-                                    player.getX(), player.getY() + 0.15D, player.getZ(),
-                                    1, 0.05D, 0.05D, 0.05D, 0.0D);
-                            if (player.hurtServer(level, boss.damageSources().mobAttack(boss), 10.0F)) {
-                                hit = true;
-                            }
-                            player.setDeltaMovement(player.getDeltaMovement().x, 0.95D, player.getDeltaMovement().z);
-                        }
-                        if (hit) {
-                            boss.recordSuccessfulHit();
-                        }
+                        radialImpact(level, 7.5D, 10.0F, 1.25D, 0.45D);
+                        radialBlockWaveRing(level, boss.position(), 1.5D, 16);
+                    } else if (tick == 40) {
+                        radialBlockWaveRing(level, boss.position(), 3.5D, 24);
+                    } else if (tick == 42) {
+                        radialBlockWaveRing(level, boss.position(), 5.5D, 32);
+                    } else if (tick == 44) {
+                        radialBlockWaveRing(level, boss.position(), 7.5D, 40);
                     }
                 }
             };
@@ -593,5 +637,79 @@ public final class OverworldGuardianAttackController {
                 level.sendParticles(option, x, boss.getY() + 0.1D, z, 2, 0.05D, 0.2D, 0.05D, 0.12D);
             }
         }
+    }
+
+    private final class BombTrapsAttack extends Attack {
+        private BombTrapsAttack() {
+            super(1, 1);
+        }
+
+        @Override
+        int weight() {
+            return 3;
+        }
+
+        @Override
+        boolean canUse(ServerLevel level) {
+            return activeTarget() != null;
+        }
+
+        @Override
+        RunningAttack start(ServerLevel level) {
+            boss.triggerAttackAnimation("attack_both");
+            return new TimedAttack(44) {
+                @Override
+                protected void onTick(ServerLevel level, int tick) {
+                    if (tick == 20) {
+                        int count = 4 + boss.getRandom().nextInt(3);
+                        LivingEntity target = activeTarget();
+                        Vec3 center = target != null ? target.position() : boss.position();
+                        for (int i = 0; i < count; i++) {
+                            double angle = boss.getRandom().nextDouble() * Math.PI * 2.0D;
+                            double distance = 2.0D + boss.getRandom().nextDouble() * 8.0D;
+                            double x = center.x + Math.cos(angle) * distance;
+                            double z = center.z + Math.sin(angle) * distance;
+                            BlockPos surfacePos = findSurface(level, BlockPos.containing(x, center.y, z));
+                            
+                            BombTrapEntity bomb = new BombTrapEntity(level, x, surfacePos.getY() + 0.1D, z);
+                            level.addFreshEntity(bomb);
+                        }
+                    }
+                }
+            };
+        }
+
+        @Override
+        int cooldownTicks() {
+            return 110;
+        }
+
+        @Override
+        String id() {
+            return "bomb_traps";
+        }
+    }
+
+    private BlockPos findCeiling(ServerLevel level, BlockPos startPos) {
+        BlockPos.MutableBlockPos pos = startPos.mutable();
+        for (int y = 0; y < 30; y++) {
+            pos.move(0, 1, 0);
+            net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+            if (!state.isAir() && !state.liquid()) {
+                return pos.immutable();
+            }
+        }
+        return null;
+    }
+
+    private BlockPos findSurface(ServerLevel level, BlockPos pos) {
+        BlockPos cursor = pos;
+        for (int i = 0; i < 10 && !level.getBlockState(cursor).isAir(); i++) {
+            cursor = cursor.above();
+        }
+        for (int i = 0; i < 18 && level.getBlockState(cursor.below()).isAir(); i++) {
+            cursor = cursor.below();
+        }
+        return cursor;
     }
 }
