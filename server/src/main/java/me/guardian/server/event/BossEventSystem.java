@@ -37,49 +37,68 @@ public class BossEventSystem {
             ScriptRunner.runScript(level, center, source, eventData.get("script_id").getAsString(), variables);
         }
 
-        // world_border_expand
         if (eventData.has("world_border_expand")) {
-            JsonObject border = eventData.getAsJsonObject("world_border_expand");
-            double to = border.get("to").getAsDouble();
-            long duration = border.get("duration_seconds").getAsLong();
-            level.getWorldBorder().lerpSizeBetween(level.getWorldBorder().getSize(), to, duration * 20L, level.getGameTime());
+            expandWorldBorder(level, eventData);
         }
 
-        // spawn_structure / spawn_structure_offset
         if (eventData.has("spawn_structure")) {
             spawnStructure(level, eventData, center);
         }
 
-        // give_fragment
-        if (eventData.has("give_fragment")) {
+        if (eventData.has("give_fragment") && eventData.get("give_fragment").isJsonPrimitive()) {
             String itemId = eventData.get("give_fragment").getAsString();
             giveFragment(level, itemId, center, source, damageContributors);
         }
 
-        // set_flag
-        if (eventData.has("set_flag")) {
+        if (eventData.has("set_flag") && eventData.get("set_flag").isJsonPrimitive()) {
             String flag = eventData.get("set_flag").getAsString();
             GuardianWorldState state = GuardianWorldState.get(level);
             if (flag.equals("overworldBossDefeated")) state.setOverworldBossDefeated(true);
             else if (flag.equals("netherBossDefeated")) state.setNetherBossDefeated(true);
         }
 
-        // allow_diamonds
-        if (eventData.has("allow_diamonds") && eventData.get("allow_diamonds").getAsBoolean()) {
+        if (eventData.has("allow_diamonds") && eventData.get("allow_diamonds").isJsonPrimitive() && eventData.get("allow_diamonds").getAsBoolean()) {
             GuardianWorldState state = GuardianWorldState.get(level);
             state.setOverworldBossDefeated(true);
         }
 
-        // broadcast_title
-        if (eventData.has("broadcast_title")) {
+        if (eventData.has("broadcast_title") && eventData.get("broadcast_title").isJsonPrimitive()) {
             String title = eventData.get("broadcast_title").getAsString();
             broadcastTitle(level, title);
         }
-        
-        // play_animation (Placeholder for packet)
-        if (eventData.has("play_animation")) {
+
+        if (eventData.has("play_animation") && eventData.get("play_animation").isJsonPrimitive()) {
             String animation = eventData.get("play_animation").getAsString();
-            GuardianMod.LOGGER.info("play_animation placeholder: {} for source {}", animation, source == null ? "none" : source.getUUID());
+            triggerSourceAnimation(source, animation);
+        }
+    }
+
+    private static void expandWorldBorder(ServerLevel level, JsonObject eventData) {
+        if (!eventData.get("world_border_expand").isJsonObject()) {
+            GuardianMod.LOGGER.warn("world_border_expand must be an object: {}", eventData.get("world_border_expand"));
+            return;
+        }
+        JsonObject border = eventData.getAsJsonObject("world_border_expand");
+        if (!border.has("to") || !border.has("duration_seconds") || !border.get("to").isJsonPrimitive() || !border.get("duration_seconds").isJsonPrimitive()) {
+            GuardianMod.LOGGER.warn("world_border_expand requires numeric to and duration_seconds fields: {}", border);
+            return;
+        }
+        try {
+            double to = border.get("to").getAsDouble();
+            long duration = Math.max(0L, border.get("duration_seconds").getAsLong());
+            level.getWorldBorder().lerpSizeBetween(level.getWorldBorder().getSize(), to, duration * 20L, level.getGameTime());
+        } catch (RuntimeException e) {
+            GuardianMod.LOGGER.warn("Invalid world_border_expand data: {}", border, e);
+        }
+    }
+
+    private static void triggerSourceAnimation(Entity source, String animation) {
+        if (source instanceof OverworldGuardianEntityAccessor overworld) {
+            overworld.guardian_mod$triggerAttackAnimation(animation);
+        } else if (source instanceof me.guardian.entity.NetherGuardianEntity nether) {
+            nether.triggerAttackAnimation(animation);
+        } else {
+            GuardianMod.LOGGER.info("play_animation ignored for source {}", source == null ? "none" : source.getUUID());
         }
     }
 
@@ -195,5 +214,9 @@ public class BossEventSystem {
             variables.put("uuid", player.getUUID().toString());
         }
         return variables;
+    }
+
+    private interface OverworldGuardianEntityAccessor {
+        void guardian_mod$triggerAttackAnimation(String animation);
     }
 }
