@@ -47,24 +47,17 @@ public final class OverworldGuardianAttackController {
             attack.tickCooldown();
         }
 
-        if (boss.isAiDisabled()) {
-            runningAttack = null;
-            boss.getNavigation().stop();
-            return;
-        }
-
         if (runningAttack != null) {
-            if (activeTarget() == null) {
-                runningAttack = null;
-                globalDelay = 20;
-                boss.getNavigation().stop();
-                return;
-            }
             boss.getNavigation().stop();
             if (runningAttack.tick(level)) {
                 runningAttack = null;
                 globalDelay = 26;
             }
+            return;
+        }
+
+        if (boss.isAiDisabled()) {
+            boss.getNavigation().stop();
             return;
         }
 
@@ -103,11 +96,11 @@ public final class OverworldGuardianAttackController {
     }
 
     public boolean forceAttack(ServerLevel level, String attackId) {
-        if (boss.isAiDisabled() || runningAttack != null) {
+        if (runningAttack != null) {
             return false;
         }
         for (Attack attack : attacks) {
-            if (!attack.id().equals(attackId) || !attack.canStartIgnoringCooldown(level)) {
+            if (!attack.id().equals(attackId)) {
                 continue;
             }
             attack.startCooldown();
@@ -159,11 +152,7 @@ public final class OverworldGuardianAttackController {
         }
 
         final boolean canStart(ServerLevel level) {
-            return cooldown <= 0 && canStartIgnoringCooldown(level);
-        }
-
-        final boolean canStartIgnoringCooldown(ServerLevel level) {
-            return activeTarget() != null && isUnlockedForCurrentPhase() && canUse(level);
+            return cooldown <= 0 && activeTarget() != null && isUnlockedForCurrentPhase() && canUse(level);
         }
 
         private boolean isUnlockedForCurrentPhase() {
