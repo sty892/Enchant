@@ -50,7 +50,7 @@ public final class GuardianModServer implements ModInitializer {
         GuardianCommand.initialize();
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (!world.isClientSide() && entity instanceof CameraMarkerEntity cameraMarker && player instanceof ServerPlayer serverPlayer) {
-                if (serverPlayer.isCreative() || serverPlayer.level().getServer().getPlayerList().isOp(serverPlayer.nameAndId())) {
+                if (canEditCameraMarkers(serverPlayer)) {
                     ServerPlayNetworking.send(serverPlayer, new CameraPayloads.OpenEditor(
                             cameraMarker.getId(),
                             cameraMarker.getCutsceneId(),
@@ -91,6 +91,10 @@ public final class GuardianModServer implements ModInitializer {
 
         ServerPlayNetworking.registerGlobalReceiver(CameraPayloads.SaveEditor.TYPE, (payload, context) -> {
             context.server().execute(() -> {
+                if (!canEditCameraMarkers(context.player())) {
+                    context.player().sendSystemMessage(net.minecraft.network.chat.Component.literal("§cYou are not allowed to edit camera markers."));
+                    return;
+                }
                 net.minecraft.world.entity.Entity entity = ((ServerLevel) context.player().level()).getEntity(payload.entityId());
                 if (entity instanceof CameraMarkerEntity marker) {
                     marker.setCutsceneId(payload.cutsceneId());
@@ -103,6 +107,10 @@ public final class GuardianModServer implements ModInitializer {
 
         ServerPlayNetworking.registerGlobalReceiver(CameraPayloads.Delete.TYPE, (payload, context) -> {
             context.server().execute(() -> {
+                if (!canEditCameraMarkers(context.player())) {
+                    context.player().sendSystemMessage(net.minecraft.network.chat.Component.literal("§cYou are not allowed to edit camera markers."));
+                    return;
+                }
                 net.minecraft.world.entity.Entity entity = ((ServerLevel) context.player().level()).getEntity(payload.entityId());
                 if (entity instanceof CameraMarkerEntity marker) {
                     marker.discard();
@@ -112,5 +120,9 @@ public final class GuardianModServer implements ModInitializer {
         });
 
         GuardianMod.LOGGER.info("Guardian Mod server foundation initialized");
+    }
+
+    private static boolean canEditCameraMarkers(ServerPlayer player) {
+        return player.isCreative() || player.level().getServer().getPlayerList().isOp(player.nameAndId());
     }
 }
