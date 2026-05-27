@@ -12,20 +12,36 @@ public final class ConfigManager {
                     {
                       "boss_id": "guardian_mod:boss_overworld",
                       "on_spawn_script": "boss_overworld_spawn",
-                      "on_death_script": "boss_overworld_death"
+                      "on_death_script": "boss_overworld_death",
+                      "on_death": {
+                        "world_border_expand": { "to": 10000, "duration_seconds": 120 },
+                        "spawn_structure": "guardian_mod:altar",
+                        "give_fragment": "guardian_mod:fragment_overworld",
+                        "set_flag": "overworldBossDefeated",
+                        "allow_diamonds": true,
+                        "broadcast_title": "Overworld Guardian defeated"
+                      }
                     }
                     """,
             "boss_nether.json", """
                     {
                       "boss_id": "guardian_mod:boss_nether",
                       "on_spawn_script": "boss_nether_spawn",
-                      "on_death_script": "boss_nether_death"
+                      "on_death_script": "boss_nether_death",
+                      "on_death": {
+                        "give_fragment": "guardian_mod:fragment_nether",
+                        "set_flag": "netherBossDefeated",
+                        "broadcast_title": "Nether Guardian defeated"
+                      }
                     }
                     """,
             "boss_generic.json", """
                     {
                       "boss_id": "guardian_mod:boss_generic",
-                      "on_death_script": "boss_generic_death"
+                      "on_death_script": "boss_generic_death",
+                      "on_death": {
+                        "give_fragment": "guardian_mod:fragment_generic"
+                      }
                     }
                     """,
             "altar_config.json", """
@@ -115,11 +131,7 @@ public final class ConfigManager {
                     {
                       "commands": [
                         "say Overworld Guardian defeated",
-                        "title @a title {\\"text\\":\\"Overworld Guardian defeated\\"}",
-                        "worldborder set 10000 120",
-                        "guardian stage 1",
-                        "give @p guardian_mod:fragment_overworld",
-                        "guardian structure place guardian_mod:altar"
+                        "guardian stage 1"
                       ]
                     }
                     """,
@@ -133,17 +145,14 @@ public final class ConfigManager {
             "boss_nether_death.json", """
                     {
                       "commands": [
-                        "say Nether Guardian defeated",
-                        "title @a title {\\"text\\":\\"Nether Guardian defeated\\"}",
-                        "give @p guardian_mod:fragment_nether"
+                        "say Nether Guardian defeated"
                       ]
                     }
                     """,
             "boss_generic_death.json", """
                     {
                       "commands": [
-                        "say Generic Guardian defeated",
-                        "give @p guardian_mod:fragment_generic"
+                        "say Generic Guardian defeated"
                       ]
                     }
                     """,
