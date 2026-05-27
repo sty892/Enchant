@@ -160,12 +160,12 @@ public class NetherGuardianEntity extends Monster implements GeoEntity {
         if (isAiDisabled()) {
             tickPhase();
             tickVulnerabilityWindow(level);
-            attackController.tick(level);
             tickBossBar(level);
+            this.getNavigation().stop();
             return;
         }
         GuardianBossAi.ensureSpawnHome(this);
-        triggerSpawnEvent(level);
+        checkFightStart(level);
         triggerSpawnAnimation();
         threatTable.tick(this, level);
         tickTarget(level);
@@ -229,6 +229,26 @@ public class NetherGuardianEntity extends Monster implements GeoEntity {
             );
         }
         this.aiDisabled = input.getBooleanOr("AiDisabled", false);
+    }
+
+    private void checkFightStart(ServerLevel level) {
+        if (spawnEventTriggered) {
+            return;
+        }
+        BlockPos center = spawnCenter == null ? this.blockPosition() : spawnCenter;
+        double radius = 20.0D;
+        boolean playerNear = false;
+        for (ServerPlayer player : level.players()) {
+            if (player.isAlive() && !player.isCreative() && !player.isSpectator()
+                    && player.level() == this.level()
+                    && player.distanceToSqr(Vec3.atCenterOf(center)) <= radius * radius) {
+                playerNear = true;
+                break;
+            }
+        }
+        if (playerNear || getTarget() != null) {
+            triggerSpawnEvent(level);
+        }
     }
 
     private void triggerSpawnEvent(ServerLevel level) {
