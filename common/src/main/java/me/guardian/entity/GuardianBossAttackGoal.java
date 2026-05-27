@@ -3,6 +3,7 @@ package me.guardian.entity;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
@@ -43,6 +44,7 @@ public final class GuardianBossAttackGoal extends MeleeAttackGoal {
         resetAttackCooldown();
         boss.swing(InteractionHand.MAIN_HAND);
         GuardianBossAi.triggerAttackAnimation(boss);
-        target.hurtServer((ServerLevel) boss.level(), boss.damageSources().mobAttack(boss), GuardianBossAi.ATTACK_DAMAGE);
+        float damage = (float) boss.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        target.hurtServer((ServerLevel) boss.level(), boss.damageSources().mobAttack(boss), damage);
     }
 }
