@@ -85,8 +85,11 @@ public final class DiamondRestrictionHandler {
         boolean removed = false;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (isDiamondItem(stack)) {
-                player.getInventory().setItem(slot, ItemStack.EMPTY);
+            if (isBlockedDiamondItem(stack)) {
+                stack.shrink(stack.getCount());
+                if (stack.isEmpty()) {
+                    player.getInventory().setItem(slot, ItemStack.EMPTY);
+                }
                 removed = true;
             }
         }
@@ -106,7 +109,7 @@ public final class DiamondRestrictionHandler {
         return state.is(Blocks.DIAMOND_ORE) || state.is(Blocks.DEEPSLATE_DIAMOND_ORE);
     }
 
-    private static boolean isDiamondItem(ItemStack stack) {
+    private static boolean isBlockedDiamondItem(ItemStack stack) {
         if (stack.isEmpty()) {
             return false;
         }
@@ -116,8 +119,10 @@ public final class DiamondRestrictionHandler {
             return false;
         }
 
-        String path = id.getPath();
-        return "diamond".equals(path) || path.startsWith("diamond_") || "deepslate_diamond_ore".equals(path);
+        return switch (id.getPath()) {
+            case "diamond", "diamond_ore", "deepslate_diamond_ore" -> true;
+            default -> false;
+        };
     }
 
     private record GuardianConfig(boolean diamondRestrictionEnabled, Set<UUID> whitelist) {
