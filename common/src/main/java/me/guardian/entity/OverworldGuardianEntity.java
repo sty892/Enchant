@@ -105,6 +105,15 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     private long gateCooldownUntilTick = -1L;
     // Saved health for restore on wipe (as health fraction 0-1)
     private float savedHealthFraction = 1.0F;
+    private boolean aiDisabled = false;
+
+    public boolean isAiDisabled() {
+        return this.aiDisabled;
+    }
+
+    public void setAiDisabled(boolean aiDisabled) {
+        this.aiDisabled = aiDisabled;
+    }
 
     public OverworldGuardianEntity(EntityType<? extends Monster> entityType, Level level) {
         super(entityType, level);
@@ -347,6 +356,13 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        if (isAiDisabled()) {
+            tickAnimationState();
+            tickPhase();
+            attackController.tick(level);
+            tickBossBar(level);
+            return;
+        }
         GuardianBossAi.ensureSpawnHome(this);
         checkFightStart(level);
         triggerSpawnAnimation();
@@ -400,6 +416,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         output.putBoolean("GatesClosed", gatesClosed);
         output.putInt("GateCooldownUntilTick", (int) gateCooldownUntilTick);
         output.putFloat("SavedHealthFraction", savedHealthFraction);
+        output.putBoolean("AiDisabled", aiDisabled);
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < gateUUIDs.size(); i++) {
             sb.append(gateUUIDs.get(i).toString());
@@ -429,6 +446,7 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         this.gatesClosed = input.getBooleanOr("GatesClosed", false);
         this.gateCooldownUntilTick = input.getIntOr("GateCooldownUntilTick", -1);
         this.savedHealthFraction = input.getFloatOr("SavedHealthFraction", 1.0F);
+        this.aiDisabled = input.getBooleanOr("AiDisabled", false);
         gateUUIDs.clear();
         input.getString("GateUUIDs").ifPresent(s -> {
             if (!s.isEmpty()) {

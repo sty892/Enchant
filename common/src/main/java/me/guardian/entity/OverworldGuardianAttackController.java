@@ -58,6 +58,10 @@ public final class OverworldGuardianAttackController {
             return;
         }
 
+        if (boss.isAiDisabled()) {
+            return;
+        }
+
         LivingEntity target = activeTarget();
         if (target == null) {
             globalDelay = 10;
