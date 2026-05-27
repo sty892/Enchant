@@ -69,6 +69,15 @@ public class NetherGuardianEntity extends Monster implements GeoEntity {
     private boolean spawnAnimationTriggered = false;
     private BlockPos spawnCenter = null;
     private int vulnerabilityTicks;
+    private boolean aiDisabled = false;
+
+    public boolean isAiDisabled() {
+        return this.aiDisabled;
+    }
+
+    public void setAiDisabled(boolean aiDisabled) {
+        this.aiDisabled = aiDisabled;
+    }
 
     public NetherGuardianEntity(EntityType<? extends Monster> entityType, Level level) {
         super(entityType, level);
@@ -148,6 +157,13 @@ public class NetherGuardianEntity extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        if (isAiDisabled()) {
+            tickPhase();
+            tickVulnerabilityWindow(level);
+            attackController.tick(level);
+            tickBossBar(level);
+            return;
+        }
         GuardianBossAi.ensureSpawnHome(this);
         triggerSpawnEvent(level);
         triggerSpawnAnimation();
@@ -193,6 +209,7 @@ public class NetherGuardianEntity extends Monster implements GeoEntity {
             output.putInt("SpawnCenterY", spawnCenter.getY());
             output.putInt("SpawnCenterZ", spawnCenter.getZ());
         }
+        output.putBoolean("AiDisabled", aiDisabled);
     }
 
     @Override
@@ -211,6 +228,7 @@ public class NetherGuardianEntity extends Monster implements GeoEntity {
                     input.getIntOr("SpawnCenterZ", 0)
             );
         }
+        this.aiDisabled = input.getBooleanOr("AiDisabled", false);
     }
 
     private void triggerSpawnEvent(ServerLevel level) {

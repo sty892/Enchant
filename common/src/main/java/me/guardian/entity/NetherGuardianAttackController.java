@@ -66,6 +66,10 @@ public final class NetherGuardianAttackController {
             return;
         }
 
+        if (boss.isAiDisabled()) {
+            return;
+        }
+
         LivingEntity target = boss.getTarget();
         if (target != null && target.isAlive()) {
             boss.getLookControl().setLookAt(target, 30.0F, 30.0F);
