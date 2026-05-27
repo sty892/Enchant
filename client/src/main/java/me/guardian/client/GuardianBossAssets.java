@@ -20,6 +20,11 @@ public final class GuardianBossAssets {
             "boss_nether",
             "boss_generic"
     };
+    private static final String[] REQUIRED_BASE_BOSS_ASSETS = {
+            "boss_overworld",
+            "boss_nether",
+            "boss_generic"
+    };
 
     private GuardianBossAssets() {
     }
@@ -41,7 +46,7 @@ public final class GuardianBossAssets {
             if (hasAnimation) {
                 ANIMATION_ASSETS.add(bossAssetName);
             }
-            if (!hasModel || !hasTexture) {
+            if (!hasCompleteAssetSet(bossAssetName)) {
                 GuardianMod.LOGGER.info(
                         "Guardian Mod boss asset check for {}: model={}, texture={}, animation={}",
                         bossAssetName,
@@ -51,13 +56,13 @@ public final class GuardianBossAssets {
                 );
             }
         }
-        ModState.resourcePackLoaded = !MODEL_ASSETS.isEmpty() || !TEXTURE_ASSETS.isEmpty() || !ANIMATION_ASSETS.isEmpty();
+        ModState.resourcePackLoaded = hasRequiredBaseBossAssets();
         GuardianMod.LOGGER.info("Guardian Mod boss model assets detected: {}, texture assets detected: {}, animation assets detected: {}",
                 Collections.unmodifiableSet(MODEL_ASSETS),
                 Collections.unmodifiableSet(TEXTURE_ASSETS),
                 Collections.unmodifiableSet(ANIMATION_ASSETS));
         if (!ModState.resourcePackLoaded) {
-            GuardianMod.LOGGER.warn("Guardian Mod boss model assets not detected; fallback boss models will be used.");
+            GuardianMod.LOGGER.warn("Guardian Mod boss resource pack is incomplete; fallback boss models will be used where assets are missing.");
         }
     }
 
@@ -71,6 +76,19 @@ public final class GuardianBossAssets {
 
     public static boolean hasAnimationAsset(String bossAssetName) {
         return ANIMATION_ASSETS.contains(bossAssetName);
+    }
+
+    private static boolean hasCompleteAssetSet(String bossAssetName) {
+        return hasModelAsset(bossAssetName) && hasTextureAsset(bossAssetName) && hasAnimationAsset(bossAssetName);
+    }
+
+    private static boolean hasRequiredBaseBossAssets() {
+        for (String bossAssetName : REQUIRED_BASE_BOSS_ASSETS) {
+            if (!hasCompleteAssetSet(bossAssetName)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean hasModelAsset(ResourceManager manager, String bossAssetName) {
