@@ -93,7 +93,7 @@ public final class NetherGuardianAttackController {
 
     public boolean forceAttack(ServerLevel level, String attackId) {
         for (Attack attack : attacks) {
-            if (!attack.id().equals(attackId) || boss.getBossPhase().id() < attack.minPhase() || !attack.canUse(boss, level)) {
+            if (!attack.id().equals(attackId)) {
                 continue;
             }
             attack.startCooldown(boss);
@@ -359,7 +359,14 @@ public final class NetherGuardianAttackController {
 
         @Override
         RunningAttack start(ServerLevel level) {
-            ServerPlayer target = boss.getThreatTable().farthestAggroedPlayer(boss, level, 10.0D, 32.0D);
+            ServerPlayer initialTarget = boss.getThreatTable().farthestAggroedPlayer(boss, level, 10.0D, 32.0D);
+            if (initialTarget == null) {
+                net.minecraft.world.entity.player.Player nearest = level.getNearestPlayer(boss, 32.0D);
+                if (nearest instanceof ServerPlayer sp) {
+                    initialTarget = sp;
+                }
+            }
+            final ServerPlayer target = initialTarget;
             Vec3 start = boss.position().add(0.0D, 2.2D, 0.0D);
             Vec3 targetPoint = target == null ? start.add(boss.getLookAngle().scale(12.0D)) : target.position().add(0.0D, 1.0D, 0.0D);
             boss.triggerAttackAnimation("whip_grab");
@@ -610,7 +617,11 @@ public final class NetherGuardianAttackController {
                         8, zone.radius * 0.35D, 0.05D, zone.radius * 0.35D, 0.01D);
             }
             if (zone.ticks % 20 == 0) {
-                for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 32.0D, 8)) {
+                List<ServerPlayer> players = boss.getThreatTable().topAggroedPlayers(boss, level, 32.0D, 8);
+                if (players.isEmpty()) {
+                    players = level.getPlayers(p -> p.isAlive() && p.position().distanceToSqr(zone.center) <= 32.0D * 32.0D);
+                }
+                for (ServerPlayer player : players) {
                     if (horizontalDistance(player.position(), zone.center) <= zone.radius) {
                         player.hurtServer(level, boss.damageSources().mobAttack(boss), zone.soul ? 5.0F : 4.0F);
                     }
@@ -657,6 +668,9 @@ public final class NetherGuardianAttackController {
             BlockPos spawnPos = findSurface(level, pos);
             mob.setPos(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D);
             LivingEntity target = boss.getTarget();
+            if (target == null) {
+                target = level.getNearestPlayer(boss, 32.0D);
+            }
             if (target != null) {
                 mob.setTarget(target);
             }
@@ -670,17 +684,31 @@ public final class NetherGuardianAttackController {
 
     private List<Meteor> createMeteors(ServerLevel level) {
         List<ServerPlayer> players = boss.getThreatTable().topAggroedPlayers(boss, level, 30.0D, 5);
+        if (players.isEmpty()) {
+            players = level.getPlayers(p -> p.isAlive() && p.position().distanceToSqr(boss.position()) <= 30.0D * 30.0D);
+        }
         List<Meteor> meteors = new ArrayList<>();
         int count = switch (boss.getBossPhase()) {
             case ONE -> 5;
             case TWO -> 7;
             case THREE -> 9;
         };
+        boolean hasPlayers = !players.isEmpty();
         for (int i = 0; i < count; i++) {
-            ServerPlayer player = players.get(i % players.size());
+            double tx, ty, tz;
+            if (hasPlayers) {
+                ServerPlayer player = players.get(i % players.size());
+                tx = player.getX();
+                ty = player.getY();
+                tz = player.getZ();
+            } else {
+                tx = boss.getX();
+                ty = boss.getY();
+                tz = boss.getZ();
+            }
             double angle = boss.getRandom().nextDouble() * Math.PI * 2.0D;
             double radius = 1.5D + boss.getRandom().nextDouble() * 4.5D;
-            BlockPos base = BlockPos.containing(player.getX() + Math.cos(angle) * radius, player.getY(), player.getZ() + Math.sin(angle) * radius);
+            BlockPos base = BlockPos.containing(tx + Math.cos(angle) * radius, ty, tz + Math.sin(angle) * radius);
             meteors.add(new Meteor(findSurface(level, base), 24 + i * 4, 46 + i * 4));
         }
         return meteors;
@@ -690,7 +718,11 @@ public final class NetherGuardianAttackController {
         Vec3 center = Vec3.atCenterOf(pos);
         level.sendParticles(ParticleTypes.EXPLOSION, center.x, center.y + 0.2D, center.z, 1, 0.05D, 0.05D, 0.05D, 0.0D);
         level.sendParticles(ParticleTypes.LAVA, center.x, center.y + 0.1D, center.z, 20, 0.6D, 0.2D, 0.6D, 0.04D);
-        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 30.0D, 8)) {
+        List<ServerPlayer> players = boss.getThreatTable().topAggroedPlayers(boss, level, 30.0D, 8);
+        if (players.isEmpty()) {
+            players = level.getPlayers(p -> p.isAlive() && p.position().distanceToSqr(center) <= 30.0D * 30.0D);
+        }
+        for (ServerPlayer player : players) {
             if (horizontalDistance(player.position(), center) <= 2.4D) {
                 player.hurtServer(level, boss.damageSources().mobAttack(boss), boss.getBossPhase().id() == 3 ? 12.0F : 9.0F);
                 Vec3 away = player.position().subtract(center).horizontal();
@@ -706,7 +738,11 @@ public final class NetherGuardianAttackController {
         Vec3 center = boss.position();
         level.sendParticles(ParticleTypes.EXPLOSION, center.x, center.y + 0.4D, center.z, 2, 0.4D, 0.1D, 0.4D, 0.0D);
         level.sendParticles(ParticleTypes.LAVA, center.x, center.y + 0.15D, center.z, 42, 1.5D, 0.2D, 1.5D, 0.04D);
-        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 14.0D, 8)) {
+        List<ServerPlayer> players = boss.getThreatTable().topAggroedPlayers(boss, level, 14.0D, 8);
+        if (players.isEmpty()) {
+            players = level.getPlayers(p -> p.isAlive() && p.position().distanceToSqr(center) <= 14.0D * 14.0D);
+        }
+        for (ServerPlayer player : players) {
             double distance = horizontalDistance(player.position(), center);
             if (distance > 5.2D) {
                 continue;
@@ -729,7 +765,11 @@ public final class NetherGuardianAttackController {
                     center.z + Math.sin(angle) * radius,
                     1, 0.03D, 0.02D, 0.03D, 0.0D);
         }
-        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 18.0D, 8)) {
+        List<ServerPlayer> players = boss.getThreatTable().topAggroedPlayers(boss, level, 18.0D, 8);
+        if (players.isEmpty()) {
+            players = level.getPlayers(p -> p.isAlive() && p.position().distanceToSqr(center) <= 18.0D * 18.0D);
+        }
+        for (ServerPlayer player : players) {
             double distance = horizontalDistance(player.position(), center);
             if (distance >= radius - 0.65D && distance <= radius + 0.65D && player.getBoundingBox().minY <= boss.getY() + 1.1D) {
                 player.hurtServer(level, boss.damageSources().mobAttack(boss), boss.getBossPhase().id() == 3 ? 7.0F : 5.0F);
@@ -765,7 +805,11 @@ public final class NetherGuardianAttackController {
 
     private void pullPlayers(ServerLevel level) {
         Vec3 center = boss.position();
-        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 30.0D, 8)) {
+        List<ServerPlayer> players = boss.getThreatTable().topAggroedPlayers(boss, level, 30.0D, 8);
+        if (players.isEmpty()) {
+            players = level.getPlayers(p -> p.isAlive() && p.position().distanceToSqr(center) <= 30.0D * 30.0D);
+        }
+        for (ServerPlayer player : players) {
             Vec3 pull = center.subtract(player.position()).horizontal();
             if (pull.lengthSqr() > 0.0001D) {
                 player.addDeltaMovement(pull.normalize().scale(0.035D));
@@ -775,12 +819,16 @@ public final class NetherGuardianAttackController {
 
     private void spiralSoulProjectiles(ServerLevel level, int tick) {
         Vec3 center = boss.position().add(0.0D, 1.0D, 0.0D);
+        List<ServerPlayer> players = boss.getThreatTable().topAggroedPlayers(boss, level, 30.0D, 8);
+        if (players.isEmpty()) {
+            players = level.getPlayers(p -> p.isAlive() && p.position().distanceToSqr(boss.position()) <= 30.0D * 30.0D);
+        }
         for (int arm = 0; arm < 4; arm++) {
             double angle = tick * 0.16D + arm * Math.PI * 0.5D;
             for (double radius = 2.0D; radius <= 12.0D; radius += 1.7D) {
                 Vec3 point = center.add(Math.cos(angle + radius * 0.28D) * radius, 0.25D, Math.sin(angle + radius * 0.28D) * radius);
                 level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, point.x, point.y, point.z, 1, 0.02D, 0.02D, 0.02D, 0.0D);
-                for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 30.0D, 8)) {
+                for (ServerPlayer player : players) {
                     if (player.position().add(0.0D, 1.0D, 0.0D).distanceToSqr(point) <= 0.9D) {
                         player.hurtServer(level, boss.damageSources().mobAttack(boss), 6.0F);
                     }
@@ -801,7 +849,11 @@ public final class NetherGuardianAttackController {
             return;
         }
         Vec3 end = start.add(direction.scale(18.0D));
-        for (ServerPlayer player : boss.getThreatTable().topAggroedPlayers(boss, level, 30.0D, 8)) {
+        List<ServerPlayer> players = boss.getThreatTable().topAggroedPlayers(boss, level, 30.0D, 8);
+        if (players.isEmpty()) {
+            players = level.getPlayers(p -> p.isAlive() && p.position().distanceToSqr(start) <= 30.0D * 30.0D);
+        }
+        for (ServerPlayer player : players) {
             if (distanceToSegment2d(player.position(), start, end) <= 0.85D) {
                 player.hurtServer(level, boss.damageSources().mobAttack(boss), 8.0F);
             }
