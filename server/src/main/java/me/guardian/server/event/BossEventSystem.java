@@ -2,6 +2,7 @@ package me.guardian.server.event;
 
 import com.google.gson.JsonObject;
 import me.guardian.GuardianMod;
+import me.guardian.entity.OverworldGuardianEntity;
 import me.guardian.server.state.GuardianWorldState;
 import me.guardian.server.structure.StructureSpawner;
 import net.minecraft.core.BlockPos;
@@ -93,8 +94,8 @@ public class BossEventSystem {
     }
 
     private static void triggerSourceAnimation(Entity source, String animation) {
-        if (source instanceof OverworldGuardianEntityAccessor overworld) {
-            overworld.guardian_mod$triggerAttackAnimation(animation);
+        if (source instanceof OverworldGuardianEntity overworld) {
+            overworld.triggerAttackAnimation(animation);
         } else if (source instanceof me.guardian.entity.NetherGuardianEntity nether) {
             nether.triggerAttackAnimation(animation);
         } else {
@@ -214,9 +215,5 @@ public class BossEventSystem {
             variables.put("uuid", player.getUUID().toString());
         }
         return variables;
-    }
-
-    private interface OverworldGuardianEntityAccessor {
-        void guardian_mod$triggerAttackAnimation(String animation);
     }
 }
