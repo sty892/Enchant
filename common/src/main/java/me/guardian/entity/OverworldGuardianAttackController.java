@@ -50,11 +50,6 @@ public final class OverworldGuardianAttackController {
             attack.tickCooldown();
         }
         if (runningAttack != null) {
-            if (activeTarget() == null) {
-                runningAttack = null;
-                globalDelay = 20;
-                return;
-            }
             boss.getNavigation().stop();
             if (runningAttack.tick(level)) {
                 runningAttack = null;
@@ -99,7 +94,7 @@ public final class OverworldGuardianAttackController {
 
     public boolean forceAttack(ServerLevel level, String attackId) {
         for (Attack attack : attacks) {
-            if (!attack.id().equals(attackId) || !attack.canStart(level)) {
+            if (!attack.id().equals(attackId)) {
                 continue;
             }
             attack.startCooldown();
