@@ -6,6 +6,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.Suggestions;
@@ -126,7 +127,12 @@ public final class GuardianCommand {
                                         .suggests((context, builder) -> suggest(ATTACK_ID_SUGGESTIONS, builder))
                                         .executes(context -> forceBossAttack(
                                                 context.getSource(),
-                                                StringArgumentType.getString(context, "attack_id"))))))
+                                                StringArgumentType.getString(context, "attack_id")))))
+                        .then(Commands.literal("ai")
+                                .then(Commands.argument("enabled", BoolArgumentType.bool())
+                                        .executes(context -> setBossAi(
+                                                context.getSource(),
+                                                BoolArgumentType.getBool(context, "enabled"))))))
                 .then(Commands.literal("whitelist")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("player", StringArgumentType.word())
@@ -550,6 +556,40 @@ public final class GuardianCommand {
         }
 
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.boss_attack.started", attackId), true);
+        return 1;
+    }
+
+    private static int setBossAi(CommandSourceStack source, boolean enabled) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = source.getLevel();
+        LivingEntity boss = nearestActiveBoss(level, player.position());
+        if (boss == null) {
+            source.sendFailure(Component.literal("No active boss found nearby."));
+            return 0;
+        }
+
+        if (boss instanceof OverworldGuardianEntity overworld) {
+            overworld.setAiDisabled(!enabled);
+            if (!enabled) {
+                overworld.getNavigation().stop();
+                overworld.setTarget(null);
+            }
+        } else if (boss instanceof NetherGuardianEntity nether) {
+            nether.setAiDisabled(!enabled);
+            if (!enabled) {
+                nether.getNavigation().stop();
+                nether.setTarget(null);
+            }
+        } else {
+            source.sendFailure(Component.literal("AI control is not supported for this boss type."));
+            return 0;
+        }
+
+        if (enabled) {
+            source.sendSuccess(() -> Component.literal("Boss AI has been enabled."), true);
+        } else {
+            source.sendSuccess(() -> Component.literal("Boss AI has been disabled. The boss will stand still."), true);
+        }
         return 1;
     }
 
