@@ -44,6 +44,21 @@ public final class ConfigManager {
                       }
                     }
                     """,
+            "overworld_attack_timing.json", """
+                    {
+                      "auto_reload_ticks": 20,
+                      "attacks": {
+                        "right_hand_wave": { "hit_tick": 22, "duration_ticks": 34, "max_start_distance": 5.5 },
+                        "left_hand_wave": { "hit_tick": 22, "duration_ticks": 34, "max_start_distance": 5.5 },
+                        "two_hand_wave": { "hit_tick": 32, "duration_ticks": 44, "max_start_distance": 7.5 },
+                        "hands_slam_line": { "hit_tick": 34, "duration_ticks": 50, "max_start_distance": 14.0 },
+                        "stomp_players": { "hit_tick": 38, "duration_ticks": 54, "max_start_distance": 7.5 },
+                        "bomb_traps": { "hit_tick": 20, "duration_ticks": 44, "max_start_distance": 12.0 },
+                        "statue_revival": { "hit_tick": 1, "duration_ticks": 1, "max_start_distance": 24.0 },
+                        "healing_shield": { "hit_tick": 1, "duration_ticks": 1, "max_start_distance": 24.0 }
+                      }
+                    }
+                    """,
             "altar_config.json", """
                     {
                       "radius": 5,
