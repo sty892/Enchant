@@ -18,6 +18,13 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.world.level.block.Blocks;
 
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animatable.manager.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
+
 import java.util.UUID;
 
 /**
@@ -26,8 +33,9 @@ import java.util.UUID;
  * While at least one statue is alive, the boss takes only 10% damage (90% resistance).
  * Statues die without respawning in the current phase.
  */
-public class TempleStatueEntity extends Husk {
+public class TempleStatueEntity extends Husk implements GeoEntity {
 
+    private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private UUID bossUUID = null;
 
     public TempleStatueEntity(EntityType<? extends Husk> type, Level level) {
@@ -38,9 +46,21 @@ public class TempleStatueEntity extends Husk {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 120.0)
                 .add(Attributes.ATTACK_DAMAGE, 7.0)
-                .add(Attributes.MOVEMENT_SPEED, 0.25)
+                .add(Attributes.MOVEMENT_SPEED, 0.23)
                 .add(Attributes.FOLLOW_RANGE, 32.0)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.5);
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return this.cache;
+    }
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<>(this, "controller", 0, state -> {
+            return state.setAndContinue(RawAnimation.begin().thenLoop("idle"));
+        }));
     }
 
     public void setBossUUID(UUID uuid) {
