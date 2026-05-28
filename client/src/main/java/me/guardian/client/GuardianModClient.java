@@ -118,8 +118,6 @@ public final class GuardianModClient implements ClientModInitializer {
                 net.minecraft.client.renderer.entity.HuskRenderer::new);
         EntityRendererRegistry.register(ModEntities.HEALING_SHIELD,
                 InvisibleRenderer::new);
-        EntityRendererRegistry.register(ModEntities.TEMPLE_GATE,
-                InvisibleRenderer::new);
     }
 
     private static void registerTriggerVisibility() {

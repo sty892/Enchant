@@ -47,10 +47,6 @@ public class ModEntities {
             Registries.ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "healing_shield")
     );
-    public static final ResourceKey<EntityType<?>> TEMPLE_GATE_KEY = ResourceKey.create(
-            Registries.ENTITY_TYPE,
-            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "temple_gate")
-    );
 
     public static final EntityType<OverworldGuardianEntity> OVERWORLD_GUARDIAN = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
@@ -115,13 +111,6 @@ public class ModEntities {
             EntityType.Builder.<HealingShieldEntity>of(HealingShieldEntity::new, MobCategory.MISC)
                     .sized(2.5F, 3.0F)
                     .build(HEALING_SHIELD_KEY)
-    );
-    public static final EntityType<TempleGateEntity> TEMPLE_GATE = Registry.register(
-            BuiltInRegistries.ENTITY_TYPE,
-            TEMPLE_GATE_KEY,
-            EntityType.Builder.<TempleGateEntity>of(TempleGateEntity::new, MobCategory.MISC)
-                    .sized(1.0F, 3.0F)
-                    .build(TEMPLE_GATE_KEY)
     );
 
     public static void initialize() {

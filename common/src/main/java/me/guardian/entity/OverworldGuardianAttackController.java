@@ -59,7 +59,12 @@ public final class OverworldGuardianAttackController {
             boss.getNavigation().stop();
             if (runningAttack.tick(level)) {
                 runningAttack = null;
-                globalDelay = 26;
+                // Phase 3 = faster combos (shorter post-attack delay)
+                globalDelay = switch (boss.getBossPhase()) {
+                    case THREE -> 16;
+                    case TWO   -> 22;
+                    default    -> 28;
+                };
             }
             return;
         }
@@ -75,13 +80,34 @@ public final class OverworldGuardianAttackController {
             return;
         }
 
+        // ── Phase-aware movement ──────────────────────────────────────────────
+        // Phase 1: keep ~7 blocks distance (predictable, gives player time to react)
+        // Phase 2: close to ~5 blocks
+        // Phase 3: aggressive, always inside melee range
+        double idealMin = switch (boss.getBossPhase()) {
+            case THREE -> 2.0D;
+            case TWO   -> 4.0D;
+            default    -> 6.0D;
+        };
+        double idealMax = idealMin + 3.0D;
+
         boolean chasing = false;
+        double distSqr = boss.distanceToSqr(target);
         if (boss.shouldReturnTowardHome()) {
             Vec3 home = boss.homeCenter();
             boss.getNavigation().moveTo(home.x, home.y, home.z, 1.05D);
-        } else if (boss.distanceToSqr(target) > CHASE_RANGE_SQR) {
+        } else if (distSqr > idealMax * idealMax) {
+            // Too far — close in
             chasing = true;
-            boss.getNavigation().moveTo(target, 1.18D);
+            double speed = boss.getBossPhase() == OverworldGuardianPhase.THREE ? 1.25D : 1.18D;
+            boss.getNavigation().moveTo(target, speed);
+        } else if (distSqr < idealMin * idealMin && boss.getBossPhase() != OverworldGuardianPhase.THREE) {
+            // Too close in phases 1-2: back away slowly
+            Vec3 away = boss.position().subtract(target.position()).horizontal();
+            if (away.lengthSqr() > 0.001D) {
+                boss.addDeltaMovement(away.normalize().scale(0.06D));
+            }
+            boss.getNavigation().stop();
         } else {
             boss.getNavigation().stop();
         }
@@ -121,10 +147,17 @@ public final class OverworldGuardianAttackController {
     }
 
     private Attack selectAttack(ServerLevel level) {
+        LivingEntity target = activeTarget();
+        double distSqr = target != null ? boss.distanceToSqr(target) : Double.MAX_VALUE;
+        boolean isClose   = distSqr < 5.0D * 5.0D;   // < 5 blocks
+        boolean isFar     = distSqr > 12.0D * 12.0D;  // > 12 blocks
+        boolean lowHp     = boss.getHealth() / boss.getMaxHealth() < 0.20F;
+        boolean wantCounter = boss.peekCounterTarget(level) != null;
+
         int totalWeight = 0;
         for (Attack attack : attacks) {
             if (attack.canStart(level)) {
-                totalWeight += attack.weight();
+                totalWeight += situationalWeight(attack, isClose, isFar, lowHp, wantCounter);
             }
         }
         if (totalWeight <= 0) {
@@ -136,12 +169,48 @@ public final class OverworldGuardianAttackController {
             if (!attack.canStart(level)) {
                 continue;
             }
-            roll -= attack.weight();
+            roll -= situationalWeight(attack, isClose, isFar, lowHp, wantCounter);
             if (roll < 0) {
                 return attack;
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the effective weight of an attack given current situation.
+     * Boosts close-range attacks when target is near, boosts shield when HP is critical,
+     * boosts counter-attack when boss was hit several times without retaliation.
+     */
+    private int situationalWeight(Attack attack, boolean isClose, boolean isFar, boolean lowHp, boolean wantCounter) {
+        int w = attack.weight();
+        String id = attack.id();
+        // Low-HP emergency: prioritise healing shield × 4
+        if (lowHp && id.equals("healing_shield")) return w * 4;
+        // When target is close → prefer melee
+        if (isClose && (id.equals("right_hand_wave") || id.equals("left_hand_wave")
+                || id.equals("stomp_players") || id.equals("two_hand_wave"))) {
+            return w * 2;
+        }
+        // Counter-attack: prefer arm waves
+        if (wantCounter && (id.equals("right_hand_wave") || id.equals("left_hand_wave"))) {
+            return w * 3;
+        }
+        // When target is far: prefer bomb or statue (ranged/setup)
+        if (isFar && (id.equals("bomb_traps") || id.equals("statue_revival"))) {
+            return w * 2;
+        }
+        // Slam line only makes sense when target is roughly in front — canUse already checks that
+        return w;
+    }
+
+    /** Returns a damage/radius multiplier based on current boss phase. */
+    private float phaseMultiplier() {
+        return switch (boss.getBossPhase()) {
+            case THREE -> 1.35F;
+            case TWO   -> 1.15F;
+            default    -> 1.00F;
+        };
     }
 
     private abstract class Attack {
@@ -467,7 +536,7 @@ public final class OverworldGuardianAttackController {
 
         @Override
         int weight() {
-            return 3;
+            return 1;
         }
 
         @Override
@@ -503,7 +572,7 @@ public final class OverworldGuardianAttackController {
 
         @Override
         int cooldownTicks() {
-            return 110;
+            return 240;
         }
 
         @Override

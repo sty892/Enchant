@@ -33,7 +33,13 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
 
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        return false;
+        // Breaking the bomb deactivates it silently (no explosion)
+        level.playSound(null, this.blockPosition(), SoundEvents.STONE_BREAK,
+                SoundSource.BLOCKS, 1.0F, 1.5F);
+        level.sendParticles(ParticleTypes.SMOKE,
+                getX(), getY() + 0.3D, getZ(), 12, 0.2D, 0.2D, 0.2D, 0.0D);
+        this.discard();
+        return true;
     }
 
     @Override
