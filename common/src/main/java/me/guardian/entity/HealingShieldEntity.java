@@ -65,7 +65,7 @@ public class HealingShieldEntity extends Entity implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "controller", 0, state -> {
+        controllers.add(new AnimationController<HealingShieldEntity>("controller", 0, state -> {
             return state.setAndContinue(RawAnimation.begin().thenLoop("idle"));
         }));
     }
