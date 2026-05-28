@@ -37,6 +37,10 @@ public class ModBlocks {
     public static Block DIMENSION_TRIGGER;
     public static Block DIMENSION_RETURN_TRIGGER;
 
+    // Boss Arena Blocks
+    public static Block TEMPLE_STATUE;
+    public static Block TEMPLE_GATE;
+
     // Block Entity Types
     public static BlockEntityType<AltarBlockEntity> ALTAR_BE_TYPE;
     public static BlockEntityType<KeyholeBlockEntity> KEYHOLE_BE_TYPE;
@@ -61,6 +65,14 @@ public class ModBlocks {
         DIMENSION_TRIGGER = register("dimension_trigger", properties -> new DimensionTriggerBlock(properties.noOcclusion().replaceable().instabreak(), false));
         DIMENSION_RETURN_TRIGGER = register("dimension_return_trigger", properties -> new DimensionTriggerBlock(properties.noOcclusion().replaceable().instabreak(), true));
 
+        // Temple statue block — fallback: stone bricks; indestructible (strength -1)
+        TEMPLE_STATUE = registerNoItem("temple_statue",
+                properties -> new TempleStatueBlock(properties.strength(-1.0F, 3600000.0F)));
+
+        // Temple gate block — fallback: obsidian; indestructible (strength -1)
+        TEMPLE_GATE = registerNoItem("temple_gate",
+                properties -> new TempleGateBlock(properties.strength(-1.0F, 3600000.0F)));
+
         ALTAR_BE_TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
                 Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "altar_be"),
                 FabricBlockEntityTypeBuilder.create(
@@ -84,6 +96,14 @@ public class ModBlocks {
         Block block = Registry.register(BuiltInRegistries.BLOCK, key, factory.apply(properties));
         registerBlockItem(name, block);
         return block;
+    }
+
+    /** Register a block without an associated BlockItem (arena-only blocks). */
+    private static Block registerNoItem(String name, java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
+        Identifier id = Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, name);
+        ResourceKey<Block> key = ResourceKey.create(Registries.BLOCK, id);
+        BlockBehaviour.Properties properties = BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN).setId(key);
+        return Registry.register(BuiltInRegistries.BLOCK, key, factory.apply(properties));
     }
 
     private static void registerBlockItem(String name, Block block) {

@@ -1,5 +1,6 @@
 package me.guardian.entity;
 
+import me.guardian.block.ModBlocks;
 import me.guardian.config.OverworldGuardianAttackConfig;
 import me.guardian.config.OverworldGuardianAttackConfig.AttackTiming;
 import net.minecraft.core.BlockPos;
@@ -8,9 +9,13 @@ import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public final class OverworldGuardianAttackController {
     private static final double CHASE_RANGE = 5.0D;
@@ -527,32 +532,75 @@ public final class OverworldGuardianAttackController {
 
         @Override
         RunningAttack start(ServerLevel level) {
+            AttackTiming timing = timing();
             Vec3 center = boss.homeCenter();
-            int count = 0;
-            for (int attempt = 0; attempt < 30 && count < MAX_STATUES; attempt++) {
+
+            // 1. Find surface positions for statues
+            List<BlockPos> positions = new ArrayList<>();
+            for (int attempt = 0; attempt < 30 && positions.size() < MAX_STATUES; attempt++) {
                 double angle = boss.getRandom().nextDouble() * Math.PI * 2;
                 double dist = 16.0;
                 double sx = center.x + Math.cos(angle) * dist;
                 double sz = center.z + Math.sin(angle) * dist;
                 BlockPos surfacePos = findSurface(level, new BlockPos((int) sx, (int) center.y, (int) sz));
-                TempleStatueEntity statue = ModEntities.TEMPLE_STATUE.create(level, net.minecraft.world.entity.EntitySpawnReason.MOB_SUMMONED);
-                if (statue == null) {
+                // Skip if air above (floating)
+                if (!level.getBlockState(surfacePos.below()).blocksMotion()) {
                     continue;
                 }
-                statue.setBossUUID(boss.getUUID());
-                statue.setPos(surfacePos.getX() + 0.5, surfacePos.getY(), surfacePos.getZ() + 0.5);
-                level.addFreshEntity(statue);
-                boss.addStatue(statue.getUUID());
-                level.playSound(null, statue.blockPosition(), net.minecraft.sounds.SoundEvents.STONE_BREAK,
-                        net.minecraft.sounds.SoundSource.HOSTILE, 1.5F, 0.8F);
-                level.sendParticles(ParticleTypes.SMOKE, statue.getX(), statue.getY() + 1.0D, statue.getZ(),
-                        20, 0.4, 0.5, 0.4, 0.05);
-                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState()),
-                        statue.getX(), statue.getY() + 1.0D, statue.getZ(),
-                        40, 0.4, 0.5, 0.4, 0.1);
-                count++;
+                positions.add(surfacePos);
             }
-            return RunningAttack.instant();
+
+            // 2. Place dormant statue blocks
+            for (BlockPos pos : positions) {
+                level.setBlock(pos, ModBlocks.TEMPLE_STATUE.defaultBlockState(), 3);
+                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE_BRICKS.defaultBlockState()),
+                        pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D,
+                        20, 0.3, 0.4, 0.3, 0.08);
+            }
+            boss.setStatueBlocks(level, positions);
+
+            // 3. Return timed attack: at hit_tick revive blocks into zombies
+            return new TimedAttack(timing.durationTicks()) {
+                @Override
+                protected void onTick(ServerLevel level, int tick) {
+                    // Particle buildup leading up to revival
+                    if (tick < timing.hitTick() && tick % 5 == 0) {
+                        for (BlockPos pos : positions) {
+                            level.sendParticles(TELEGRAPH_DUST,
+                                    pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D,
+                                    4, 0.25, 0.5, 0.25, 0.0);
+                        }
+                    }
+                    // At hit tick: remove blocks, spawn zombie mobs
+                    if (tick == timing.hitTick()) {
+                        for (BlockPos pos : positions) {
+                            // Remove the statue block
+                            if (level.getBlockState(pos).is(ModBlocks.TEMPLE_STATUE)) {
+                                level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+                            }
+                            // Spawn revived zombie statue entity
+                            TempleStatueEntity statue = ModEntities.TEMPLE_STATUE.create(
+                                    level, EntitySpawnReason.MOB_SUMMONED);
+                            if (statue == null) continue;
+                            statue.setBossUUID(boss.getUUID());
+                            statue.setPos(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
+                            level.addFreshEntity(statue);
+                            boss.addStatue(statue.getUUID());
+                            // Revive FX
+                            level.playSound(null, pos, net.minecraft.sounds.SoundEvents.STONE_BREAK,
+                                    net.minecraft.sounds.SoundSource.HOSTILE, 1.5F, 0.8F);
+                            level.sendParticles(ParticleTypes.LARGE_SMOKE,
+                                    pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D,
+                                    20, 0.3, 0.5, 0.3, 0.04);
+                            level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE_BRICKS.defaultBlockState()),
+                                    pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D,
+                                    40, 0.3, 0.5, 0.3, 0.1);
+                        }
+                        // Clear dormant block tracking — they've been converted to mobs
+                        boss.clearStatueBlocks(level);
+                    }
+                }
+            };
         }
 
         @Override

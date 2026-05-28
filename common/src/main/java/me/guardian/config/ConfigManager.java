@@ -13,6 +13,7 @@ public final class ConfigManager {
                       "boss_id": "guardian_mod:boss_overworld",
                       "on_spawn_script": "boss_overworld_spawn",
                       "on_death_script": "boss_overworld_death",
+                      "gate_wipe_reopen_seconds": 3600,
                       "on_death": {
                         "world_border_expand": { "to": 10000, "duration_seconds": 120 },
                         "spawn_structure": "guardian_mod:altar",
@@ -54,7 +55,7 @@ public final class ConfigManager {
                         "hands_slam_line": { "hit_tick": 34, "duration_ticks": 50, "max_start_distance": 14.0 },
                         "stomp_players": { "hit_tick": 38, "duration_ticks": 54, "max_start_distance": 7.5 },
                         "bomb_traps": { "hit_tick": 20, "duration_ticks": 44, "max_start_distance": 12.0 },
-                        "statue_revival": { "hit_tick": 1, "duration_ticks": 1, "max_start_distance": 24.0 },
+                        "statue_revival": { "hit_tick": 40, "duration_ticks": 60, "max_start_distance": 24.0 },
                         "healing_shield": { "hit_tick": 1, "duration_ticks": 1, "max_start_distance": 24.0 }
                       }
                     }
@@ -218,6 +219,8 @@ public final class ConfigManager {
         } catch (IOException e) {
             GuardianMod.LOGGER.error("Failed to create guardian config runtime directories", e);
         }
+        // Load arena-specific settings (gate cooldown, etc.)
+        BossArenaConfig.reload();
     }
 
     public static String readRaw(String fileName) throws IOException {

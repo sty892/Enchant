@@ -23,7 +23,7 @@ public final class OverworldGuardianAttackConfig {
             "hands_slam_line", new AttackTiming(34, 50, 14.0D),
             "stomp_players", new AttackTiming(38, 54, 7.5D),
             "bomb_traps", new AttackTiming(20, 44, 12.0D),
-            "statue_revival", new AttackTiming(1, 1, 24.0D),
+            "statue_revival", new AttackTiming(40, 60, 24.0D),
             "healing_shield", new AttackTiming(1, 1, 24.0D)
     );
 
