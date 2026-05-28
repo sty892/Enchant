@@ -318,8 +318,8 @@ public final class OverworldGuardianAttackController {
                                 ? center.add(look.scale(1.5D)).add(right.scale(1.0D))
                                 : center.add(look.scale(1.5D)).add(left.scale(1.0D));
 
-                        float closeDamage = hand == InteractionHand.MAIN_HAND ? 10.0F : 9.0F;
-                        float waveDamage = 5.0F;
+                        float closeDamage = (hand == InteractionHand.MAIN_HAND ? 10.0F : 9.0F) * phaseMultiplier();
+                        float waveDamage = 5.0F * phaseMultiplier();
                         double waveRadius = 5.5D;
 
                         boolean hit = false;
@@ -334,7 +334,8 @@ public final class OverworldGuardianAttackController {
                             }
                             Vec3 away = living.position().subtract(center).horizontal();
                             if (away.lengthSqr() > 0.0001D) {
-                                living.setDeltaMovement(away.normalize().scale(0.55D).add(0.0D, 0.25D, 0.0D));
+                                double kb = boss.getBossPhase() == OverworldGuardianPhase.THREE ? 0.66D : 0.55D;
+                                living.setDeltaMovement(away.normalize().scale(kb).add(0.0D, 0.25D, 0.0D));
                             }
                         }
                         if (hit) {
@@ -388,23 +389,45 @@ public final class OverworldGuardianAttackController {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
                     if (tick == timing.hitTick()) {
-                        directionalImpact(level, 7.5D, 12.0F, 1.05D, 0.45D);
+                        directionalImpact(level, 7.5D, 12.0F * phaseMultiplier(), 1.05D, 0.45D);
                         radialBlockWaveRing(level, boss.position(), 2.0D, 16);
 
-                        if (boss.getRandom().nextFloat() < 0.5F) {
+                        if (boss.getBossPhase() != OverworldGuardianPhase.ONE) {
                             LivingEntity target = activeTarget();
                             if (target != null) {
-                                BlockPos ceilingPos = findCeiling(level, target.blockPosition());
-                                if (ceilingPos != null) {
-                                    var ceilingState = level.getBlockState(ceilingPos);
-                                    CeilingFallingBlockEntity fallingBlock = new CeilingFallingBlockEntity(
-                                            level,
-                                            ceilingPos.getX() + 0.5D,
-                                            ceilingPos.getY() - 0.5D,
-                                            ceilingPos.getZ() + 0.5D,
-                                            ceilingState
-                                    );
-                                    level.addFreshEntity(fallingBlock);
+                                for (int i = 0; i < 2; i++) {
+                                    double offsetX = (boss.getRandom().nextDouble() - 0.5D) * 4.0D;
+                                    double offsetZ = (boss.getRandom().nextDouble() - 0.5D) * 4.0D;
+                                    BlockPos ceilingPos = findCeiling(level, BlockPos.containing(target.getX() + offsetX, target.getY(), target.getZ() + offsetZ));
+                                    if (ceilingPos != null) {
+                                        var ceilingState = level.getBlockState(ceilingPos);
+                                        CeilingFallingBlockEntity fallingBlock = new CeilingFallingBlockEntity(
+                                                level,
+                                                ceilingPos.getX() + 0.5D,
+                                                ceilingPos.getY() - 0.5D,
+                                                ceilingPos.getZ() + 0.5D,
+                                                ceilingState
+                                        );
+                                        level.addFreshEntity(fallingBlock);
+                                    }
+                                }
+                            }
+                        } else {
+                            if (boss.getRandom().nextFloat() < 0.5F) {
+                                LivingEntity target = activeTarget();
+                                if (target != null) {
+                                    BlockPos ceilingPos = findCeiling(level, target.blockPosition());
+                                    if (ceilingPos != null) {
+                                        var ceilingState = level.getBlockState(ceilingPos);
+                                        CeilingFallingBlockEntity fallingBlock = new CeilingFallingBlockEntity(
+                                                level,
+                                                ceilingPos.getX() + 0.5D,
+                                                ceilingPos.getY() - 0.5D,
+                                                ceilingPos.getZ() + 0.5D,
+                                                ceilingState
+                                        );
+                                        level.addFreshEntity(fallingBlock);
+                                    }
                                 }
                             }
                         }
@@ -462,7 +485,7 @@ public final class OverworldGuardianAttackController {
                     }
                     if (tick == timing.hitTick()) {
                         renderSlamLine(level, lineEnd, true);
-                        damageLine(level, lineEnd, 13.0F);
+                        damageLine(level, lineEnd, 13.0F * phaseMultiplier());
                     }
                 }
             };
@@ -501,18 +524,19 @@ public final class OverworldGuardianAttackController {
             return new TimedAttack(timing.durationTicks()) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
+                    double radius = boss.getBossPhase() != OverworldGuardianPhase.ONE ? 9.5D : 7.5D;
                     if (tick == Math.max(1, timing.hitTick() - 26) || tick == Math.max(1, timing.hitTick() - 16) || tick == Math.max(1, timing.hitTick() - 6)) {
-                        telegraphCircle(level, 7.5D, 32);
+                        telegraphCircle(level, radius, 32);
                     }
                     if (tick == timing.hitTick()) {
-                        radialImpact(level, 7.5D, 10.0F, 1.25D, 0.45D);
+                        radialImpact(level, radius, 10.0F * phaseMultiplier(), 1.25D, 0.45D);
                         radialBlockWaveRing(level, boss.position(), 1.5D, 16);
                     } else if (tick == timing.hitTick() + 2) {
                         radialBlockWaveRing(level, boss.position(), 3.5D, 24);
                     } else if (tick == timing.hitTick() + 4) {
                         radialBlockWaveRing(level, boss.position(), 5.5D, 32);
                     } else if (tick == timing.hitTick() + 6) {
-                        radialBlockWaveRing(level, boss.position(), 7.5D, 40);
+                        radialBlockWaveRing(level, boss.position(), radius, 40);
                     }
                 }
             };
@@ -606,7 +630,8 @@ public final class OverworldGuardianAttackController {
 
             // 1. Find surface positions for statues
             List<BlockPos> positions = new ArrayList<>();
-            for (int attempt = 0; attempt < 30 && positions.size() < MAX_STATUES; attempt++) {
+            int maxStatues = boss.getBossPhase() == OverworldGuardianPhase.THREE ? 4 : 3;
+            for (int attempt = 0; attempt < 30 && positions.size() < maxStatues; attempt++) {
                 double angle = boss.getRandom().nextDouble() * Math.PI * 2;
                 double dist = 16.0;
                 double sx = center.x + Math.cos(angle) * dist;
@@ -800,8 +825,9 @@ public final class OverworldGuardianAttackController {
     private void damageLine(ServerLevel level, Vec3 target, float damage) {
         Vec3 start = boss.position();
         boolean hit = false;
+        double halfWidth = boss.getBossPhase() == OverworldGuardianPhase.THREE ? 1.85D : 1.25D;
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, boss.getBoundingBox().inflate(20.0D, 2.5D, 20.0D))) {
-            if (living == boss || !living.isAlive() || distanceToSegment2d(living.position(), start, target) > 1.45D) {
+            if (living == boss || !living.isAlive() || distanceToSegment2d(living.position(), start, target) > halfWidth) {
                 continue;
             }
             if (living.hurtServer(level, boss.damageSources().mobAttack(boss), damage)) {
