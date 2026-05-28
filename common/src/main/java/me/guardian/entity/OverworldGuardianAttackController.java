@@ -1,5 +1,7 @@
 package me.guardian.entity;
 
+import me.guardian.config.OverworldGuardianAttackConfig;
+import me.guardian.config.OverworldGuardianAttackConfig.AttackTiming;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -43,6 +45,7 @@ public final class OverworldGuardianAttackController {
     }
 
     public void tick(ServerLevel level) {
+        OverworldGuardianAttackConfig.tickAutoReload(level);
         for (Attack attack : attacks) {
             attack.tickCooldown();
         }
@@ -96,6 +99,7 @@ public final class OverworldGuardianAttackController {
     }
 
     public boolean forceAttack(ServerLevel level, String attackId) {
+        OverworldGuardianAttackConfig.tickAutoReload(level);
         if (runningAttack != null) {
             return false;
         }
@@ -167,6 +171,19 @@ public final class OverworldGuardianAttackController {
             cooldown = cooldownTicks();
         }
 
+        final AttackTiming timing() {
+            return OverworldGuardianAttackConfig.get(id());
+        }
+
+        final boolean targetWithinConfiguredRange() {
+            LivingEntity target = activeTarget();
+            if (target == null) {
+                return false;
+            }
+            double range = timing().maxStartDistance();
+            return boss.distanceToSqr(target) <= range * range;
+        }
+
         int weight() {
             return 1;
         }
@@ -207,17 +224,18 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return activeTarget() != null;
+            return targetWithinConfiguredRange();
         }
 
         @Override
         RunningAttack start(ServerLevel level) {
+            AttackTiming timing = timing();
             boss.swing(hand);
             boss.triggerAttackAnimation(animation);
-            return new TimedAttack(34) {
+            return new TimedAttack(timing.durationTicks()) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
-                    if (tick == 22) {
+                    if (tick == timing.hitTick()) {
                         Vec3 center = boss.position();
                         Vec3 look = safeHorizontalLook();
                         Vec3 right = new Vec3(-look.z, 0, look.x);
@@ -250,9 +268,9 @@ public final class OverworldGuardianAttackController {
                         }
 
                         radialBlockWaveRing(level, boss.position(), 1.5D, 12);
-                    } else if (tick == 24) {
+                    } else if (tick == timing.hitTick() + 2) {
                         radialBlockWaveRing(level, boss.position(), 3.5D, 24);
-                    } else if (tick == 26) {
+                    } else if (tick == timing.hitTick() + 4) {
                         radialBlockWaveRing(level, boss.position(), 5.5D, 36);
                     }
                 }
@@ -282,18 +300,20 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return activeTarget() != null;
+            LivingEntity target = activeTarget();
+            return targetWithinConfiguredRange() && target != null && isInFront(target, 0.15D);
         }
 
         @Override
         RunningAttack start(ServerLevel level) {
+            AttackTiming timing = timing();
             boss.swing(InteractionHand.MAIN_HAND);
             boss.swing(InteractionHand.OFF_HAND);
             boss.triggerAttackAnimation("attack_both");
-            return new TimedAttack(44) {
+            return new TimedAttack(timing.durationTicks()) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
-                    if (tick == 32) {
+                    if (tick == timing.hitTick()) {
                         directionalImpact(level, 7.5D, 12.0F, 1.05D, 0.45D);
                         radialBlockWaveRing(level, boss.position(), 2.0D, 16);
 
@@ -314,9 +334,9 @@ public final class OverworldGuardianAttackController {
                                 }
                             }
                         }
-                    } else if (tick == 34) {
+                    } else if (tick == timing.hitTick() + 2) {
                         radialBlockWaveRing(level, boss.position(), 4.5D, 32);
-                    } else if (tick == 36) {
+                    } else if (tick == timing.hitTick() + 4) {
                         radialBlockWaveRing(level, boss.position(), 7.0D, 48);
                     }
                 }
@@ -347,11 +367,12 @@ public final class OverworldGuardianAttackController {
         @Override
         boolean canUse(ServerLevel level) {
             LivingEntity target = activeTarget();
-            return target != null && boss.distanceToSqr(target) <= 24.0D * 24.0D;
+            return targetWithinConfiguredRange() && target != null && isInFront(target, 0.35D);
         }
 
         @Override
         RunningAttack start(ServerLevel level) {
+            AttackTiming timing = timing();
             Vec3 start = boss.position();
             Vec3 dir = safeHorizontalLook();
             Vec3 lineEnd = start.add(dir.scale(14.0D));
@@ -359,13 +380,13 @@ public final class OverworldGuardianAttackController {
             boss.swing(InteractionHand.MAIN_HAND);
             boss.swing(InteractionHand.OFF_HAND);
             boss.triggerAttackAnimation("attack_hands_slam");
-            return new TimedAttack(50) {
+            return new TimedAttack(timing.durationTicks()) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
-                    if (tick >= 15 && tick < 31 && tick % 2 == 1) {
+                    if (tick >= Math.max(1, timing.hitTick() - 19) && tick < timing.hitTick() - 3 && tick % 2 == 1) {
                         renderSlamLine(level, lineEnd, false);
                     }
-                    if (tick == 34) {
+                    if (tick == timing.hitTick()) {
                         renderSlamLine(level, lineEnd, true);
                         damageLine(level, lineEnd, 13.0F);
                     }
@@ -396,26 +417,27 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return activeTarget() != null;
+            return targetWithinConfiguredRange();
         }
 
         @Override
         RunningAttack start(ServerLevel level) {
+            AttackTiming timing = timing();
             boss.triggerAttackAnimation("stamTopTopTop");
-            return new TimedAttack(54) {
+            return new TimedAttack(timing.durationTicks()) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
-                    if (tick == 12 || tick == 22 || tick == 32) {
+                    if (tick == Math.max(1, timing.hitTick() - 26) || tick == Math.max(1, timing.hitTick() - 16) || tick == Math.max(1, timing.hitTick() - 6)) {
                         telegraphCircle(level, 7.5D, 32);
                     }
-                    if (tick == 38) {
+                    if (tick == timing.hitTick()) {
                         radialImpact(level, 7.5D, 10.0F, 1.25D, 0.45D);
                         radialBlockWaveRing(level, boss.position(), 1.5D, 16);
-                    } else if (tick == 40) {
+                    } else if (tick == timing.hitTick() + 2) {
                         radialBlockWaveRing(level, boss.position(), 3.5D, 24);
-                    } else if (tick == 42) {
+                    } else if (tick == timing.hitTick() + 4) {
                         radialBlockWaveRing(level, boss.position(), 5.5D, 32);
-                    } else if (tick == 44) {
+                    } else if (tick == timing.hitTick() + 6) {
                         radialBlockWaveRing(level, boss.position(), 7.5D, 40);
                     }
                 }
@@ -445,16 +467,17 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return activeTarget() != null;
+            return targetWithinConfiguredRange();
         }
 
         @Override
         RunningAttack start(ServerLevel level) {
+            AttackTiming timing = timing();
             boss.triggerAttackAnimation("attack_both");
-            return new TimedAttack(44) {
+            return new TimedAttack(timing.durationTicks()) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
-                    if (tick != 20) {
+                    if (tick != timing.hitTick()) {
                         return;
                     }
                     int count = 4 + boss.getRandom().nextInt(3);
@@ -499,7 +522,7 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return !boss.hasActiveStatues(level);
+            return targetWithinConfiguredRange() && !boss.hasActiveStatues(level);
         }
 
         @Override
@@ -552,7 +575,7 @@ public final class OverworldGuardianAttackController {
 
         @Override
         boolean canUse(ServerLevel level) {
-            return !boss.hasActiveShield(level) && boss.getHealth() / boss.getMaxHealth() < 0.75F;
+            return targetWithinConfiguredRange() && !boss.hasActiveShield(level) && boss.getHealth() / boss.getMaxHealth() < 0.75F;
         }
 
         @Override
@@ -746,6 +769,14 @@ public final class OverworldGuardianAttackController {
             cursor = cursor.below();
         }
         return cursor;
+    }
+
+    private boolean isInFront(LivingEntity target, double minDot) {
+        Vec3 toTarget = target.position().subtract(boss.position()).horizontal();
+        if (toTarget.lengthSqr() < 0.0001D) {
+            return true;
+        }
+        return safeHorizontalLook().dot(toTarget.normalize()) >= minDot;
     }
 
     private Vec3 safeHorizontalLook() {
