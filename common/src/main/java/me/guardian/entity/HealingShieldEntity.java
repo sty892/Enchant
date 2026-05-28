@@ -13,6 +13,16 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.phys.Vec3;
 
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animatable.manager.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.phys.AABB;
+
 import java.util.UUID;
 
 /**
@@ -20,25 +30,44 @@ import java.util.UUID;
  * Has 300 HP, blocks all damage to the boss and heals it while active.
  * Lasts at most 40 seconds (800 ticks) before expiring on its own.
  */
-public class HealingShieldEntity extends Entity {
+public class HealingShieldEntity extends Entity implements GeoEntity {
     private static final int MAX_DURATION = 800; // 40 seconds
     private static final float MAX_HEALTH = 300.0F;
 
     private static final EntityDataAccessor<Float> DATA_HEALTH =
             SynchedEntityData.defineId(HealingShieldEntity.class, EntityDataSerializers.FLOAT);
 
+    private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private UUID bossUUID = null;
     private int age = 0;
 
     public HealingShieldEntity(EntityType<HealingShieldEntity> type, Level level) {
         super(type, level);
-        noPhysics = true;
+        this.noPhysics = true;
+        this.setBoundingBox(new AABB(-1.25, -0.1, -1.25, 1.25, 3.0, 1.25));
     }
 
     public HealingShieldEntity(Level level, OverworldGuardianEntity boss) {
         this(ModEntities.HEALING_SHIELD, level);
         this.bossUUID = boss.getUUID();
         this.setPos(boss.getX(), boss.getY(), boss.getZ());
+    }
+
+    @Override
+    public boolean isPickable() {
+        return true;
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return this.cache;
+    }
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<>(this, "controller", 0, state -> {
+            return state.setAndContinue(RawAnimation.begin().thenLoop("idle"));
+        }));
     }
 
     public float getShieldHealth() {
@@ -60,9 +89,21 @@ public class HealingShieldEntity extends Entity {
 
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        // Shield absorbs damage from players
-        if (source.getEntity() instanceof net.minecraft.world.entity.player.Player
-                || source.getDirectEntity() instanceof net.minecraft.world.entity.player.Player) {
+        Entity attacker = source.getEntity();
+        Entity direct = source.getDirectEntity();
+        boolean fromPlayer = false;
+
+        if (attacker instanceof Player) {
+            fromPlayer = true;
+        } else if (direct instanceof Player) {
+            fromPlayer = true;
+        } else if (direct instanceof Projectile projectile) {
+            if (projectile.getOwner() instanceof Player) {
+                fromPlayer = true;
+            }
+        }
+
+        if (fromPlayer) {
             float current = getShieldHealth();
             float newHp = Math.max(0.0F, current - amount);
             this.entityData.set(DATA_HEALTH, newHp);
