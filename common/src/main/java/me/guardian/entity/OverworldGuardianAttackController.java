@@ -11,6 +11,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Display;
+import com.mojang.math.Transformation;
+import org.joml.Vector3f;
+import org.joml.Quaternionf;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
@@ -34,6 +39,7 @@ public final class OverworldGuardianAttackController {
     private final Attack[] attacks;
     private RunningAttack runningAttack;
     private int globalDelay = 20;
+    private final List<ShockwaveBlock> activeShockwaves = new ArrayList<>();
 
     public OverworldGuardianAttackController(OverworldGuardianEntity boss) {
         this.boss = boss;
@@ -50,6 +56,7 @@ public final class OverworldGuardianAttackController {
     }
 
     public void tick(ServerLevel level) {
+        activeShockwaves.removeIf(ShockwaveBlock::tick);
         OverworldGuardianAttackConfig.tickAutoReload(level);
         for (Attack attack : attacks) {
             attack.tickCooldown();
@@ -884,9 +891,19 @@ public final class OverworldGuardianAttackController {
                 pos = pos.below();
                 state = level.getBlockState(pos);
             }
-            if (!state.isAir()) {
-                var option = new BlockParticleOption(ParticleTypes.BLOCK, state);
-                level.sendParticles(option, x, boss.getY() + 0.1D, z, 2, 0.05D, 0.2D, 0.05D, 0.12D);
+            if (!state.isAir() && !state.is(Blocks.BARRIER) && !state.is(Blocks.LIGHT)) {
+                Display.BlockDisplay display = new Display.BlockDisplay(EntityType.BLOCK_DISPLAY, level);
+                display.setPos(x - 0.5D, pos.getY(), z - 0.5D);
+                setBlockDisplayState(display, state);
+
+                Vector3f scale = new Vector3f(0.98F, 0.98F, 0.98F);
+                Transformation transformation = new Transformation(
+                        new Vector3f(0.0F, 0.0F, 0.0F), new Quaternionf(), scale, new Quaternionf()
+                );
+                setTransformation(display, transformation);
+
+                level.addFreshEntity(display);
+                activeShockwaves.add(new ShockwaveBlock(display));
             }
         }
     }
@@ -964,5 +981,90 @@ public final class OverworldGuardianAttackController {
         double x = point.x - nearestX;
         double z = point.z - nearestZ;
         return Math.sqrt(x * x + z * z);
+    }
+
+    private static final class ShockwaveBlock {
+        private final Display.BlockDisplay entity;
+        private int age;
+
+        private ShockwaveBlock(Display.BlockDisplay entity) {
+            this.entity = entity;
+            this.age = 0;
+        }
+
+        private boolean tick() {
+            age++;
+            if (entity.isRemoved()) {
+                return true;
+            }
+            if (age == 1) {
+                // Smooth interpolation to elevated state (Y=0.35) over 3 ticks
+                Vector3f scale = new Vector3f(0.98F, 0.98F, 0.98F);
+                Vector3f translation = new Vector3f(0.0F, 0.35F, 0.0F);
+                Transformation transformation = new Transformation(
+                        translation, new Quaternionf(), scale, new Quaternionf()
+                );
+                setTransformation(entity, transformation);
+                setTransformationInterpolationDelay(entity, 0);
+                setTransformationInterpolationDuration(entity, 3);
+            } else if (age == 4) {
+                // Smooth interpolation back down to normal state over 5 ticks
+                Vector3f scale = new Vector3f(0.98F, 0.98F, 0.98F);
+                Vector3f translation = new Vector3f(0.0F, 0.0F, 0.0F);
+                Transformation transformation = new Transformation(
+                        translation, new Quaternionf(), scale, new Quaternionf()
+                );
+                setTransformation(entity, transformation);
+                setTransformationInterpolationDelay(entity, 0);
+                setTransformationInterpolationDuration(entity, 5);
+            } else if (age >= 10) {
+                entity.discard();
+                return true;
+            }
+            return false;
+        }
+    }
+
+    private static void setBlockDisplayState(Display.BlockDisplay display, net.minecraft.world.level.block.state.BlockState state) {
+        try {
+            java.lang.reflect.Field field = Display.BlockDisplay.class.getDeclaredField("DATA_BLOCK_STATE_ID");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            net.minecraft.network.syncher.EntityDataAccessor<net.minecraft.world.level.block.state.BlockState> accessor = 
+                    (net.minecraft.network.syncher.EntityDataAccessor<net.minecraft.world.level.block.state.BlockState>) field.get(null);
+            display.getEntityData().set(accessor, state);
+        } catch (Exception e) {
+            me.guardian.GuardianMod.LOGGER.error("Failed to set BlockDisplay BlockState via reflection", e);
+        }
+    }
+
+    private static void setTransformation(Display display, com.mojang.math.Transformation transformation) {
+        try {
+            java.lang.reflect.Method method = Display.class.getDeclaredMethod("setTransformation", com.mojang.math.Transformation.class);
+            method.setAccessible(true);
+            method.invoke(display, transformation);
+        } catch (Exception e) {
+            me.guardian.GuardianMod.LOGGER.error("Failed to set Display Transformation via reflection", e);
+        }
+    }
+
+    private static void setTransformationInterpolationDuration(Display display, int duration) {
+        try {
+            java.lang.reflect.Method method = Display.class.getDeclaredMethod("setTransformationInterpolationDuration", int.class);
+            method.setAccessible(true);
+            method.invoke(display, duration);
+        } catch (Exception e) {
+            me.guardian.GuardianMod.LOGGER.error("Failed to set Display Transformation Interpolation Duration via reflection", e);
+        }
+    }
+
+    private static void setTransformationInterpolationDelay(Display display, int delay) {
+        try {
+            java.lang.reflect.Method method = Display.class.getDeclaredMethod("setTransformationInterpolationDelay", int.class);
+            method.setAccessible(true);
+            method.invoke(display, delay);
+        } catch (Exception e) {
+            me.guardian.GuardianMod.LOGGER.error("Failed to set Display Transformation Interpolation Delay via reflection", e);
+        }
     }
 }
