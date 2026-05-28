@@ -14,7 +14,12 @@ public final class GuardianCommandAttackSuggestions {
             "stomp_players",
             "bomb_traps",
             "statue_revival",
-            "healing_shield"
+            "healing_shield",
+            "charge_ram",
+            "ground_vines",
+            "vine_pull",
+            "arena_walls",
+            "leap_attack"
     };
 
     private GuardianCommandAttackSuggestions() {

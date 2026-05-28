@@ -91,7 +91,12 @@ public final class GuardianCommand {
             "whip_grab",
             "minion_aegis",
             "soul_vortex",
-            "death_beams"
+            "death_beams",
+            "charge_ram",
+            "ground_vines",
+            "vine_pull",
+            "arena_walls",
+            "leap_attack"
     };
     private static final String[] STRUCTURE_ID_SUGGESTIONS = {
             "altar",
