@@ -780,13 +780,16 @@ public final class OverworldGuardianAttackController {
     }
 
     private Vec3 safeHorizontalLook() {
-        Vec3 look = boss.getLookAngle().horizontal();
-        if (look.lengthSqr() < 0.0001D) {
-            LivingEntity target = activeTarget();
-            if (target != null) {
-                look = target.position().subtract(boss.position()).horizontal();
+        // Prefer direction toward the active target — LookControl updates yaw gradually,
+        // so getLookAngle() can lag behind the actual target position at attack start.
+        LivingEntity target = activeTarget();
+        if (target != null) {
+            Vec3 toTarget = target.position().subtract(boss.position()).horizontal();
+            if (toTarget.lengthSqr() > 0.0001D) {
+                return toTarget.normalize();
             }
         }
+        Vec3 look = boss.getLookAngle().horizontal();
         if (look.lengthSqr() < 0.0001D) {
             return new Vec3(0.0D, 0.0D, 1.0D);
         }
