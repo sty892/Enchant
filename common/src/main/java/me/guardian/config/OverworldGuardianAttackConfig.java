@@ -16,15 +16,20 @@ public final class OverworldGuardianAttackConfig {
     public static final String FILE_NAME = "overworld_attack_timing.json";
 
     private static final Gson GSON = new Gson();
-    private static final Map<String, AttackTiming> DEFAULTS = Map.of(
-            "right_hand_wave", new AttackTiming(22, 34, 5.5D),
-            "left_hand_wave", new AttackTiming(22, 34, 5.5D),
-            "two_hand_wave", new AttackTiming(32, 44, 7.5D),
-            "hands_slam_line", new AttackTiming(34, 50, 14.0D),
-            "stomp_players", new AttackTiming(38, 54, 7.5D),
-            "bomb_traps", new AttackTiming(20, 44, 12.0D),
-            "statue_revival", new AttackTiming(40, 60, 24.0D),
-            "healing_shield", new AttackTiming(1, 1, 24.0D)
+    private static final Map<String, AttackTiming> DEFAULTS = Map.ofEntries(
+            Map.entry("right_hand_wave", new AttackTiming(22, 34, 5.5D)),
+            Map.entry("left_hand_wave", new AttackTiming(22, 34, 5.5D)),
+            Map.entry("two_hand_wave", new AttackTiming(32, 44, 7.5D)),
+            Map.entry("hands_slam_line", new AttackTiming(34, 50, 14.0D)),
+            Map.entry("stomp_players", new AttackTiming(38, 54, 7.5D)),
+            Map.entry("bomb_traps", new AttackTiming(20, 44, 12.0D)),
+            Map.entry("statue_revival", new AttackTiming(40, 60, 24.0D)),
+            Map.entry("healing_shield", new AttackTiming(1, 1, 24.0D)),
+            Map.entry("charge_ram", new AttackTiming(30, 60, 25.0D)),
+            Map.entry("ground_vines", new AttackTiming(40, 55, 30.0D)),
+            Map.entry("vine_pull", new AttackTiming(25, 35, 20.0D)),
+            Map.entry("arena_walls", new AttackTiming(20, 40, 16.0D)),
+            Map.entry("leap_attack", new AttackTiming(100, 130, 16.0D))
     );
 
     private static volatile Map<String, AttackTiming> timings = DEFAULTS;
