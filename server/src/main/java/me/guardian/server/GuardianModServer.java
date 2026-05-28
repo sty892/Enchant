@@ -14,6 +14,7 @@ import me.guardian.server.altar.AltarRitualManager;
 import me.guardian.server.altar.GuardianPlayerUpgrades;
 import me.guardian.server.boss.BossEventManager;
 import me.guardian.server.command.GuardianCommand;
+import me.guardian.server.command.GuardianCommandAttackSuggestions;
 import me.guardian.server.event.BossEventSystem;
 import me.guardian.server.event.GuardianEventScheduler;
 import me.guardian.entity.CameraMarkerEntity;
@@ -47,6 +48,7 @@ public final class GuardianModServer implements ModInitializer {
         SummonedBlockCleaner.initialize();
         CutsceneManager.initialize();
         AltarRitualManager.initialize();
+        GuardianCommandAttackSuggestions.apply();
         GuardianCommand.initialize();
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (!world.isClientSide() && entity instanceof CameraMarkerEntity cameraMarker && player instanceof ServerPlayer serverPlayer) {
