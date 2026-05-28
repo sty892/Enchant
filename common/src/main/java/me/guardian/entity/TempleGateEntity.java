@@ -18,7 +18,11 @@ import net.minecraft.world.phys.Vec3;
  * Players cannot destroy it, but it can be opened/closed by the boss logic.
  * When open, it is invisible and has no collision (noPhysics=true).
  * When closed, it blocks passage and pushes players back towards the center of the arena.
+ *
+ * @deprecated Gates are now implemented as {@link me.guardian.block.TempleGateBlock} blocks
+ *             placed directly in the world. This entity class is kept for compatibility only.
  */
+@Deprecated
 public class TempleGateEntity extends Entity {
 
     private boolean closed = false;
