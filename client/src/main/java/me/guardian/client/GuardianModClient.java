@@ -115,9 +115,11 @@ public final class GuardianModClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.BOMB_TRAP,
                 BombTrapRenderer::new);
         EntityRendererRegistry.register(ModEntities.TEMPLE_STATUE,
-                net.minecraft.client.renderer.entity.HuskRenderer::new);
+                context -> new GeoEntityRenderer<>(context, new TempleStatueModel()));
         EntityRendererRegistry.register(ModEntities.HEALING_SHIELD,
-                InvisibleRenderer::new);
+                context -> new GeoEntityRenderer<>(context, new HealingShieldModel()));
+        EntityRendererRegistry.register(ModEntities.TEMPLE_WALL_SEGMENT,
+                TempleWallRenderer::new);
     }
 
     private static void registerTriggerVisibility() {
