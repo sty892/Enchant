@@ -47,6 +47,10 @@ public class ModEntities {
             Registries.ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "healing_shield")
     );
+    public static final ResourceKey<EntityType<?>> TEMPLE_WALL_SEGMENT_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "temple_wall_segment")
+    );
 
     public static final EntityType<OverworldGuardianEntity> OVERWORLD_GUARDIAN = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
@@ -112,12 +116,20 @@ public class ModEntities {
                     .sized(2.5F, 3.0F)
                     .build(HEALING_SHIELD_KEY)
     );
+    public static final EntityType<TempleWallSegmentEntity> TEMPLE_WALL_SEGMENT = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            TEMPLE_WALL_SEGMENT_KEY,
+            EntityType.Builder.<TempleWallSegmentEntity>of(TempleWallSegmentEntity::new, MobCategory.MONSTER)
+                    .sized(0.98F, 3.0F)
+                    .build(TEMPLE_WALL_SEGMENT_KEY)
+    );
 
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(OVERWORLD_GUARDIAN, OverworldGuardianEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(NETHER_GUARDIAN, NetherGuardianEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GENERIC_BOSS, GenericBossEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(TEMPLE_STATUE, TempleStatueEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(TEMPLE_WALL_SEGMENT, TempleWallSegmentEntity.createAttributes());
         GuardianMod.LOGGER.info("Registering entities for " + GuardianMod.MOD_ID);
     }
 }
