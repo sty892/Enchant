@@ -113,7 +113,7 @@ public final class GuardianModClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.CEILING_FALLING_BLOCK,
                 net.minecraft.client.renderer.entity.FallingBlockRenderer::new);
         EntityRendererRegistry.register(ModEntities.BOMB_TRAP,
-                context -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(context, 1.0F, true));
+                BombTrapRenderer::new);
         EntityRendererRegistry.register(ModEntities.TEMPLE_STATUE,
                 net.minecraft.client.renderer.entity.HuskRenderer::new);
         EntityRendererRegistry.register(ModEntities.HEALING_SHIELD,

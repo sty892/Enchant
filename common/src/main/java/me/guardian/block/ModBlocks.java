@@ -40,6 +40,7 @@ public class ModBlocks {
     // Boss Arena Blocks
     public static Block TEMPLE_STATUE;
     public static Block TEMPLE_GATE;
+    public static Block TEMPLE_BOMB;
 
     // Block Entity Types
     public static BlockEntityType<AltarBlockEntity> ALTAR_BE_TYPE;
@@ -72,6 +73,10 @@ public class ModBlocks {
         // Temple gate block — fallback: obsidian; indestructible (strength -1)
         TEMPLE_GATE = registerNoItem("temple_gate",
                 properties -> new TempleGateBlock(properties.strength(-1.0F, 3600000.0F)));
+
+        // Temple bomb block — indestructible (strength -1), no occlusion
+        TEMPLE_BOMB = registerNoItem("temple_bomb",
+                properties -> new Block(properties.strength(-1.0F, 3600000.0F).noOcclusion()));
 
         ALTAR_BE_TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
                 Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "altar_be"),

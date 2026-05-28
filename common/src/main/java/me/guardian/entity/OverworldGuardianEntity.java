@@ -389,7 +389,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         for (int dz = -wallWidth; dz <= wallWidth; dz++) {
             for (int dy = 0; dy < wallHeight; dy++) {
                 BlockPos pos = new BlockPos(cx + radius, cy + dy, cz + dz);
-                level.setBlock(pos, ModBlocks.TEMPLE_GATE.defaultBlockState(), 3);
+                boolean isCenter = (dz == 0 && dy == 0);
+                net.minecraft.world.level.block.state.BlockState state = ModBlocks.TEMPLE_GATE.defaultBlockState()
+                        .setValue(me.guardian.block.TempleGateBlock.CENTER, isCenter);
+                level.setBlock(pos, state, 3);
                 gatePositions.add(pos);
             }
         }
@@ -397,7 +400,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         for (int dz = -wallWidth; dz <= wallWidth; dz++) {
             for (int dy = 0; dy < wallHeight; dy++) {
                 BlockPos pos = new BlockPos(cx - radius, cy + dy, cz + dz);
-                level.setBlock(pos, ModBlocks.TEMPLE_GATE.defaultBlockState(), 3);
+                boolean isCenter = (dz == 0 && dy == 0);
+                net.minecraft.world.level.block.state.BlockState state = ModBlocks.TEMPLE_GATE.defaultBlockState()
+                        .setValue(me.guardian.block.TempleGateBlock.CENTER, isCenter);
+                level.setBlock(pos, state, 3);
                 gatePositions.add(pos);
             }
         }
@@ -405,7 +411,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         for (int dx = -wallWidth; dx <= wallWidth; dx++) {
             for (int dy = 0; dy < wallHeight; dy++) {
                 BlockPos pos = new BlockPos(cx + dx, cy + dy, cz + radius);
-                level.setBlock(pos, ModBlocks.TEMPLE_GATE.defaultBlockState(), 3);
+                boolean isCenter = (dx == 0 && dy == 0);
+                net.minecraft.world.level.block.state.BlockState state = ModBlocks.TEMPLE_GATE.defaultBlockState()
+                        .setValue(me.guardian.block.TempleGateBlock.CENTER, isCenter);
+                level.setBlock(pos, state, 3);
                 gatePositions.add(pos);
             }
         }
@@ -413,7 +422,10 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         for (int dx = -wallWidth; dx <= wallWidth; dx++) {
             for (int dy = 0; dy < wallHeight; dy++) {
                 BlockPos pos = new BlockPos(cx + dx, cy + dy, cz - radius);
-                level.setBlock(pos, ModBlocks.TEMPLE_GATE.defaultBlockState(), 3);
+                boolean isCenter = (dx == 0 && dy == 0);
+                net.minecraft.world.level.block.state.BlockState state = ModBlocks.TEMPLE_GATE.defaultBlockState()
+                        .setValue(me.guardian.block.TempleGateBlock.CENTER, isCenter);
+                level.setBlock(pos, state, 3);
                 gatePositions.add(pos);
             }
         }
