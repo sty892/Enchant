@@ -244,8 +244,12 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
 
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        // Attack 14: If shield is active, block all damage
+        // Attack 14: If shield is active, redirect damage to the shield entity
         if (hasActiveShield(level)) {
+            HealingShieldEntity shield = getActiveShieldEntity(level);
+            if (shield != null) {
+                shield.hurtServer(level, source, amount);
+            }
             return false;
         }
         // Attack 9: If statues are alive, apply 90% damage resistance
@@ -262,6 +266,17 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             }
         }
         return damaged;
+    }
+
+    /** Returns the active healing shield entity, or null if there is none. */
+    public HealingShieldEntity getActiveShieldEntity(ServerLevel level) {
+        if (activeShieldUUID == null) return null;
+        Entity e = level.getEntity(activeShieldUUID);
+        if (e instanceof HealingShieldEntity shield && shield.isAliveShield()) {
+            return shield;
+        }
+        activeShieldUUID = null;
+        return null;
     }
 
     /** Returns true if at least one summoned statue is still alive. */
