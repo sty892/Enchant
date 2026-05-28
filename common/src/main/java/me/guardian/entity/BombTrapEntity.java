@@ -70,8 +70,8 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         }
 
         boolean triggered = false;
-        for (LivingEntity living : serverLevel.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(1.0D, 0.8D, 1.0D))) {
-            if (living.isAlive() && !(living instanceof OverworldGuardianEntity) && !(living instanceof NetherGuardianEntity)) {
+        for (LivingEntity living : serverLevel.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(0.35D))) {
+            if (living.isAlive() && living.onGround() && !(living instanceof OverworldGuardianEntity) && !(living instanceof NetherGuardianEntity)) {
                 triggered = true;
                 break;
             }
@@ -86,7 +86,8 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         Vec3 pos = this.position();
         level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 1.0F, 1.2F);
         level.sendParticles(ParticleTypes.EXPLOSION, pos.x, pos.y + 0.5D, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
-        level.sendParticles(ParticleTypes.HAPPY_VILLAGER, pos.x, pos.y + 0.5D, pos.z, 30, 1.0D, 0.5D, 1.0D, 0.05D);
+        level.sendParticles(ParticleTypes.SMOKE, pos.x, pos.y + 0.5D, pos.z, 20, 0.5D, 0.5D, 0.5D, 0.05D);
+        level.sendParticles(ParticleTypes.FLAME, pos.x, pos.y + 0.5D, pos.z, 20, 0.5D, 0.5D, 0.5D, 0.05D);
 
         double radius = 3.0D;
         float damage = 6.0F;
