@@ -120,6 +120,8 @@ public final class GuardianModClient implements ClientModInitializer {
                 context -> new GeoEntityRenderer<>(context, new HealingShieldModel()));
         EntityRendererRegistry.register(ModEntities.TEMPLE_WALL_SEGMENT,
                 TempleWallRenderer::new);
+        EntityRendererRegistry.register(ModEntities.VINE_LASH,
+                context -> new software.bernie.geckolib.renderer.GeoEntityRenderer<>(context, new VineLashModel()));
     }
 
     private static void registerTriggerVisibility() {

@@ -83,6 +83,14 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             OverworldGuardianEntity.class,
             EntityDataSerializers.BOOLEAN
     );
+    private static final EntityDataAccessor<Boolean> DATA_ATTACK_DEBUG = SynchedEntityData.defineId(
+            OverworldGuardianEntity.class,
+            EntityDataSerializers.BOOLEAN
+    );
+    private static final EntityDataAccessor<String> DATA_CURRENT_ATTACK_ID = SynchedEntityData.defineId(
+            OverworldGuardianEntity.class,
+            EntityDataSerializers.STRING
+    );
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> damageContributors = new HashMap<>();
@@ -212,6 +220,53 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         builder.define(DATA_FULL_BODY_ACTION, false);
         builder.define(DATA_ACTION_TICKS, 0);
         builder.define(DATA_AGGROED, false);
+        builder.define(DATA_ATTACK_DEBUG, false);
+        builder.define(DATA_CURRENT_ATTACK_ID, "");
+    }
+
+    public boolean isAttackDebugEnabled() {
+        return this.entityData.get(DATA_ATTACK_DEBUG);
+    }
+
+    public void setAttackDebugEnabled(boolean enabled) {
+        this.entityData.set(DATA_ATTACK_DEBUG, enabled);
+        refreshAttackDebugName();
+    }
+
+    public String getCurrentAttackId() {
+        return this.entityData.get(DATA_CURRENT_ATTACK_ID);
+    }
+
+    public void setCurrentAttackId(String attackId) {
+        this.entityData.set(DATA_CURRENT_ATTACK_ID, attackId == null ? "" : attackId);
+        refreshAttackDebugName();
+    }
+
+    private void refreshAttackDebugName() {
+        if (level().isClientSide()) {
+            return;
+        }
+        if (isAttackDebugEnabled()) {
+            String id = getCurrentAttackId();
+            String label = id == null || id.isEmpty() ? "idle" : id;
+            setCustomName(Component.literal("§e[Atk: " + label + "]"));
+            setCustomNameVisible(true);
+        } else {
+            setCustomName(null);
+            setCustomNameVisible(false);
+        }
+    }
+
+    public void broadcastAttackDebug(ServerLevel level, String attackId) {
+        if (!isAttackDebugEnabled()) {
+            return;
+        }
+        Component message = Component.literal("§6Boss attack: §f" + attackId);
+        for (ServerPlayer player : level.players()) {
+            if (player.isAlive() && player.level() == this.level() && player.distanceToSqr(this) <= 64.0D * 64.0D) {
+                player.displayClientMessage(message, true);
+            }
+        }
     }
 
     public boolean isAggroed() {
@@ -752,6 +807,9 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     }
 
     private void tickSoftHomeReturn() {
+        if (level() instanceof ServerLevel serverLevel && hasActiveShield(serverLevel)) {
+            return;
+        }
         if (spawnCenter == null) {
             spawnCenter = this.blockPosition();
             return;

@@ -51,6 +51,10 @@ public class ModEntities {
             Registries.ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "temple_wall_segment")
     );
+    public static final ResourceKey<EntityType<?>> VINE_LASH_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(GuardianMod.MOD_ID, "vine_lash")
+    );
 
     public static final EntityType<OverworldGuardianEntity> OVERWORLD_GUARDIAN = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
@@ -122,6 +126,15 @@ public class ModEntities {
             EntityType.Builder.<TempleWallSegmentEntity>of(TempleWallSegmentEntity::new, MobCategory.MONSTER)
                     .sized(0.98F, 3.0F)
                     .build(TEMPLE_WALL_SEGMENT_KEY)
+    );
+    public static final EntityType<VineLashEntity> VINE_LASH = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            VINE_LASH_KEY,
+            EntityType.Builder.<VineLashEntity>of(VineLashEntity::new, MobCategory.MISC)
+                    .sized(1.0F, 1.0F)
+                    .clientTrackingRange(64)
+                    .updateInterval(1)
+                    .build(VINE_LASH_KEY)
     );
 
     public static void initialize() {
