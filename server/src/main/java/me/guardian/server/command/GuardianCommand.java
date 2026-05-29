@@ -137,7 +137,13 @@ public final class GuardianCommand {
                                 .then(Commands.argument("enabled", BoolArgumentType.bool())
                                         .executes(context -> setBossAi(
                                                 context.getSource(),
-                                                BoolArgumentType.getBool(context, "enabled"))))))
+                                                BoolArgumentType.getBool(context, "enabled")))))
+                        .then(Commands.literal("debug")
+                                .then(Commands.argument("enabled", BoolArgumentType.bool())
+                                        .executes(context -> setBossAttackDebug(
+                                                context.getSource(),
+                                                BoolArgumentType.getBool(context, "enabled"))))
+                                .executes(context -> setBossAttackDebug(context.getSource(), true))))
                 .then(Commands.literal("whitelist")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("player", StringArgumentType.word())
@@ -561,6 +567,23 @@ public final class GuardianCommand {
         }
 
         source.sendSuccess(() -> Component.translatable("command.guardian_mod.boss_attack.started", attackId), true);
+        return 1;
+    }
+
+    private static int setBossAttackDebug(CommandSourceStack source, boolean enabled) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = source.getLevel();
+        LivingEntity boss = nearestActiveBoss(level, player.position());
+        if (!(boss instanceof OverworldGuardianEntity overworld)) {
+            source.sendFailure(Component.literal("Attack debug is only supported for the Overworld Guardian."));
+            return 0;
+        }
+        overworld.setAttackDebugEnabled(enabled);
+        if (enabled) {
+            source.sendSuccess(() -> Component.literal("Overworld Guardian attack debug enabled (name tag + action bar)."), true);
+        } else {
+            source.sendSuccess(() -> Component.literal("Overworld Guardian attack debug disabled."), true);
+        }
         return 1;
     }
 

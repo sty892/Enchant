@@ -21,7 +21,8 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.entity.Pose;
 
 import java.util.UUID;
 
@@ -44,13 +45,18 @@ public class HealingShieldEntity extends Entity implements GeoEntity {
     public HealingShieldEntity(EntityType<HealingShieldEntity> type, Level level) {
         super(type, level);
         this.noPhysics = true;
-        this.setBoundingBox(new AABB(-1.25, -0.1, -1.25, 1.25, 3.0, 1.25));
     }
 
     public HealingShieldEntity(Level level, OverworldGuardianEntity boss) {
         this(ModEntities.HEALING_SHIELD, level);
         this.bossUUID = boss.getUUID();
         this.setPos(boss.getX(), boss.getY(), boss.getZ());
+        refreshDimensions();
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        return EntityDimensions.scalable(2.5F, 3.0F);
     }
 
     @Override
@@ -139,6 +145,7 @@ public class HealingShieldEntity extends Entity implements GeoEntity {
             var bossEntity = serverLevel.getEntity(bossUUID);
             if (bossEntity instanceof OverworldGuardianEntity boss && boss.isAlive()) {
                 this.setPos(boss.getX(), boss.getY(), boss.getZ());
+                this.setBoundingBox(this.makeBoundingBox());
 
                 // Heal boss every second
                 if (age % 20 == 0) {
