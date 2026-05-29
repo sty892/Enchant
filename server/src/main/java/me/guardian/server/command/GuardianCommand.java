@@ -80,6 +80,21 @@ public final class GuardianCommand {
             "boss_generic"
     };
     private static final String[] ATTACK_ID_SUGGESTIONS = {
+            // Overworld Guardian
+            "right_hand_wave",
+            "left_hand_wave",
+            "two_hand_wave",
+            "hands_slam_line",
+            "stomp_players",
+            "bomb_traps",
+            "statue_revival",
+            "healing_shield",
+            "charge_ram",
+            "ground_vines",
+            "vine_pull",
+            "arena_walls",
+            "leap_attack",
+            // Nether Guardian
             "anti_shield",
             "counter_leap",
             "fissure",
@@ -91,12 +106,7 @@ public final class GuardianCommand {
             "whip_grab",
             "minion_aegis",
             "soul_vortex",
-            "death_beams",
-            "charge_ram",
-            "ground_vines",
-            "vine_pull",
-            "arena_walls",
-            "leap_attack"
+            "death_beams"
     };
     private static final String[] STRUCTURE_ID_SUGGESTIONS = {
             "altar",

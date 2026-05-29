@@ -56,7 +56,16 @@ public class HealingShieldEntity extends Entity implements GeoEntity {
 
     @Override
     public EntityDimensions getDimensions(Pose pose) {
-        return EntityDimensions.scalable(2.5F, 3.0F);
+        // Boss-sized bubble around the guardian (boss is 2.0 x 4.0)
+        return EntityDimensions.scalable(2.8F, 4.2F);
+    }
+
+    /** Breaking stage: 0 = healthy (>66%), 1 = cracked (33-66%), 2 = breaking (<33%). */
+    public int getDamageStage() {
+        float frac = getShieldHealth() / MAX_HEALTH;
+        if (frac > 0.66F) return 0;
+        if (frac > 0.33F) return 1;
+        return 2;
     }
 
     @Override
@@ -114,9 +123,15 @@ public class HealingShieldEntity extends Entity implements GeoEntity {
             float newHp = Math.max(0.0F, current - amount);
             this.entityData.set(DATA_HEALTH, newHp);
 
-            // Spark particles to show hits
-            level.sendParticles(ParticleTypes.CRIT, this.getX(), this.getY() + 1.0D, this.getZ(),
-                    8, 0.5D, 0.5D, 0.5D, 0.05D);
+            // Breaking feedback: glass-crack sound + spark/crack particles on every hit,
+            // so it's obvious the shield can be broken.
+            level.playSound(null, this.blockPosition(), net.minecraft.sounds.SoundEvents.GLASS_HIT,
+                    net.minecraft.sounds.SoundSource.HOSTILE, 1.2F, 0.7F + this.random.nextFloat() * 0.4F);
+            level.sendParticles(ParticleTypes.CRIT, this.getX(), this.getY() + 2.0D, this.getZ(),
+                    10, 0.8D, 1.2D, 0.8D, 0.08D);
+            level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(
+                            ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.GLASS.defaultBlockState()),
+                    this.getX(), this.getY() + 2.0D, this.getZ(), 6, 0.7D, 1.0D, 0.7D, 0.1D);
 
             if (newHp <= 0) {
                 notifyBossShieldBroken(level);

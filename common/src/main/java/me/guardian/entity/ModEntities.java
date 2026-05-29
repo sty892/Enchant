@@ -103,7 +103,7 @@ public class ModEntities {
             BuiltInRegistries.ENTITY_TYPE,
             BOMB_TRAP_KEY,
             EntityType.Builder.<BombTrapEntity>of(BombTrapEntity::new, MobCategory.MISC)
-                    .sized(0.5F, 0.5F)
+                    .sized(0.4F, 0.4F)
                     .build(BOMB_TRAP_KEY)
     );
     public static final EntityType<TempleStatueEntity> TEMPLE_STATUE = Registry.register(
@@ -117,7 +117,7 @@ public class ModEntities {
             BuiltInRegistries.ENTITY_TYPE,
             HEALING_SHIELD_KEY,
             EntityType.Builder.<HealingShieldEntity>of(HealingShieldEntity::new, MobCategory.MISC)
-                    .sized(2.5F, 3.0F)
+                    .sized(2.8F, 4.2F)
                     .build(HEALING_SHIELD_KEY)
     );
     public static final EntityType<TempleWallSegmentEntity> TEMPLE_WALL_SEGMENT = Registry.register(

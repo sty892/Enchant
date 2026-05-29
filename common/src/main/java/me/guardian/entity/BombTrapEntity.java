@@ -31,14 +31,16 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         this.setPos(x, y, z);
     }
 
+    /** Must be pickable so players can hit it (LMB) to detonate it. */
+    @Override
+    public boolean isPickable() {
+        return !this.isRemoved();
+    }
+
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        // Breaking the bomb deactivates it silently (no explosion)
-        level.playSound(null, this.blockPosition(), SoundEvents.STONE_BREAK,
-                SoundSource.BLOCKS, 1.0F, 1.5F);
-        level.sendParticles(ParticleTypes.SMOKE,
-                getX(), getY() + 0.3D, getZ(), 12, 0.2D, 0.2D, 0.2D, 0.0D);
-        this.discard();
+        // Hitting the bomb (LMB) detonates it on purpose
+        explode(level);
         return true;
     }
 
@@ -70,7 +72,7 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         }
 
         boolean triggered = false;
-        for (LivingEntity living : serverLevel.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(0.35D))) {
+        for (LivingEntity living : serverLevel.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(0.1D))) {
             if (living.isAlive() && living.onGround() && !(living instanceof OverworldGuardianEntity) && !(living instanceof NetherGuardianEntity)) {
                 triggered = true;
                 break;

@@ -66,13 +66,15 @@ public class ModBlocks {
         DIMENSION_TRIGGER = register("dimension_trigger", properties -> new DimensionTriggerBlock(properties.noOcclusion().replaceable().instabreak(), false));
         DIMENSION_RETURN_TRIGGER = register("dimension_return_trigger", properties -> new DimensionTriggerBlock(properties.noOcclusion().replaceable().instabreak(), true));
 
-        // Temple statue block — fallback: stone bricks; indestructible (strength -1)
-        TEMPLE_STATUE = registerNoItem("temple_statue",
+        // Temple statue block — placed by players when building the arena; indestructible (strength -1).
+        // The boss only revives existing statue blocks, it never places them.
+        TEMPLE_STATUE = register("temple_statue",
                 properties -> new TempleStatueBlock(properties.strength(-1.0F, 3600000.0F)));
 
-        // Temple gate block — fallback: obsidian; indestructible (strength -1)
-        TEMPLE_GATE = registerNoItem("temple_gate",
-                properties -> new TempleGateBlock(properties.strength(-1.0F, 3600000.0F)));
+        // Temple gate block — placed by players around the arena; indestructible (strength -1).
+        // Open (passable) by default, the boss closes it (solid) at phase 3.3.
+        TEMPLE_GATE = register("temple_gate",
+                properties -> new TempleGateBlock(properties.strength(-1.0F, 3600000.0F).noOcclusion()));
 
         // Temple bomb block — indestructible (strength -1), no occlusion
         TEMPLE_BOMB = registerNoItem("temple_bomb",
