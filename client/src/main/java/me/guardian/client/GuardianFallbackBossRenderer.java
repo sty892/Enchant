@@ -8,7 +8,7 @@ import net.minecraft.world.entity.Mob;
 public final class GuardianFallbackBossRenderer<T extends Mob> extends EntityRenderer<T, EntityRenderState> {
     public GuardianFallbackBossRenderer(EntityRendererProvider.Context context) {
         super(context);
-        this.shadowRadius = 1.0f;
+        this.shadowRadius = 0.0f;
     }
 
     @Override

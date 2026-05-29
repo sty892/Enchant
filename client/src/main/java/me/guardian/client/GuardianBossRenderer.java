@@ -22,6 +22,8 @@ public final class GuardianBossRenderer<T extends Mob & GeoEntity, R extends Ent
 
     public GuardianBossRenderer(EntityRendererProvider.Context context, GuardianBossModel<T> model) {
         super(context, model);
+        // No ground/blob shadow under the boss.
+        this.shadowRadius = 0.0F;
     }
 
     @Override

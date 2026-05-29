@@ -39,8 +39,8 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
 
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        // Hitting the bomb (LMB) detonates it on purpose
-        explode(level);
+        // Hitting the bomb (LMB) detonates it on purpose — no poison on manual detonation.
+        explode(level, false);
         return true;
     }
 
@@ -80,11 +80,11 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         }
 
         if (triggered) {
-            explode(serverLevel);
+            explode(serverLevel, true);
         }
     }
 
-    private void explode(ServerLevel level) {
+    private void explode(ServerLevel level, boolean applyPoison) {
         Vec3 pos = this.position();
         level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 1.0F, 1.2F);
         level.sendParticles(ParticleTypes.EXPLOSION, pos.x, pos.y + 0.5D, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
@@ -96,7 +96,9 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(radius, 1.5D, radius))) {
             if (living.isAlive() && !(living instanceof OverworldGuardianEntity) && !(living instanceof NetherGuardianEntity)) {
                 living.hurtServer(level, level.damageSources().explosion(null, null), damage);
-                living.addEffect(new MobEffectInstance(MobEffects.POISON, 160, 0));
+                if (applyPoison) {
+                    living.addEffect(new MobEffectInstance(MobEffects.POISON, 160, 0));
+                }
             }
         }
         this.discard();

@@ -33,6 +33,9 @@ public class VineLashEntity extends Entity implements GeoEntity {
     private UUID bossUuid;
     private UUID targetUuid;
     private int maxAge = 60;
+    // Which slice of the boss→target line this vine occupies (so several stacked vines reach the target).
+    private int segmentIndex = 0;
+    private int segmentCount = 1;
 
     public VineLashEntity(EntityType<VineLashEntity> type, Level level) {
         super(type, level);
@@ -40,10 +43,17 @@ public class VineLashEntity extends Entity implements GeoEntity {
     }
 
     public VineLashEntity(Level level, OverworldGuardianEntity boss, LivingEntity target, int lifetimeTicks) {
+        this(level, boss, target, lifetimeTicks, 0, 1);
+    }
+
+    public VineLashEntity(Level level, OverworldGuardianEntity boss, LivingEntity target, int lifetimeTicks,
+                          int segmentIndex, int segmentCount) {
         this(ModEntities.VINE_LASH, level);
         this.bossUuid = boss.getUUID();
         this.targetUuid = target.getUUID();
         this.maxAge = lifetimeTicks;
+        this.segmentIndex = segmentIndex;
+        this.segmentCount = Math.max(1, segmentCount);
         updatePose(level, boss, target);
     }
 
@@ -95,8 +105,10 @@ public class VineLashEntity extends Entity implements GeoEntity {
         Vec3 from = boss.position().add(0.0D, boss.getBbHeight() * 0.55D, 0.0D);
         Vec3 to = target.position().add(0.0D, target.getBbHeight() * 0.45D, 0.0D);
         Vec3 diff = to.subtract(from);
-        float length = (float) Math.max(0.5D, diff.length());
-        Vec3 mid = from.add(diff.scale(0.5D));
+        // Place this vine at its slice of the line so several stacked vines together reach the target.
+        double frac = (segmentIndex + 0.5D) / segmentCount;
+        Vec3 mid = from.add(diff.scale(frac));
+        float length = (float) Math.max(0.5D, diff.length() / segmentCount);
         this.setPos(mid.x, mid.y, mid.z);
         this.entityData.set(DATA_LENGTH, length);
         double yaw = Math.atan2(diff.z, diff.x);
@@ -108,6 +120,8 @@ public class VineLashEntity extends Entity implements GeoEntity {
     @Override
     protected void readAdditionalSaveData(ValueInput input) {
         this.maxAge = input.getIntOr("MaxAge", 60);
+        this.segmentIndex = input.getIntOr("SegIndex", 0);
+        this.segmentCount = Math.max(1, input.getIntOr("SegCount", 1));
         input.getString("BossUUID").ifPresent(s -> {
             try {
                 this.bossUuid = UUID.fromString(s);
@@ -125,6 +139,8 @@ public class VineLashEntity extends Entity implements GeoEntity {
     @Override
     protected void addAdditionalSaveData(ValueOutput output) {
         output.putInt("MaxAge", maxAge);
+        output.putInt("SegIndex", segmentIndex);
+        output.putInt("SegCount", segmentCount);
         if (bossUuid != null) {
             output.putString("BossUUID", bossUuid.toString());
         }

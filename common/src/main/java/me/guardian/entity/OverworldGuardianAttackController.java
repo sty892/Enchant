@@ -30,10 +30,6 @@ public final class OverworldGuardianAttackController {
             ParticleTypes.DUST_PILLAR,
             Blocks.DIRT.defaultBlockState()
     );
-    private static final BlockParticleOption STONE_PARTICLE = new BlockParticleOption(
-            ParticleTypes.DUST_PILLAR,
-            Blocks.STONE.defaultBlockState()
-    );
     private static final DustParticleOptions TELEGRAPH_DUST = new DustParticleOptions(0xC9FFF3, 1.25F);
 
     private final OverworldGuardianEntity boss;
@@ -41,7 +37,7 @@ public final class OverworldGuardianAttackController {
     private RunningAttack runningAttack;
     private int globalDelay = 20;
     private final List<TemporaryDisplay> tempDisplays = new ArrayList<>();
-    private final List<GroundVine> activeGroundVines = new ArrayList<>();
+    private final List<Shockwave> activeShockwaves = new ArrayList<>();
     private String pendingCombo = null;
     private boolean pendingFollowUpMelee = false;
 
@@ -66,7 +62,7 @@ public final class OverworldGuardianAttackController {
 
     public void tick(ServerLevel level) {
         tempDisplays.removeIf(TemporaryDisplay::tick);
-        activeGroundVines.removeIf(vine -> vine.tick(level));
+        activeShockwaves.removeIf(s -> s.tick(level));
         OverworldGuardianAttackConfig.tickAutoReload(level);
         for (Attack attack : attacks) {
             attack.tickCooldown();
@@ -664,13 +660,15 @@ public final class OverworldGuardianAttackController {
                         damageInRadius(level, boss.position(), radius, 10.0F * phaseMultiplier());
                         emitGroundShockwave(level, boss.position(), Math.min(3.0D, radius));
                         // Inner disc (0..3 blocks): immediate strong upward pop
-                        applyKnockbackRing(level, 1.5D, 3.0D, 0.45D, 0.85D);
+                        applyKnockbackRing(level, 1.5D, 3.0D, 0.45D, 0.95D);
                     } else if (tick == timing.hitTick() + 4) {
                         emitGroundShockwave(level, boss.position(), midRadius);
-                        applyKnockbackRing(level, midRadius, 2.5D, 0.55D, 0.8D);
+                        // Mid ring: launched up strongly too, not just nudged
+                        applyKnockbackRing(level, midRadius, 2.5D, 0.55D, 1.0D);
                     } else if (tick == timing.hitTick() + 8) {
                         emitGroundShockwave(level, boss.position(), radius);
-                        applyKnockbackRing(level, radius, 2.5D, 0.65D, 0.75D);
+                        // Outer ring: highest pop, so far players are thrown up as well
+                        applyKnockbackRing(level, radius, 2.5D, 0.65D, 1.05D);
                     }
                 }
             };
@@ -943,7 +941,7 @@ public final class OverworldGuardianAttackController {
                             // Visual wave rings along the dash line
                             for (double dist = segmentLength; dist <= totalDist; dist += segmentLength) {
                                 Vec3 point = startPos.add(step.scale(dist));
-                                radialBlockWaveRing(level, point, 1.5D, 8);
+                                spawnBlockRing(level, point, 1.5D);
                             }
                             // Damage every entity near the line exactly once
                             Vec3 mid = startPos.add(diff.scale(0.5D));
@@ -1056,15 +1054,21 @@ public final class OverworldGuardianAttackController {
                             level.sendParticles(DIRT_PARTICLE, targetPos.x, targetPos.y + 0.5D, targetPos.z,
                                     25, 0.5D, 0.5D, 0.5D, 0.12D);
 
-                            // Initial impact for the player the vine spawned under
-                            if (p.isAlive() && p.position().horizontal().distanceTo(targetPos.horizontal()) <= 1.5D) {
-                                p.hurtServer(level, boss.damageSources().mobAttack(boss), 12.0F * phaseMultiplier());
-                                p.setDeltaMovement(p.getDeltaMovement().x, 1.1D, p.getDeltaMovement().z);
-                                boss.recordSuccessfulHit();
+                            // Damage happens ONLY on appearance: hit anyone near where the vine erupts.
+                            // Afterwards the vine model just stands there doing nothing and then vanishes.
+                            for (Player nearby : level.players()) {
+                                if (!nearby.isAlive() || nearby.level() != boss.level()) {
+                                    continue;
+                                }
+                                if (horizontalDistance(nearby.position(), targetPos) <= 3.0D
+                                        && Math.abs(nearby.getY() - targetPos.y) <= 3.0D) {
+                                    if (nearby.hurtServer(level, boss.damageSources().mobAttack(boss), 12.0F * phaseMultiplier())) {
+                                        boss.recordSuccessfulHit();
+                                    }
+                                    nearby.setDeltaMovement(nearby.getDeltaMovement().x, 0.9D, nearby.getDeltaMovement().z);
+                                    nearby.hurtMarked = true;
+                                }
                             }
-
-                            // The vine itself stays and lashes anyone within 5 blocks for a few seconds
-                            activeGroundVines.add(new GroundVine(targetPos, 60));
                         }
 
                         pendingFollowUpMelee = true;
@@ -1112,14 +1116,24 @@ public final class OverworldGuardianAttackController {
             boss.setTarget(finalTarget);
             boss.triggerAttackAnimation("attack_right");
 
-            VineLashEntity vine = new VineLashEntity(level, boss, finalTarget, timing.durationTicks() + 5);
-            level.addFreshEntity(vine);
+            // Stack several vine segments along the boss→target line so they actually reach the
+            // target; as the target is reeled in, segments are removed so fewer remain.
+            int initialCount = (int) Math.ceil(boss.distanceTo(finalTarget) / 5.0D);
+            initialCount = Math.max(2, Math.min(6, initialCount));
+            final int segCount = initialCount;
+            final List<VineLashEntity> vines = new ArrayList<>();
+            for (int i = 0; i < segCount; i++) {
+                VineLashEntity vine = new VineLashEntity(level, boss, finalTarget, timing.durationTicks() + 5, i, segCount);
+                level.addFreshEntity(vine);
+                vines.add(vine);
+            }
 
             return new TimedAttack(timing.durationTicks()) {
                 @Override
                 protected void onTick(ServerLevel level, int tick) {
                     if (!finalTarget.isAlive()) {
-                        vine.discard();
+                        vines.forEach(VineLashEntity::discard);
+                        vines.clear();
                         return;
                     }
 
@@ -1127,10 +1141,17 @@ public final class OverworldGuardianAttackController {
                         boss.getLookControl().setLookAt(finalTarget, 40.0F, 30.0F);
                     } else if (tick >= timing.hitTick() && tick < timing.durationTicks() - 2) {
                         pullLivingTowardBoss(level, finalTarget, 2.25D);
+                        // Fewer vines as the target gets closer: keep one segment per ~5 blocks.
+                        int desired = Math.max(1, Math.min(vines.size(),
+                                (int) Math.ceil(boss.distanceTo(finalTarget) / 5.0D)));
+                        while (vines.size() > desired) {
+                            vines.remove(vines.size() - 1).discard();
+                        }
                     }
 
                     if (tick == timing.durationTicks() - 1) {
-                        vine.discard();
+                        vines.forEach(VineLashEntity::discard);
+                        vines.clear();
                         snapNearBoss(finalTarget, 2.25D);
                         pendingCombo = "two_hand_wave";
                     }
@@ -1202,6 +1223,24 @@ public final class OverworldGuardianAttackController {
 
                             level.sendParticles(ParticleTypes.LARGE_SMOKE, wx, surfacePos.getY() + 1.5D, wz,
                                     5, 0.2, 0.5, 0.2, 0.02);
+                        }
+
+                        // Wind-charge-style shove: pull entities near/outside the wall ring back toward
+                        // the centre so they are trapped inside instead of left stuck in the wall.
+                        for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class,
+                                boss.getBoundingBox().inflate(radius + 3.0D, 3.0D, radius + 3.0D))) {
+                            if (living == boss || !living.isAlive()) {
+                                continue;
+                            }
+                            double dist = horizontalDistance(living.position(), center);
+                            if (dist < radius - 1.0D) {
+                                continue; // already safely inside
+                            }
+                            Vec3 inward = center.subtract(living.position()).horizontal();
+                            if (inward.lengthSqr() > 0.0001D) {
+                                living.setDeltaMovement(inward.normalize().scale(0.9D).add(0.0D, 0.35D, 0.0D));
+                                living.hurtMarked = true;
+                            }
                         }
                     }
                 }
@@ -1492,25 +1531,24 @@ public final class OverworldGuardianAttackController {
         target.resetFallDistance();
     }
 
+    /**
+     * Starts a Wildfire-style ground shockwave: an expanding ring of block particles that travels
+     * outward from the centre over the following ticks. No white particles — only fragments of the
+     * actual ground blocks.
+     */
     private void emitGroundShockwave(ServerLevel level, Vec3 center, double maxRadius) {
-        level.sendParticles(DIRT_PARTICLE, center.x, center.y + 0.12D, center.z,
-                35, maxRadius * 0.35D, 0.15D, maxRadius * 0.35D, 0.14D);
-        level.sendParticles(STONE_PARTICLE, center.x, center.y + 0.08D, center.z,
-                20, maxRadius * 0.3D, 0.1D, maxRadius * 0.3D, 0.1D);
-        level.sendParticles(ParticleTypes.GUST_EMITTER_LARGE, center.x, center.y + 0.2D, center.z,
-                1, 0.05D, 0.05D, 0.05D, 0.0D);
-        radialBlockWaveRing(level, center, Math.max(1.5D, maxRadius * 0.35D), 12);
-        radialBlockWaveRing(level, center, Math.max(2.5D, maxRadius * 0.65D), 20);
-        radialBlockWaveRing(level, center, maxRadius, 32);
+        activeShockwaves.add(new Shockwave(center, Math.max(1.5D, maxRadius)));
     }
 
     /**
-     * Shockwave ring: launches fragments of the ground block upward in a ring, so it looks like the
-     * blocks along the wave briefly pop up. Pure particles — no persistent display entities (which
-     * previously leaked into the world). Block particles spawned with count=0 use (dx,dy,dz) as a
-     * directed velocity, giving the upward "blocks rising" look.
+     * Spawns ONE ring of block particles at the given radius. The block state is read from the
+     * ground directly under each point, so the wave kicks up the real floor blocks
+     * (BlockParticleOption(ParticleTypes.BLOCK, state) — the Wildfire / Friends&Foes look).
+     * Block particles spawned with count=0 use (dx,dy,dz) as a directed velocity, giving the
+     * upward "blocks rising" motion. No FallingBlockEntity, no persistent entities.
      */
-    private void radialBlockWaveRing(ServerLevel level, Vec3 center, double radius, int count) {
+    private void spawnBlockRing(ServerLevel level, Vec3 center, double radius) {
+        int count = Math.max(8, (int) Math.round(radius * 6.0D));
         for (int i = 0; i < count; i++) {
             double angle = (Math.PI * 2.0D) * i / count;
             double x = center.x + Math.cos(angle) * radius;
@@ -1526,14 +1564,38 @@ public final class OverworldGuardianAttackController {
             }
             BlockParticleOption option = new BlockParticleOption(ParticleTypes.BLOCK, state);
             double topY = pos.getY() + 1.0D;
-            // A few chunks of the block launched upward
-            for (int k = 0; k < 3; k++) {
-                double vx = (boss.getRandom().nextDouble() - 0.5D) * 0.18D;
-                double vy = 0.35D + boss.getRandom().nextDouble() * 0.3D;
-                double vz = (boss.getRandom().nextDouble() - 0.5D) * 0.18D;
+            // Spray of block fragments rising from the floor
+            level.sendParticles(option, x, topY, z, 6, 0.12D, 0.05D, 0.12D, 0.08D);
+            // A couple of chunks launched straight up
+            for (int k = 0; k < 2; k++) {
+                double vx = (boss.getRandom().nextDouble() - 0.5D) * 0.12D;
+                double vy = 0.45D + boss.getRandom().nextDouble() * 0.25D;
+                double vz = (boss.getRandom().nextDouble() - 0.5D) * 0.12D;
                 level.sendParticles(option, x, topY, z, 0, vx, vy, vz, 1.0D);
             }
-            level.sendParticles(ParticleTypes.POOF, x, topY, z, 1, 0.05D, 0.02D, 0.05D, 0.01D);
+        }
+    }
+
+    /**
+     * Expanding ground shockwave (Wildfire / Friends&Foes style). Each tick the ring radius grows
+     * and a fresh ring of ground-block particles is spawned, so the wave visibly travels outward
+     * across the floor. Pure particles — no entities.
+     */
+    private final class Shockwave {
+        private final Vec3 center;
+        private final double maxRadius;
+        private double radius;
+
+        private Shockwave(Vec3 center, double maxRadius) {
+            this.center = center;
+            this.maxRadius = maxRadius;
+            this.radius = 0.8D;
+        }
+
+        private boolean tick(ServerLevel level) {
+            spawnBlockRing(level, center, radius);
+            radius += 1.0D;
+            return radius > maxRadius;
         }
     }
 
@@ -1610,45 +1672,6 @@ public final class OverworldGuardianAttackController {
         double x = point.x - nearestX;
         double z = point.z - nearestZ;
         return Math.sqrt(x * x + z * z);
-    }
-
-    /**
-     * A lingering ground vine (attack ground_vines). After the vines erupt they stay for a few
-     * seconds and lash anyone within 5 blocks. Pure particles — no persistent entity.
-     */
-    private final class GroundVine {
-        private final Vec3 pos;
-        private final int maxAge;
-        private int age = 0;
-
-        private GroundVine(Vec3 pos, int maxAge) {
-            this.pos = pos;
-            this.maxAge = maxAge;
-        }
-
-        private boolean tick(ServerLevel level) {
-            age++;
-            // Visual: swaying column of leaf particles
-            level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.JUNGLE_LEAVES.defaultBlockState()),
-                    pos.x, pos.y + 1.0D, pos.z, 3, 0.3D, 0.8D, 0.3D, 0.0D);
-            // Lash players within 5 blocks every 10 ticks
-            if (age % 10 == 0) {
-                for (Player player : level.players()) {
-                    if (!player.isAlive() || player.level() != boss.level()) {
-                        continue;
-                    }
-                    if (horizontalDistance(player.position(), pos) <= 5.0D && Math.abs(player.getY() - pos.y) <= 3.0D) {
-                        if (player.hurtServer(level, boss.damageSources().mobAttack(boss), 6.0F * phaseMultiplier())) {
-                            boss.recordSuccessfulHit();
-                        }
-                        Vec3 v = player.getDeltaMovement();
-                        player.setDeltaMovement(v.x, Math.max(v.y, 0.45D), v.z);
-                        player.hurtMarked = true;
-                    }
-                }
-            }
-            return age >= maxAge;
-        }
     }
 
     private static void setBlockDisplayState(Display.BlockDisplay display, net.minecraft.world.level.block.state.BlockState state) {

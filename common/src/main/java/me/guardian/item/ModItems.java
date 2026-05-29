@@ -70,6 +70,8 @@ public class ModItems {
                         output.accept(ModBlocks.KEYHOLE_6);
                         output.accept(ModBlocks.KEYHOLE_7);
                         output.accept(ModBlocks.KEYHOLE_8);
+                        output.accept(ModBlocks.TEMPLE_STATUE);
+                        output.accept(ModBlocks.TEMPLE_GATE);
                     })
                     .build());
 
