@@ -1227,9 +1227,10 @@ public final class OverworldGuardianAttackController {
 
                         // Wind-charge-style shove: pull entities near/outside the wall ring back toward
                         // the centre so they are trapped inside instead of left stuck in the wall.
+                        // Exclude wall segments themselves — they must not be moved.
                         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class,
                                 boss.getBoundingBox().inflate(radius + 3.0D, 3.0D, radius + 3.0D))) {
-                            if (living == boss || !living.isAlive()) {
+                            if (living == boss || !living.isAlive() || living instanceof TempleWallSegmentEntity) {
                                 continue;
                             }
                             double dist = horizontalDistance(living.position(), center);
