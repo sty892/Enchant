@@ -31,14 +31,16 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         this.setPos(x, y, z);
     }
 
+    /** Must be pickable so players can hit it (LMB) to detonate it. */
+    @Override
+    public boolean isPickable() {
+        return !this.isRemoved();
+    }
+
     @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        // Breaking the bomb deactivates it silently (no explosion)
-        level.playSound(null, this.blockPosition(), SoundEvents.STONE_BREAK,
-                SoundSource.BLOCKS, 1.0F, 1.5F);
-        level.sendParticles(ParticleTypes.SMOKE,
-                getX(), getY() + 0.3D, getZ(), 12, 0.2D, 0.2D, 0.2D, 0.0D);
-        this.discard();
+        // Hitting the bomb (LMB) detonates it on purpose — no poison on manual detonation.
+        explode(level, false);
         return true;
     }
 
@@ -70,7 +72,7 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         }
 
         boolean triggered = false;
-        for (LivingEntity living : serverLevel.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(0.35D))) {
+        for (LivingEntity living : serverLevel.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(0.1D))) {
             if (living.isAlive() && living.onGround() && !(living instanceof OverworldGuardianEntity) && !(living instanceof NetherGuardianEntity)) {
                 triggered = true;
                 break;
@@ -78,11 +80,11 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         }
 
         if (triggered) {
-            explode(serverLevel);
+            explode(serverLevel, true);
         }
     }
 
-    private void explode(ServerLevel level) {
+    private void explode(ServerLevel level, boolean applyPoison) {
         Vec3 pos = this.position();
         level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 1.0F, 1.2F);
         level.sendParticles(ParticleTypes.EXPLOSION, pos.x, pos.y + 0.5D, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
@@ -94,7 +96,9 @@ public class BombTrapEntity extends Entity implements ItemSupplier {
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(radius, 1.5D, radius))) {
             if (living.isAlive() && !(living instanceof OverworldGuardianEntity) && !(living instanceof NetherGuardianEntity)) {
                 living.hurtServer(level, level.damageSources().explosion(null, null), damage);
-                living.addEffect(new MobEffectInstance(MobEffects.POISON, 160, 0));
+                if (applyPoison) {
+                    living.addEffect(new MobEffectInstance(MobEffects.POISON, 160, 0));
+                }
             }
         }
         this.discard();

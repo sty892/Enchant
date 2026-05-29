@@ -83,6 +83,14 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             OverworldGuardianEntity.class,
             EntityDataSerializers.BOOLEAN
     );
+    private static final EntityDataAccessor<Boolean> DATA_ATTACK_DEBUG = SynchedEntityData.defineId(
+            OverworldGuardianEntity.class,
+            EntityDataSerializers.BOOLEAN
+    );
+    private static final EntityDataAccessor<String> DATA_CURRENT_ATTACK_ID = SynchedEntityData.defineId(
+            OverworldGuardianEntity.class,
+            EntityDataSerializers.STRING
+    );
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> damageContributors = new HashMap<>();
@@ -212,6 +220,53 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         builder.define(DATA_FULL_BODY_ACTION, false);
         builder.define(DATA_ACTION_TICKS, 0);
         builder.define(DATA_AGGROED, false);
+        builder.define(DATA_ATTACK_DEBUG, false);
+        builder.define(DATA_CURRENT_ATTACK_ID, "");
+    }
+
+    public boolean isAttackDebugEnabled() {
+        return this.entityData.get(DATA_ATTACK_DEBUG);
+    }
+
+    public void setAttackDebugEnabled(boolean enabled) {
+        this.entityData.set(DATA_ATTACK_DEBUG, enabled);
+        refreshAttackDebugName();
+    }
+
+    public String getCurrentAttackId() {
+        return this.entityData.get(DATA_CURRENT_ATTACK_ID);
+    }
+
+    public void setCurrentAttackId(String attackId) {
+        this.entityData.set(DATA_CURRENT_ATTACK_ID, attackId == null ? "" : attackId);
+        refreshAttackDebugName();
+    }
+
+    private void refreshAttackDebugName() {
+        if (level().isClientSide()) {
+            return;
+        }
+        if (isAttackDebugEnabled()) {
+            String id = getCurrentAttackId();
+            String label = id == null || id.isEmpty() ? "idle" : id;
+            setCustomName(Component.literal("§e[Atk: " + label + "]"));
+            setCustomNameVisible(true);
+        } else {
+            setCustomName(null);
+            setCustomNameVisible(false);
+        }
+    }
+
+    public void broadcastAttackDebug(ServerLevel level, String attackId) {
+        if (!isAttackDebugEnabled()) {
+            return;
+        }
+        Component message = Component.literal("§6Boss attack: §f" + attackId);
+        for (ServerPlayer player : level.players()) {
+            if (player.isAlive() && player.level() == this.level() && player.distanceToSqr(this) <= 64.0D * 64.0D) {
+                player.displayClientMessage(message, true);
+            }
+        }
     }
 
     public boolean isAggroed() {
@@ -288,22 +343,49 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     }
 
     /**
-     * Returns true if at least one dormant statue block OR one revived statue mob is still alive.
+     * Returns true if at least one revived statue mob is still alive.
      * While this returns true the boss has 90% damage resistance.
+     * Dormant (player-placed) statue blocks do NOT grant resistance — only living revived statues do.
      */
     public boolean hasActiveStatues(ServerLevel level) {
-        // Dormant blocks still in the world count as active statues
-        if (!activeStatueBlocks.isEmpty()) {
-            activeStatueBlocks.removeIf(pos -> !level.getBlockState(pos).is(ModBlocks.TEMPLE_STATUE));
-            if (!activeStatueBlocks.isEmpty()) return true;
-        }
-        // Living zombie mobs
         activeStatues.removeIf(uuid -> {
             net.minecraft.world.entity.Entity e = level.getEntity(uuid);
             if (!(e instanceof TempleStatueEntity)) return true;
             return !((TempleStatueEntity) e).isAlive();
         });
         return !activeStatues.isEmpty();
+    }
+
+    /** Finds up to {@code max} player-placed temple statue blocks around the arena. */
+    public List<BlockPos> findStatueBlocks(ServerLevel level, int max) {
+        List<BlockPos> result = new ArrayList<>();
+        BlockPos center = spawnCenter == null ? this.blockPosition() : spawnCenter;
+        int radius = 20;
+        int height = 6;
+        for (BlockPos pos : BlockPos.betweenClosed(
+                center.offset(-radius, -3, -radius),
+                center.offset(radius, height, radius))) {
+            if (level.getBlockState(pos).is(ModBlocks.TEMPLE_STATUE)) {
+                result.add(pos.immutable());
+                if (result.size() >= max) break;
+            }
+        }
+        return result;
+    }
+
+    /** Records a statue block position that was consumed (turned into a mob) so it can be restored later. */
+    public void recordRevivedStatue(BlockPos pos) {
+        activeStatueBlocks.add(pos.immutable());
+    }
+
+    /** Restores consumed statue blocks (so they can be revived again in the next phase). */
+    public void restoreStatueBlocks(ServerLevel level) {
+        for (BlockPos pos : activeStatueBlocks) {
+            if (level.getBlockState(pos).isAir()) {
+                level.setBlock(pos, ModBlocks.TEMPLE_STATUE.defaultBlockState(), 3);
+            }
+        }
+        activeStatueBlocks.clear();
     }
 
     /** Called by statue when it dies. */
@@ -343,31 +425,6 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         return cursor;
     }
 
-    /**
-     * Registers dormant statue blocks placed in the world.
-     * Clears any previous statue blocks (removing them from the world first).
-     */
-    public void setStatueBlocks(ServerLevel level, List<BlockPos> positions) {
-        // Remove old blocks if any are still in the world
-        for (BlockPos old : activeStatueBlocks) {
-            if (level.getBlockState(old).is(ModBlocks.TEMPLE_STATUE)) {
-                level.setBlock(old, Blocks.AIR.defaultBlockState(), 3);
-            }
-        }
-        activeStatueBlocks.clear();
-        activeStatueBlocks.addAll(positions);
-    }
-
-    /** Remove all dormant statue blocks from the world (called on wipe/cleanup). */
-    public void clearStatueBlocks(ServerLevel level) {
-        for (BlockPos pos : activeStatueBlocks) {
-            if (level.getBlockState(pos).is(ModBlocks.TEMPLE_STATUE)) {
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
-            }
-        }
-        activeStatueBlocks.clear();
-    }
-
     /** Returns true if healing shield is still alive. */
     public boolean hasActiveShield(ServerLevel level) {
         if (activeShieldUUID == null) return false;
@@ -399,76 +456,41 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     }
 
     /**
-     * Closes the temple gates by placing {@link ModBlocks#TEMPLE_GATE} blocks in 4 walls
-     * around the spawn center (radius 18). Each wall is 5 blocks wide and 4 blocks tall.
-     * Gate is triggered when boss reaches phase 3, hidden step 3 (HP < ~11%).
+     * Closes the temple gates: scans for player-placed {@link ModBlocks#TEMPLE_GATE} blocks
+     * around the spawn center and switches them to the solid (CLOSED=true) state.
+     * Triggered when the boss reaches phase 3, hidden step 3 (HP < ~11%).
+     * The blocks themselves are placed by players when building the arena — the boss never places them.
      */
     public void closeGates(ServerLevel level) {
         if (gatesClosed || spawnCenter == null) return;
         gatesClosed = true;
         savedHealthFraction = this.getHealth() / this.getMaxHealth();
         gatePositions.clear();
-        int cx = spawnCenter.getX();
-        int cy = findSurface(level, spawnCenter).getY();
-        int cz = spawnCenter.getZ();
-        int radius = 18;
-        int wallWidth = 2;  // half-width = 2 → total 5 blocks wide
-        int wallHeight = 4;
-        // +X wall: spans Z axis
-        for (int dz = -wallWidth; dz <= wallWidth; dz++) {
-            for (int dy = 0; dy < wallHeight; dy++) {
-                BlockPos pos = new BlockPos(cx + radius, cy + dy, cz + dz);
-                boolean isCenter = (dz == 0 && dy == 0);
-                net.minecraft.world.level.block.state.BlockState state = ModBlocks.TEMPLE_GATE.defaultBlockState()
-                        .setValue(me.guardian.block.TempleGateBlock.CENTER, isCenter);
-                level.setBlock(pos, state, 3);
-                gatePositions.add(pos);
-            }
-        }
-        // -X wall: spans Z axis
-        for (int dz = -wallWidth; dz <= wallWidth; dz++) {
-            for (int dy = 0; dy < wallHeight; dy++) {
-                BlockPos pos = new BlockPos(cx - radius, cy + dy, cz + dz);
-                boolean isCenter = (dz == 0 && dy == 0);
-                net.minecraft.world.level.block.state.BlockState state = ModBlocks.TEMPLE_GATE.defaultBlockState()
-                        .setValue(me.guardian.block.TempleGateBlock.CENTER, isCenter);
-                level.setBlock(pos, state, 3);
-                gatePositions.add(pos);
-            }
-        }
-        // +Z wall: spans X axis
-        for (int dx = -wallWidth; dx <= wallWidth; dx++) {
-            for (int dy = 0; dy < wallHeight; dy++) {
-                BlockPos pos = new BlockPos(cx + dx, cy + dy, cz + radius);
-                boolean isCenter = (dx == 0 && dy == 0);
-                net.minecraft.world.level.block.state.BlockState state = ModBlocks.TEMPLE_GATE.defaultBlockState()
-                        .setValue(me.guardian.block.TempleGateBlock.CENTER, isCenter);
-                level.setBlock(pos, state, 3);
-                gatePositions.add(pos);
-            }
-        }
-        // -Z wall: spans X axis
-        for (int dx = -wallWidth; dx <= wallWidth; dx++) {
-            for (int dy = 0; dy < wallHeight; dy++) {
-                BlockPos pos = new BlockPos(cx + dx, cy + dy, cz - radius);
-                boolean isCenter = (dx == 0 && dy == 0);
-                net.minecraft.world.level.block.state.BlockState state = ModBlocks.TEMPLE_GATE.defaultBlockState()
-                        .setValue(me.guardian.block.TempleGateBlock.CENTER, isCenter);
-                level.setBlock(pos, state, 3);
-                gatePositions.add(pos);
+        int radius = 24;
+        int height = 12;
+        BlockPos center = spawnCenter;
+        for (BlockPos pos : BlockPos.betweenClosed(
+                center.offset(-radius, -4, -radius),
+                center.offset(radius, height, radius))) {
+            net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+            if (state.is(ModBlocks.TEMPLE_GATE)) {
+                level.setBlock(pos.immutable(),
+                        state.setValue(me.guardian.block.TempleGateBlock.CLOSED, true), 3);
+                gatePositions.add(pos.immutable());
             }
         }
         GuardianMod.LOGGER.info("Overworld Guardian: closed {} gate blocks", gatePositions.size());
     }
 
-    /** Opens all gate blocks (sets them to air) and clears the position list. */
+    /** Re-opens all tracked gate blocks (CLOSED=false) and clears the position list. */
     public void openGates(ServerLevel level) {
         if (!gatesClosed) return;
         gatesClosed = false;
         gates33Triggered = false;
         for (BlockPos pos : gatePositions) {
-            if (level.getBlockState(pos).is(ModBlocks.TEMPLE_GATE)) {
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+            net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+            if (state.is(ModBlocks.TEMPLE_GATE)) {
+                level.setBlock(pos, state.setValue(me.guardian.block.TempleGateBlock.CLOSED, false), 3);
             }
         }
         gatePositions.clear();
@@ -680,7 +702,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
             spawnCenter = this.blockPosition();
         }
         GuardianBossEventHooks.triggerOnSpawn(BOSS_CONFIG_KEY, level, this.blockPosition(), this);
-        closeGates(level);
+        // Gates are NOT closed at fight start — they close when the boss reaches phase 3.3
+        // (handled in tickPhase).
     }
 
     private void triggerSpawnAnimation() {
@@ -752,6 +775,9 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
     }
 
     private void tickSoftHomeReturn() {
+        if (level() instanceof ServerLevel serverLevel && hasActiveShield(serverLevel)) {
+            return;
+        }
         if (spawnCenter == null) {
             spawnCenter = this.blockPosition();
             return;
@@ -809,6 +835,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         if (nextPhase != currentPhase) {
             setBossPhase(nextPhase);
             this.statuesSpawnedInCurrentPhase = false;
+            // Restore consumed statue blocks so they can be revived again in the new phase.
+            restoreStatueBlocks(level);
             if (nextPhase.id() > currentPhase.id()) {
                 triggerAttackAnimation(PHASE_SHIFT_TRIGGER);
                 GuardianMod.LOGGER.info("Overworld Guardian advanced to phase {}", nextPhase.id());
@@ -914,8 +942,8 @@ public class OverworldGuardianEntity extends Monster implements GeoEntity {
         this.spawnEventTriggered = false;
         this.setTarget(null);
         this.threatTable.clear();
-        // Remove dormant statue blocks
-        clearStatueBlocks(level);
+        // Restore consumed statue blocks for the next attempt
+        restoreStatueBlocks(level);
         // Discard revived statue mobs
         for (UUID uuid : new ArrayList<>(activeStatues)) {
             Entity e = level.getEntity(uuid);

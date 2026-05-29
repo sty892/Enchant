@@ -6,9 +6,9 @@
 				"identifier": "geometry.healing_shield",
 				"texture_width": 64,
 				"texture_height": 64,
-				"visible_bounds_width": 2.5,
-				"visible_bounds_height": 3.0,
-				"visible_bounds_offset": [0, 1.5, 0]
+				"visible_bounds_width": 2.9,
+				"visible_bounds_height": 4.3,
+				"visible_bounds_offset": [0, 2.1, 0]
 			},
 			"bones": [
 				{
@@ -16,8 +16,8 @@
 					"pivot": [0, 0, 0],
 					"cubes": [
 						{
-							"origin": [-20, 0, -20],
-							"size": [40, 48, 40],
+							"origin": [-22, 0, -22],
+							"size": [44, 67, 44],
 							"uv": {
 								"north": {"uv": [0, 0], "uv_size": [32, 32]},
 								"east": {"uv": [0, 0], "uv_size": [32, 32]},

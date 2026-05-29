@@ -23,9 +23,13 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
 public class TempleWallSegmentEntity extends Monster implements GeoEntity {
+    private static final double INSIDE_RADIUS = 4.0D;
+    private static final int EMPTY_DESPAWN_TICKS = 100;
+
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private Vec3 ringCenter = Vec3.ZERO;
     private int age = 0;
+    private int emptyInsideTicks = 0;
 
     public TempleWallSegmentEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
@@ -85,29 +89,34 @@ public class TempleWallSegmentEntity extends Monster implements GeoEntity {
 
         ServerLevel serverLevel = (ServerLevel) this.level();
 
-        // Check lifetime every 20 ticks
         if (this.age % 20 == 0) {
             int playersInside = 0;
-            double radius = 5.0D; // radius of the ring
             for (Player player : serverLevel.players()) {
                 if (player.isAlive() && player.level() == this.level()) {
                     Vec3 diff = player.position().subtract(ringCenter);
                     double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
-                    if (horizontalDist <= radius) {
+                    if (horizontalDist <= INSIDE_RADIUS) {
                         playersInside++;
                     }
                 }
             }
 
-            int maxLifetimeTicks = switch (playersInside) {
-                case 0 -> 100;   // 5s
-                case 1 -> 400;   // 20s
-                case 2 -> 600;   // 30s
-                default -> 800;  // 40s (3+ players)
-            };
-
-            if (this.age >= maxLifetimeTicks) {
-                crumble(serverLevel);
+            if (playersInside == 0) {
+                emptyInsideTicks += 20;
+                if (emptyInsideTicks >= EMPTY_DESPAWN_TICKS) {
+                    crumble(serverLevel);
+                    return;
+                }
+            } else {
+                emptyInsideTicks = 0;
+                int maxLifetimeTicks = switch (playersInside) {
+                    case 1 -> 400;
+                    case 2 -> 600;
+                    default -> 800;
+                };
+                if (this.age >= maxLifetimeTicks) {
+                    crumble(serverLevel);
+                }
             }
         }
     }

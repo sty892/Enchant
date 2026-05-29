@@ -1,10 +1,7 @@
 {
   "variants": {
-    "center=true": {
+    "": {
       "model": "guardian_mod:block/temple_gate"
-    },
-    "center=false": {
-      "model": "guardian_mod:block/invisible"
     }
   }
 }
